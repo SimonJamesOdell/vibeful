@@ -1,0 +1,55 @@
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Node.js / TypeScript ────────────────────────────────────────
+node_modules/
+dist/
+.pnpm-store/
+*.tsbuildinfo
+
+# ── Docker ──────────────────────────────────────────────────────
+.docker/
+
+# ── IDEs ────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Environment ─────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Generated proto stubs ──────────────────────────────────────
+*_pb2.py
+*_pb2_grpc.py
+
+# ── Logs ────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Package locks (we use pnpm) ─────────────────────────────────
+package-lock.json
+yarn.lock
+
+# ── Terraform / infra state ─────────────────────────────────────
+*.tfstate*
+.terraform/
+
+# ── Data volumes ────────────────────────────────────────────────
+pgdata/

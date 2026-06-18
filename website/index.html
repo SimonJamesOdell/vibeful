@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibeful — Open Source AI Agent Platform</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e; line-height: 1.6; }
+  .hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; padding: 6rem 2rem; text-align: center; }
+  .hero h1 { font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; }
+  .hero p { font-size: 1.3rem; opacity: 0.9; max-width: 700px; margin: 0 auto 2rem; }
+  .hero code { background: rgba(255,255,255,0.15); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 1rem; }
+  .cta { display: inline-block; background: #e94560; color: #fff; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 1.1rem; margin-top: 1rem; }
+  .cta:hover { background: #d63851; }
+  .section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+  .section h2 { font-size: 2.2rem; margin-bottom: 2rem; text-align: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+  .card { background: #f8f9fa; border-radius: 12px; padding: 2rem; border: 1px solid #e9ecef; }
+  .card h3 { font-size: 1.3rem; margin-bottom: 0.75rem; color: #0f3460; }
+  .card p { color: #495057; font-size: 0.95rem; }
+  .code-block { background: #1a1a2e; color: #e2e8f0; padding: 1.5rem; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; margin: 1rem 0; }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #e94560; }
+  .steps { counter-reset: step; }
+  .steps li { counter-increment: step; list-style: none; padding: 1rem 0 1rem 3rem; position: relative; }
+  .steps li::before { content: counter(step); position: absolute; left: 0; top: 0.8rem; width: 2rem; height: 2rem; background: #0f3460; color: #fff; border-radius: 50%; text-align: center; line-height: 2rem; font-weight: 700; font-size: 0.9rem; }
+  .footer { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.9rem; border-top: 1px solid #e9ecef; }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-right: 0.5rem; }
+  .badge-green { background: #d4edda; color: #155724; }
+  .badge-blue { background: #d1ecf1; color: #0c5460; }
+  .logos { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; margin: 2rem 0; }
+  .logos span { background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <h1>Vibeful</h1>
+  <p>Open-source AI agent platform. Drop intelligent agents into any web app in minutes — no AI PhD required.</p>
+  <div class="logos">
+    <span>🐍 Python</span><span>⚛️ React</span><span>🔧 TypeScript</span><span>🐘 PostgreSQL</span><span>🧠 LangGraph</span><span>🤖 DeepSeek</span>
+  </div>
+  <a href="#quickstart" class="cta">Get Started in 5 Minutes</a>
+  <div style="margin-top: 1.5rem;">
+    <span class="badge badge-green">MIT Licensed</span>
+    <span class="badge badge-blue">Self-Hosted</span>
+  </div>
+</section>
+
+<section class="section">
+  <h2>What Vibeful Gives You</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>🧠 AI Agents</h3>
+      <p>Configure personality, knowledge, and tools through a no-code admin panel. Agents use RAG to answer from your documents, MCP to call external tools, and memory to remember users across sessions.</p>
+    </div>
+    <div class="card">
+      <h3>📚 Knowledge Base</h3>
+      <p>Upload documents, FAQs, and policies. Vibeful chunks, embeds, and indexes them. Agents automatically search your knowledge to give accurate, grounded answers.</p>
+    </div>
+    <div class="card">
+      <h3>🔌 Tool Integration</h3>
+      <p>Connect agents to search engines, databases, APIs, and any external system using the MCP protocol. Build custom tool servers in minutes with our framework.</p>
+    </div>
+    <div class="card">
+      <h3>📊 Analytics & Trust</h3>
+      <p>Know what users ask, where knowledge gaps are, and how much you're spending. Built-in dashboards for usage, cost, and conversation quality.</p>
+    </div>
+    <div class="card">
+      <h3>💬 Embeddable SDK</h3>
+      <p>Drop a 3-line code snippet into any web app. React component, HTML script tag, or REST API — pick the integration that fits your stack.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Self-Hosted</h3>
+      <p>Your data stays on your infrastructure. No vendor lock-in. MIT licensed. Runs anywhere Docker runs — your laptop, a VPS, or a Kubernetes cluster.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="quickstart">
+  <h2>5-Minute Quickstart</h2>
+  <ol class="steps">
+    <li><strong>Clone and configure</strong>
+      <div class="code-block">
+        git clone https://github.com/vibeful/vibeful.git<br>
+        cd vibeful<br>
+        cp .env.example .env<br>
+        <span class="comment"># Add your DeepSeek API key to .env</span>
+      </div>
+    </li>
+    <li><strong>Start Vibeful</strong>
+      <div class="code-block">docker compose up -d</div>
+    </li>
+    <li><strong>Open the admin panel</strong>
+      <div class="code-block"><span class="comment"># Go to http://localhost:5173</span></div>
+    </li>
+    <li><strong>Create your first agent</strong>
+      <div class="code-block">
+        <span class="comment"># Agents tab → Name: "Support Agent" → Create</span>
+      </div>
+    </li>
+    <li><strong>Embed in your app</strong>
+      <div class="code-block">
+        <span class="keyword">&lt;div</span> id=<span class="string">"vibeful-chat"</span> style=<span class="string">"max-width:400px;height:500px"</span><span class="keyword">&gt;&lt;/div&gt;</span><br>
+        <span class="keyword">&lt;script</span> src=<span class="string">"vibeful-sdk.umd.js"</span><span class="keyword">&gt;&lt;/script&gt;</span><br>
+        <span class="keyword">&lt;script&gt;</span><br>
+        VibefulSDK.mount({ target: <span class="string">'#vibeful-chat'</span>, agentId: <span class="string">'YOUR_AGENT_ID'</span> });<br>
+        <span class="keyword">&lt;/script&gt;</span>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section class="section" style="background:#f8f9fa;">
+  <h2>"Use Vibeful to add agentic functionality to my site"</h2>
+  <p style="text-align:center;max-width:700px;margin:0 auto 2rem;font-size:1.1rem;color:#495057;">
+    That's it. Tell your AI coding agent that sentence, and it can pull Vibeful, configure an agent, and embed it — all from the docs and API reference in this repo.
+  </p>
+  <div class="grid">
+    <div class="card">
+      <h3>📖 Full Documentation</h3>
+      <p><a href="docs/getting-started.md">Getting Started</a> · <a href="docs/api-reference.md">API Reference</a> · <a href="docs/sdk-guide.md">SDK Guide</a> · <a href="docs/architecture.md">Architecture</a> · <a href="docs/faq.md">FAQ</a></p>
+    </div>
+    <div class="card">
+      <h3>🤝 Open Source</h3>
+      <p>MIT licensed. <a href="CONTRIBUTING.md">Contributions welcome</a>. Build MCP servers, add widget types, improve docs, write tests.</p>
+    </div>
+    <div class="card">
+      <h3>💰 Free + Cheap</h3>
+      <p>Vibeful is free. Your only cost is DeepSeek API usage — about $0.01 per support conversation.</p>
+    </div>
+  </div>
+</section>
+
+<div class="footer">
+  Vibeful · MIT Licensed · <a href="https://github.com/vibeful/vibeful">GitHub</a>
+</div>
+
+</body>
+</html>

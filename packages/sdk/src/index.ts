@@ -1,0 +1,26 @@
+// @vibeful/sdk — embeddable AI chat widget + admin components
+// Works with any OpenAI-compatible API or Vibeful backend.
+
+// Components
+export { VibefulChat } from './components/VibefulChat';
+export { ShadowWrapper } from './components/ShadowWrapper';
+export { WidgetRenderer } from './components/WidgetRenderer';
+export { AgentManager } from './components/AgentManager';
+export { ContextManager } from './components/ContextManager';
+export { McpManager } from './components/McpManager';
+export { VoiceInput } from './components/VoiceInput';
+export { VoiceOutput } from './components/VoiceOutput';
+export { WidgetStudio } from './components/WidgetStudio';
+export { ObservabilityDashboard } from './components/ObservabilityDashboard';
+export { useVibefulAgent } from './hooks/useVibefulAgent';
+
+// Client (use Transport interface for new integrations)
+export { client, VibefulClient } from './client';
+
+// Transport — pluggable backend
+export { VibefulTransport, OpenAITransport } from './transport';
+export type { Transport, TransportConfig, Message, ConversationChunk } from './transport';
+
+// Types
+export type { AgentData } from './transport';
+export type { VibefulChatProps } from './types';

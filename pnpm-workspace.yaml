@@ -1,0 +1,11 @@
+# Vibeful — Monorepo Root
+# Vibeful — AI agent platform
+
+packages:
+  - "packages/*"
+
+# Node.js packages only; Python packages live alongside
+
+engines:
+  node: ">=22.0.0"
+  pnpm: ">=9.0.0"

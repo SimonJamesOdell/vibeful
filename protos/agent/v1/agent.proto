@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package vibeful.agent.v1;
+
+option go_package = "vibeful/protos/agent/v1;agentv1";
+
+// ── Agent Conversation Service ──────────────────────────────
+
+service AgentService {
+  // Stream a conversation turn. Client sends messages; server streams
+  // response chunks (text, tool calls, completion).
+  rpc StreamConversation(stream ConversationRequest) returns (stream ConversationResponse);
+}
+
+// ── Messages ────────────────────────────────────────────────
+
+message ConversationRequest {
+  // Unique session identifier.
+  string session_id = 1;
+
+  // The user's message content.
+  string content = 2;
+
+  // Optional: tool call results the client is returning.
+  repeated ToolResult tool_results = 3;
+
+  // Optional: agent configuration overrides for this request.
+  AgentConfig config = 4;
+}
+
+message ConversationResponse {
+  // Discriminated union: which kind of response chunk this is.
+  ResponseState state = 1;
+
+  // The text chunk (populated when state = STREAMING).
+  string text_chunk = 2;
+
+  // A tool the agent wants to call (populated when state = TOOL_USED).
+  ToolCall tool_call = 3;
+
+  // Suggested follow-up questions (populated when state = FOLLOW_UP).
+  repeated string follow_up_questions = 4;
+
+  // Token usage for this turn (populated when state = COMPLETED).
+  TokenUsage usage = 5;
+
+  // Any error that occurred.
+  string error = 6;
+}
+
+// ── Enums ───────────────────────────────────────────────────
+
+enum ResponseState {
+  RESPONSE_STATE_UNSPECIFIED = 0;
+
+  // The agent is referencing source material (citations preamble).
+  RESPONSE_STATE_REFERENCES = 1;
+
+  // Real-time text streaming.
+  RESPONSE_STATE_STREAMING = 2;
+
+  // The agent wants to call a tool; client should execute and return ToolResult.
+  RESPONSE_STATE_TOOL_USED = 3;
+
+  // The turn is complete (no more streaming).
+  RESPONSE_STATE_COMPLETED = 4;
+
+  // Suggested follow-up questions appended after completion.
+  RESPONSE_STATE_FOLLOW_UP = 5;
+}
+
+// ── Sub-messages ────────────────────────────────────────────
+
+message AgentConfig {
+  // Agent personality / system prompt override.
+  string system_prompt = 1;
+
+  // Which DeepSeek model to use (e.g., "deepseek-chat", "deepseek-reasoner").
+  string model = 2;
+
+  // Temperature (0.0–2.0).
+  float temperature = 3;
+
+  // Maximum tokens for the response.
+  int32 max_tokens = 4;
+
+  // Knowledge context IDs available for RAG.
+  repeated string context_ids = 5;
+
+  // MCP server URLs available for tool calls.
+  repeated string mcp_server_urls = 6;
+}
+
+message ToolCall {
+  // Unique call identifier (used to match ToolResult back).
+  string call_id = 1;
+
+  // Tool name (e.g., "search_web", "calculate").
+  string name = 2;
+
+  // JSON-encoded arguments.
+  string arguments = 3;
+
+  // Optional: MCP server this tool belongs to.
+  string mcp_server = 4;
+}
+
+message ToolResult {
+  // Matches the call_id from the corresponding ToolCall.
+  string call_id = 1;
+
+  // JSON-encoded result content.
+  string content = 2;
+
+  // Whether the tool call succeeded.
+  bool success = 3;
+
+  // Error message if success = false.
+  string error = 4;
+}
+
+message TokenUsage {
+  int32 prompt_tokens = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens = 3;
+  // Estimated cost in USD.
+  double cost_usd = 4;
+}

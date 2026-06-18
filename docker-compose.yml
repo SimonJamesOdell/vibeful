@@ -1,0 +1,139 @@
+services:
+  # ── Infrastructure ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: vibeful
+      POSTGRES_PASSWORD: vibeful_dev
+      POSTGRES_DB: vibeful
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vibeful"]
+      interval: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 5
+
+  # ── gRPC Bridge ─────────────────────────────────────────────
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on:
+      agent-engine:
+        condition: service_healthy
+
+  # ── Agent Engine (Python, LangGraph, gRPC) ──────────────────
+  agent-engine:
+    build:
+      context: .
+      dockerfile: packages/agent-engine/Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DATABASE_URL: postgresql://vibeful:vibeful_dev@postgres:5432/vibeful
+      REDIS_URL: redis://redis:6379
+      GRPC_PORT: "50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import grpc; print(1)'"]
+      interval: 5s
+      retries: 5
+
+  # ── MCP Servers (Node/TS) ───────────────────────────────────
+  mcp-web-search:
+    build:
+      context: .
+      dockerfile: packages/mcp-servers/Dockerfile
+    ports:
+      - "3100:3100"
+    environment:
+      MCP_PORT: "3100"
+      MCP_SERVICE: web-search
+
+  mcp-file-read:
+    build:
+      context: .
+      dockerfile: packages/mcp-servers/Dockerfile
+    ports:
+      - "3101:3101"
+    environment:
+      MCP_PORT: "3101"
+      MCP_SERVICE: file-read
+    volumes:
+      - .:/workspace:ro
+
+  mcp-calculator:
+    build:
+      context: .
+      dockerfile: packages/mcp-servers/Dockerfile
+    ports:
+      - "3102:3102"
+    environment:
+      MCP_PORT: "3102"
+      MCP_SERVICE: calculator
+
+  # ── Proxy (FastAPI, stateless) ─────────────────────────────
+  proxy:
+    build:
+      context: .
+      dockerfile: packages/proxy/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AGENT_ENGINE_URL: agent-engine:50051
+      DATABASE_URL: postgresql://vibeful:vibeful_dev@postgres:5432/vibeful
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent-engine:
+        condition: service_healthy
+
+  # ── API Gateway (Node/TS) ──────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: packages/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://vibeful:vibeful_dev@postgres:5432/vibeful
+      REDIS_URL: redis://redis:6379
+      AGENT_ENGINE_URL: agent-engine:50051
+      PROXY_URL: http://proxy:8000
+    depends_on:
+      proxy:
+        condition: service_started
+
+  # ── SDK Dev Server (React/Vite) ────────────────────────────
+  sdk:
+    build:
+      context: .
+      dockerfile: packages/sdk/Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages/sdk/src:/app/packages/sdk/src:ro
+    environment:
+      VITE_ENVOY_URL: http://localhost:8080
+
+volumes:
+  pgdata:

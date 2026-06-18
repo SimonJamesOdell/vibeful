@@ -1,0 +1,30 @@
+# Example: custom agent graph with an extra audit-log node.
+# Shows how to register a custom node and use it in config.
+
+graph:
+  entry: setup
+  nodes:
+    - name: setup
+      type: builtin.setup
+    - name: audit
+      type: custom.audit_log
+    - name: react
+      type: builtin.react_agent
+      config:
+        max_iterations: 3
+    - name: completion
+      type: builtin.stream_completion
+  edges:
+    - from: setup
+      to: audit
+    - from: audit
+      to: react
+    - from: react
+      to: completion
+    - from: completion
+      to: __END__
+
+# Register custom nodes before building:
+#   from src.graph import register_node
+#   register_node("custom.audit_log", my_audit_log_node)
+#   graph = build_graph_from_file("configs/agent-custom.yaml")

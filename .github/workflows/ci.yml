@@ -1,0 +1,84 @@
+name: Vibeful CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python (agent-engine + proxy) ──────────────────────────
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: vibeful
+          POSTGRES_PASSWORD: vibeful_dev
+          POSTGRES_DB: vibeful
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vibeful"
+          --health-interval 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install agent-engine
+        run: pip install -e "packages/agent-engine[dev]"
+      - name: Run agent-engine tests
+        run: cd packages/agent-engine && python -m pytest tests/ -v
+        env:
+          DATABASE_URL: postgresql://vibeful:vibeful_dev@localhost:5432/vibeful
+      - name: Install proxy
+        run: pip install -e "packages/proxy[dev]"
+      - name: Run proxy tests
+        run: cd packages/proxy && python -m pytest tests/ -v
+
+  # ── Node.js (api-gateway + mcp-servers + shared) ──────────
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+
+  # ── SDK (React) ──────────────────────────────────────────
+  sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vibeful/sdk build
+
+  # ── Docker Build (smoke test) ────────────────────────────
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build agent-engine
+        run: docker build -f packages/agent-engine/Dockerfile -t vibeful-agent-engine .
+      - name: Build proxy
+        run: docker build -f packages/proxy/Dockerfile -t vibeful-proxy .
+      - name: Build mcp-servers
+        run: docker build -f packages/mcp-servers/Dockerfile -t vibeful-mcp-servers .

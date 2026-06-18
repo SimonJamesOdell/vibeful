@@ -1,0 +1,113 @@
+# Vibeful Helm Chart — default values
+
+# ── Agent Engine ────────────────────────────────────────────
+agentEngine:
+  replicas: 1
+  image: vibeful/agent-engine:latest
+  imagePullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    grpcPort: 50051
+    restPort: 50052
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  env:
+    deepseekApiKey: ""  # Set via secret
+    llmProvider: "deepseek"
+    storageBackend: "postgres"
+
+# ── API Gateway ─────────────────────────────────────────────
+apiGateway:
+  replicas: 1
+  image: vibeful/api-gateway:latest
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# ── Proxy ───────────────────────────────────────────────────
+proxy:
+  replicas: 1
+  image: vibeful/proxy:latest
+  service:
+    type: LoadBalancer
+    port: 8000
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env:
+    authProvider: "api_key"
+
+# ── Envoy ───────────────────────────────────────────────────
+envoy:
+  enabled: true
+  image: envoyproxy/envoy:v1.30
+  service:
+    type: ClusterIP
+    port: 8080
+
+# ── PostgreSQL ──────────────────────────────────────────────
+postgresql:
+  enabled: true
+  image: pgvector/pgvector:pg16
+  auth:
+    username: vibeful
+    password: ""  # Set via secret
+    database: vibeful
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+
+# ── Redis ───────────────────────────────────────────────────
+redis:
+  enabled: true
+  image: redis:7-alpine
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+
+# ── Secrets ─────────────────────────────────────────────────
+secrets:
+  deepseekApiKey: ""
+  postgresPassword: ""
+  apiKeys: ""
+
+# ── Ingress ─────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: agent.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: proxy
+
+# ── Autoscaling ─────────────────────────────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80

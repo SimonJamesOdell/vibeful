@@ -1,0 +1,41 @@
+{
+  "name": "@vibeful/sdk",
+  "version": "0.1.0",
+  "description": "Embeddable AI chat widget with pluggable transport — works with Vibeful, OpenAI, DeepSeek, or any compatible API",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "keywords": ["ai", "chat", "agent", "react", "sdk", "openai", "deepseek"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vibeful/vibeful"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src/",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vibeful/shared": "workspace:*",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -1,0 +1,98 @@
+services:
+  # ── Agent Engine ───────────────────────────────────────────
+  agent-engine:
+    image: vibeful/agent-engine:latest
+    build:
+      context: .
+      dockerfile: packages/agent-engine/Dockerfile
+    ports:
+      - "50051:50051"
+      - "50052:50052"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DATABASE_URL: postgresql://vibeful:${DB_PASSWORD}@postgres:5432/vibeful
+      REDIS_URL: redis://redis:6379
+      VIBEFUL_LLM_PROVIDER: ${VIBEFUL_LLM_PROVIDER:-deepseek}
+      VIBEFUL_AUTH_PROVIDER: ${VIBEFUL_AUTH_PROVIDER:-api_key}
+      VIBEFUL_API_KEYS: ${VIBEFUL_API_KEYS}
+      VIBEFUL_RATE_LIMIT_REQUESTS: ${VIBEFUL_RATE_LIMIT_REQUESTS:-100}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50052/health"]
+      interval: 10s
+      retries: 3
+
+  # ── API Gateway ────────────────────────────────────────────
+  api-gateway:
+    image: vibeful/api-gateway:latest
+    build:
+      context: .
+      dockerfile: packages/api-gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://vibeful:${DB_PASSWORD}@postgres:5432/vibeful
+      REDIS_URL: redis://redis:6379
+      AGENT_ENGINE_URL: agent-engine:50051
+      PROXY_URL: http://proxy:8000
+    restart: unless-stopped
+    depends_on:
+      - agent-engine
+
+  # ── Proxy ──────────────────────────────────────────────────
+  proxy:
+    image: vibeful/proxy:latest
+    build:
+      context: .
+      dockerfile: packages/proxy/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      AGENT_ENGINE_URL: agent-engine:50051
+      DATABASE_URL: postgresql://vibeful:${DB_PASSWORD}@postgres:5432/vibeful
+      VIBEFUL_AUTH_PROVIDER: ${VIBEFUL_AUTH_PROVIDER:-api_key}
+      VIBEFUL_API_KEYS: ${VIBEFUL_API_KEYS}
+    restart: unless-stopped
+    depends_on:
+      - agent-engine
+
+  # ── Envoy ──────────────────────────────────────────────────
+  envoy:
+    image: envoyproxy/envoy:v1.30
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    restart: unless-stopped
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: vibeful
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: vibeful
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vibeful"]
+      interval: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+volumes:
+  pgdata:
