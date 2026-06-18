@@ -21,7 +21,8 @@ from .database import Database
 try:
     from agent.v1 import agent_pb2, agent_pb2_grpc
 except ImportError:
-    print("[agent-engine] Proto stubs not found.")
+    from .logging import error as log_error
+    log_error("proto_stubs_not_found")
     sys.exit(1)
 
 GRPC_PORT = os.getenv("GRPC_PORT", "50051")
@@ -142,19 +143,22 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
 
 async def serve():
     await _db.init_schema()
-    print("[agent-engine] Database schema initialized")
+    from .logging import info as log_info
+    log_info("schema_initialized")
 
     server = aio.server()
     agent_pb2_grpc.add_AgentServiceServicer_to_server(AgentService(), server)
     server.add_insecure_port(f"[::]:{GRPC_PORT}")
 
     await server.start()
-    print(f"[agent-engine] gRPC server listening on :{GRPC_PORT}")
+    from .logging import info as log_info
+    log_info("grpc_server_started", port=GRPC_PORT)
 
     try:
         await server.wait_for_termination()
     except KeyboardInterrupt:
-        print("[agent-engine] Shutting down...")
+        from .logging import info as log_info
+        log_info("grpc_server_shutdown")
         await _db.close()
         await server.stop(5)
 

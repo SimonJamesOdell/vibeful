@@ -79,17 +79,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
 
 
 def execute_builtin_tool(name: str, arguments: dict[str, Any]) -> str:
-    import math
     from datetime import datetime, timezone
 
     if name == "get_current_time":
         return json.dumps({"datetime": datetime.now(timezone.utc).isoformat(), "timezone": "UTC"})
     if name == "calculate":
         expr = arguments.get("expression", "")
-        allowed = {"abs": abs, "round": round, "min": min, "max": max,
-                   "sqrt": math.sqrt, "pi": math.pi, "e": math.e, "int": int, "float": float}
         try:
-            return json.dumps({"expression": expr, "result": eval(expr, {"__builtins__": {}}, allowed)})
+            from .safe_eval import safe_eval
+            result = safe_eval(expr)
+            return json.dumps({"expression": expr, "result": result})
         except Exception as e:
             return json.dumps({"error": str(e)})
     return json.dumps({"error": f"Unknown tool: {name}"})

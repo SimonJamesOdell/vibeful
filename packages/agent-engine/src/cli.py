@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 
@@ -41,10 +42,12 @@ def main() -> None:
     p_dash.add_argument("--refresh", type=float, default=2.0, help="Refresh interval in seconds")
 
     # export
-    p_export = sub.add_parser("export", help="Export deployment configs")
-    p_export.add_argument("format", choices=["helm", "docker-compose", "all"],
-                          help="Export format")
-    p_export.add_argument("--output", "-o", default=".", help="Output directory")
+    p_export = sub.add_parser("export", help="Export deployment configs or conversations")
+    p_export.add_argument("what", choices=["helm", "docker-compose", "all", "conversations"],
+                          help="What to export")
+    p_export.add_argument("--output", "-o", default=".", help="Output directory or file")
+    p_export.add_argument("--format", choices=["json", "csv"], default="json",
+                          help="Format for conversation export")
 
     args = parser.parse_args()
 
@@ -57,7 +60,10 @@ def main() -> None:
     elif args.command == "dashboard":
         asyncio.run(_cmd_dashboard(args))
     elif args.command == "export":
-        _cmd_export(args)
+        if args.what == "conversations":
+            asyncio.run(_cmd_export_conversations(args))
+        else:
+            _cmd_export(args)
     else:
         parser.print_help()
 
@@ -243,3 +249,55 @@ def _cmd_export(args: argparse.Namespace) -> None:
         print(f"  Exported deploy script to {deploy_dst}")
 
     print(f"\n  Ready to deploy from {output}/")
+
+
+async def _cmd_export_conversations(args: argparse.Namespace) -> None:
+    """Export conversation history from the database."""
+    from .storage.sqlite import SqliteBackend
+    import csv
+    import io
+
+    db = SqliteBackend()
+    await db.init_schema()
+    conn = await db._get_conn()
+
+    async with conn.execute(
+        "SELECT id, created_at, messages_json FROM sessions ORDER BY created_at DESC"
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    if args.format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["session_id", "created_at", "role", "content"])
+        for row in rows:
+            messages = json.loads(row["messages_json"])
+            for msg in messages:
+                writer.writerow([
+                    row["id"], row["created_at"],
+                    msg.get("role", ""), msg.get("content", ""),
+                ])
+        data = output.getvalue()
+        ext = "csv"
+    else:
+        sessions = []
+        for row in rows:
+            sessions.append({
+                "session_id": row["id"],
+                "created_at": row["created_at"],
+                "messages": json.loads(row["messages_json"]),
+            })
+        data = json.dumps(sessions, indent=2)
+        ext = "json"
+
+    out_path = args.output
+    if os.path.isdir(out_path) or out_path.endswith((".json", ".csv")):
+        if not out_path.endswith(f".{ext}"):
+            out_path = os.path.join(out_path, f"conversations.{ext}")
+    else:
+        out_path = f"{out_path}.{ext}"
+
+    with open(out_path, "w") as f:
+        f.write(data)
+    print(f"  Exported {len(rows)} conversations to {out_path}")
+    await db.close()

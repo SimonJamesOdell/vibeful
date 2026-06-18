@@ -12,16 +12,25 @@ import os
 import uuid
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+import asyncio
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 REST_PORT = int(os.getenv("REST_PORT", "50052"))
 
-app = FastAPI(title="Vibeful Agent Engine", version="0.1.0")
+CORS_ORIGINS = os.getenv("VIBEFUL_CORS_ORIGINS", "*").split(",")
+
+app = FastAPI(
+    title="Vibeful Agent Engine",
+    version="0.1.0",
+    description="REST API for the Vibeful agent engine. Use POST /converse to chat, GET /health for status, GET /metrics for Prometheus.",
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in CORS_ORIGINS],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,6 +58,55 @@ class ConverseRequest(BaseModel):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "agent-engine"}
+
+
+@app.get("/health/ready")
+async def health_ready():
+    """Kubernetes readiness probe — agent graph compiled and ready."""
+    return {"status": "ready" if _graph is not None else "not_ready"}
+
+
+@app.get("/health/live")
+async def health_live():
+    """Kubernetes liveness probe — process is alive."""
+    return {"status": "alive"}
+
+
+@app.get("/converse/stream")
+async def converse_stream(req: ConverseRequest):
+    """Stream agent response chunks via Server-Sent Events."""
+    if _graph is None:
+        raise HTTPException(503, "Agent graph not initialized")
+
+    from .agent_graph import AgentState
+
+    session_id = req.session_id or str(uuid.uuid4())
+    state = AgentState(
+        session_id=session_id,
+        user_message=req.message,
+        system_prompt=req.system_prompt or "",
+        model=req.model,
+        temperature=req.temperature,
+        max_tokens=req.max_tokens,
+        context_ids=req.context_ids,
+        mcp_server_urls=req.mcp_server_urls,
+    )
+
+    async def event_stream():
+        try:
+            result = await _graph.ainvoke(state)
+            for chunk in result.response_chunks:
+                yield f"data: {json.dumps(chunk)}\n\n"
+                await asyncio.sleep(0)
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/converse")
@@ -118,8 +176,28 @@ async def get_metrics_json():
 
 
 async def serve_rest(port: int = REST_PORT) -> None:
-    """Start the REST server (called from main)."""
+    """Start the REST server with graceful shutdown support."""
+    import signal
     import uvicorn
+
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
-    await server.serve()
+
+    shutdown_event = asyncio.Event()
+
+    def _handle_sigterm():
+        shutdown_event.set()
+
+    loop = asyncio.get_event_loop()
+    if hasattr(signal, "SIGTERM"):
+        loop.add_signal_handler(signal.SIGTERM, _handle_sigterm)
+    if hasattr(signal, "SIGINT"):
+        loop.add_signal_handler(signal.SIGINT, _handle_sigterm)
+
+    async def _serve():
+        await server.serve()
+
+    task = asyncio.create_task(_serve())
+    await shutdown_event.wait()
+    server.should_exit = True
+    await task
