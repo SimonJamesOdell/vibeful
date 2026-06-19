@@ -66,13 +66,14 @@ export default function AIAssistantPanel() {
 
     registerCommandHandler(CONSOLE_COMMANDS.LOAD_TEMPLATE, (details) => {
       const template = details.template as string;
+      const tpl = TEMPLATES[template];
+      if (!tpl) {
+        throw new Error(`Unknown template: "${template}". Available: ${Object.keys(TEMPLATES).join(', ')}`);
+      }
       // Load synchronously so follow-up commands (start_tour) can read updated nodes
       const store = useFlowStore.getState();
-      store.loadGraph(
-        [...TEMPLATES[template]?.nodes ?? []],
-        [...TEMPLATES[template]?.edges ?? []]
-      );
-      store.setAgentName(TEMPLATES[template]?.name ?? '');
+      store.loadGraph([...tpl.nodes], [...tpl.edges]);
+      store.setAgentName(tpl.name);
       return { template, nodes: store.nodes.length };
     });
 
