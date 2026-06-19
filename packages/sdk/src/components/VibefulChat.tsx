@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Message } from '../client';
 import type { Citation, QuickReply } from '../hooks/useVibefulAgent';
+import { WidgetRenderer, type WidgetRendererProps } from './WidgetRenderer';
+import type { WidgetSpec, WidgetEvent } from '@vibeful/shared';
 
 interface VibefulChatProps {
   agentId: string;
@@ -17,6 +19,8 @@ interface VibefulChatProps {
   followUps?: string[];
   quickReplies?: QuickReply[];
   onQuickReply?: (reply: QuickReply) => void;
+  widgets?: WidgetSpec[];
+  onWidgetEvent?: (event: WidgetEvent) => void;
 }
 
 export function VibefulChat({
@@ -31,6 +35,8 @@ export function VibefulChat({
   followUps = [],
   quickReplies = [],
   onQuickReply,
+  widgets = [],
+  onWidgetEvent,
 }: VibefulChatProps) {
   const [input, setInput] = useState('');
   const messagesEnd = useRef<HTMLDivElement>(null);
@@ -160,6 +166,13 @@ export function VibefulChat({
                 {r.label}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Widgets rendered inline between messages and input */}
+        {widgets.length > 0 && (
+          <div style={{ padding: '0 1rem 0.5rem' }}>
+            <WidgetRenderer widgets={widgets} onWidgetEvent={onWidgetEvent} />
           </div>
         )}
 

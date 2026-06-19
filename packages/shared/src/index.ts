@@ -100,6 +100,10 @@ export interface EventLogger {
   logMcpToolCall(event: McpToolCallEvent): Promise<void>;
 }
 
+// ── Widget System ────────────────────────────────────────────
+
+export * from './widgets';
+
 // ── MCP Protocol ────────────────────────────────────────────
 
 export * from './mcp';

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { client, type ConversationChunk, type Message } from '../client';
+import type { WidgetSpec, WidgetEvent } from '@vibeful/shared';
 
 interface UseAgentOptions {
   agentId: string;
@@ -27,6 +28,7 @@ export function useVibefulAgent({ agentId, contextIds, mcpUrls }: UseAgentOption
   const [citations, setCitations] = useState<Citation[]>([]);
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [widgets, setWidgets] = useState<WidgetSpec[]>([]);
   const sessionIdRef = useRef<string | null>(null);
 
   const initSession = useCallback(async () => {
@@ -76,6 +78,22 @@ export function useVibefulAgent({ agentId, contextIds, mcpUrls }: UseAgentOption
       }
 
       if (fullText) {
+        // Extract render_widget vibeful-command blocks from the response
+        const widgetRegex = /```vibeful-command\n(\{[\s\S]*?"action"\s*:\s*"render_widget"[\s\S]*?\})\n```/g;
+        let match;
+        const newWidgets: WidgetSpec[] = [];
+        while ((match = widgetRegex.exec(fullText)) !== null) {
+          try {
+            const cmd = JSON.parse(match[1]);
+            if (cmd.details?.widgets) {
+              newWidgets.push(...(cmd.details.widgets as WidgetSpec[]));
+            } else if (cmd.details?.widget_id) {
+              newWidgets.push(cmd.details as WidgetSpec);
+            }
+          } catch { /* skip malformed */ }
+        }
+        if (newWidgets.length > 0) setWidgets(newWidgets);
+
         setMessages((prev) => [...prev, { role: 'assistant', content: fullText }]);
       }
       setStreaming('');
@@ -92,6 +110,7 @@ export function useVibefulAgent({ agentId, contextIds, mcpUrls }: UseAgentOption
 
   return {
     messages, streaming, loading, usage, citations, followUps, quickReplies,
+    widgets,
     send, handleQuickReply, connected: !!sessionIdRef.current,
   };
 }
