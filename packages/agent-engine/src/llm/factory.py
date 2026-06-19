@@ -1,4 +1,9 @@
-"""Factory for LLM providers — get_provider(name) returns the right backend."""
+"""Factory for LLM providers — get_provider(name) returns the right backend.
+
+Supports runtime API key override via set_runtime_api_key().
+When set, the runtime key takes precedence over DEEPSEEK_API_KEY env var.
+This enables in-app setup without requiring users to edit .env files.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,20 @@ from typing import Any
 
 from .protocol import LlmProvider
 from .deepseek import DeepSeekProvider
+
+_runtime_api_key: str | None = None
+
+
+def set_runtime_api_key(key: str) -> None:
+    """Set an API key at runtime (takes precedence over env var).
+    Used by the setup wizard to configure the LLM without editing .env."""
+    global _runtime_api_key
+    _runtime_api_key = key
+
+
+def get_runtime_api_key() -> str | None:
+    """Get the runtime API key if one was set, or None."""
+    return _runtime_api_key
 
 # Lazy import to avoid requiring all provider SDKs at install time
 _PROVIDER_REGISTRY: dict[str, type] = {
@@ -45,6 +64,8 @@ def get_provider(name: str | None = None, **kwargs: Any) -> LlmProvider:
             f"Unknown LLM provider '{name}'. Available: {available}. "
             f"Set VIBEFUL_LLM_PROVIDER env var."
         )
+    if _runtime_api_key and "api_key" not in kwargs:
+        kwargs["api_key"] = _runtime_api_key
     return _PROVIDER_REGISTRY[name](**kwargs)
 
 

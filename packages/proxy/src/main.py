@@ -62,7 +62,9 @@ async def health():
 async def health_config():
     """Report configuration status for the Management Console setup wizard."""
     key = os.getenv("DEEPSEEK_API_KEY", "")
-    key_configured = bool(key and "your-deepseek" not in key.lower() and len(key) > 20)
+    env_configured = bool(key and "your-deepseek" not in key.lower() and len(key) > 20)
+    from agent_engine.src.llm.factory import get_runtime_api_key
+    key_configured = env_configured or bool(get_runtime_api_key())
     return {
         "deepseek_api_key_configured": key_configured,
         "llm_provider": os.getenv("VIBEFUL_LLM_PROVIDER", "deepseek"),
@@ -74,6 +76,26 @@ async def health_config():
             "3. Restart: docker compose down && docker compose up -d",
         "get_api_key_url": "https://platform.deepseek.com/api_keys",
     }
+
+
+# ── Setup ──────────────────────────────────────────────────────
+
+@app.post("/v1/setup/api-key")
+async def setup_api_key(request: Request):
+    """Accept an API key at runtime — no .env editing required."""
+    body = await request.json()
+    key = body.get("api_key", "").strip()
+    if not key or len(key) < 10:
+        raise HTTPException(400, "Invalid API key — must be at least 10 characters")
+
+    from agent_engine.src.llm.factory import set_runtime_api_key
+    set_runtime_api_key(key)
+
+    return {
+        "configured": True,
+        "note": "Key stored in-memory. For permanent storage, add DEEPSEEK_API_KEY to your .env file.",
+    }
+
 
 # ── Agents ─────────────────────────────────────────────────────
 
