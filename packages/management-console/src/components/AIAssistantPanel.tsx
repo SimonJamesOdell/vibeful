@@ -39,15 +39,36 @@ export default function AIAssistantPanel() {
       const label = (details.label as string) || nodeType;
       const afterLabel = details.afterNodeId as string | undefined;
       let position = undefined;
+      let afterNodeId: string | null = null;
       if (afterLabel) {
         const afterNode = useFlowStore.getState().nodes.find(
           (n) => n.data.label === afterLabel || n.id === afterLabel
         );
         if (afterNode) {
           position = { x: afterNode.position.x, y: afterNode.position.y + 120 };
+          afterNodeId = afterNode.id;
         }
       }
       useFlowStore.getState().addNode(nodeType, label, position);
+
+      // If placed after a specific node, reroute edges: afterNode → new → oldTarget
+      if (afterNodeId) {
+        const state = useFlowStore.getState();
+        const newNodeId = state.selectedNodeId;
+        if (newNodeId) {
+          const outgoingIdx = state.edges.findIndex((e) => e.source === afterNodeId);
+          if (outgoingIdx >= 0) {
+            const oldTarget = state.edges[outgoingIdx].target;
+            const newEdges = state.edges.filter((_, i) => i !== outgoingIdx);
+            newEdges.push({ id: `edge_${afterNodeId}_${newNodeId}`, source: afterNodeId, target: newNodeId });
+            newEdges.push({ id: `edge_${newNodeId}_${oldTarget}`, source: newNodeId, target: oldTarget });
+            useFlowStore.setState({ edges: newEdges });
+          } else {
+            useFlowStore.setState({ edges: [...state.edges, { id: `edge_${afterNodeId}_${newNodeId}`, source: afterNodeId, target: newNodeId }] });
+          }
+        }
+      }
+
       return { nodeType, label };
     });
 

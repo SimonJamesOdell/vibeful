@@ -41,9 +41,13 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
   \`\`\`vibeful-command
   {"action":"load_template","details":{"template":"minimal"}}
   \`\`\`
-- add_node — add a node to the canvas. Example:
+- add_node — add a node to the canvas. Optionally include "afterNodeId" with a node label to place and connect the new node after that node (edges are rerouted automatically). Example:
   \`\`\`vibeful-command
-  {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"}}
+  {"action":"add_node","details":{"nodeType":"builtin.rag","label":"RAG","afterNodeId":"system_prompt"}}
+  \`\`\`
+- add_edge — connect two nodes. Use when the user asks to link specific nodes. Example:
+  \`\`\`vibeful-command
+  {"action":"add_edge","details":{"source":"system_prompt","target":"rag"}}
   \`\`\`
 - remove_node — remove a node by label
 - navigate — switch tabs
