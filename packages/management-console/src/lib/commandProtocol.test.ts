@@ -201,3 +201,67 @@ describe('executeCommands', () => {
     expect(results).toEqual([]);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// CONSOLE_COMMANDS invariants — all registered commands must
+// exist so the Guide and command handlers stay in sync.
+// ═══════════════════════════════════════════════════════════════
+
+describe('CONSOLE_COMMANDS', () => {
+  it('includes AUTO_ALIGN for graph layout tidy-up', () => {
+    expect(CONSOLE_COMMANDS.AUTO_ALIGN).toBe('auto_align');
+  });
+
+  it('includes all core mutation commands', () => {
+    expect(CONSOLE_COMMANDS.ADD_NODE).toBe('add_node');
+    expect(CONSOLE_COMMANDS.REMOVE_NODE).toBe('remove_node');
+    expect(CONSOLE_COMMANDS.ADD_EDGE).toBe('add_edge');
+    expect(CONSOLE_COMMANDS.LOAD_TEMPLATE).toBe('load_template');
+  });
+
+  it('includes all UX commands', () => {
+    expect(CONSOLE_COMMANDS.HIGHLIGHT_NODE).toBe('highlight_node');
+    expect(CONSOLE_COMMANDS.START_TOUR).toBe('start_tour');
+    expect(CONSOLE_COMMANDS.CLEAR_HIGHLIGHTS).toBe('clear_highlights');
+    expect(CONSOLE_COMMANDS.NAVIGATE).toBe('navigate');
+    expect(CONSOLE_COMMANDS.DEPLOY).toBe('deploy');
+    expect(CONSOLE_COMMANDS.CONFIGURE_ANALYSIS).toBe('configure_analysis');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Widget command parsing — the SDK parses render_widget blocks
+// from agent responses. These must follow the same vibeful-command
+// format as console commands.
+// ═══════════════════════════════════════════════════════════════
+
+describe('render_widget command parsing', () => {
+  it('extracts a render_widget command with a single widget', () => {
+    const text = [
+      'Here is a chart:',
+      '```vibeful-command',
+      '{"action":"render_widget","details":{"widget_id":"chart1","type":"chart","props":{"title":"Sales","data":[{"label":"Q1","value":100}]}}}',
+      '```',
+    ].join('\n');
+
+    const commands = parseCommands(text);
+    expect(commands).toHaveLength(1);
+    expect(commands[0].action).toBe('render_widget');
+    expect(commands[0].details.widget_id).toBe('chart1');
+    expect(commands[0].details.type).toBe('chart');
+  });
+
+  it('extracts render_widget with multiple widgets array', () => {
+    const text = [
+      '```vibeful-command',
+      '{"action":"render_widget","details":{"widgets":[{"widget_id":"btn1","type":"button","props":{"label":"OK"}},{"widget_id":"card1","type":"card","props":{"title":"Info","content":"Hello"}}]}}',
+      '```',
+    ].join('\n');
+
+    const commands = parseCommands(text);
+    expect(commands).toHaveLength(1);
+    expect(commands[0].details.widgets).toHaveLength(2);
+    expect(commands[0].details.widgets[0].type).toBe('button');
+    expect(commands[0].details.widgets[1].type).toBe('card');
+  });
+});
