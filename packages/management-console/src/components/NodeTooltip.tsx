@@ -1,8 +1,7 @@
 /**
  * NodeTooltip — floating annotation card shown during guided tours.
- * Positioned next to the currently highlighted node on the canvas.
+ * Rendered at App level with fixed positioning to avoid overflow-hidden clipping.
  */
-import { useMemo } from 'react';
 import { useViewport } from '@xyflow/react';
 import { useFlowStore, type TourStep } from '../lib/flowStore';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -23,7 +22,8 @@ export default function NodeTooltip() {
   );
   const flowPos = activeNode?.position ?? { x: 250, y: 100 };
 
-  // Convert flow coordinates to screen coordinates using viewport transform
+  // Convert flow coordinates to viewport-relative screen coordinates
+  // ReactFlow's viewport transform: screen = flow * zoom + vp
   const screenX = (flowPos.x + 280) * zoom + vpX;
   const screenY = (flowPos.y - 20) * zoom + vpY;
 
@@ -33,11 +33,11 @@ export default function NodeTooltip() {
 
   return (
     <div
-      className="absolute z-40 w-72"
+      className="fixed z-[9999] w-72"
       style={{ left: screenX, top: screenY }}
     >
       {/* Arrow pointing left to the node */}
-      <div className="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-indigo-700" />
+      <div className="absolute -left-3 top-4 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-[12px] border-r-indigo-700" />
 
       <div className="bg-indigo-950 border border-indigo-700 rounded-lg shadow-2xl p-4">
         {/* Header */}

@@ -3,7 +3,7 @@ import { ReactFlow, Background, Controls, MiniMap, type Node } from '@xyflow/rea
 import '@xyflow/react/dist/style.css';
 import { useFlowStore, type VibefulNodeData } from '../lib/flowStore';
 import VibefulNode from './VibefulNode';
-import NodeTooltip from './NodeTooltip';
+// NodeTooltip moved to App.tsx to avoid overflow-hidden clipping
 
 const nodeTypes = {
   vibefulNode: VibefulNode,
@@ -60,7 +60,6 @@ export default function FlowCanvas() {
       >
         <Background color="#334155" gap={20} size={1} />
         <Controls className="[&>button]:bg-slate-800 [&>button]:border-slate-700 [&>button]:text-slate-300 [&>button:hover]:bg-slate-700" />
-        <NodeTooltip />
         <MiniMap
           nodeColor={(n) => {
             const data = (n as Node<VibefulNodeData>).data;

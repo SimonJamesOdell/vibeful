@@ -149,11 +149,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   startTour: (steps) => {
     const { nodes } = get();
-    // Clear any existing tour state before starting fresh
-    set({ tourSteps: [], tourActiveIndex: -1 });
-    // Find the first step's node and select it
     const first = steps[0];
     const node = nodes.find((n) => n.data.label === first?.nodeLabel || n.id === first?.nodeLabel);
+    // Single set() — prevents React batching from rendering intermediate empty state
     set({
       tourSteps: steps,
       tourActiveIndex: 0,

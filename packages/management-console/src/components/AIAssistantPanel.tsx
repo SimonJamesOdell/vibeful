@@ -14,6 +14,7 @@ import {
   parseCommands, executeCommands, stripCommands, registerCommandHandler,
   CONSOLE_COMMANDS, type CommandResult,
 } from '../lib/commandProtocol';
+import { TEMPLATES } from '../lib/templates';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -65,8 +66,16 @@ export default function AIAssistantPanel() {
 
     registerCommandHandler(CONSOLE_COMMANDS.LOAD_TEMPLATE, (details) => {
       const template = details.template as string;
+      // Load synchronously so follow-up commands (start_tour) can read updated nodes
+      const store = useFlowStore.getState();
+      store.loadGraph(
+        [...TEMPLATES[template]?.nodes ?? []],
+        [...TEMPLATES[template]?.edges ?? []]
+      );
+      store.setAgentName(TEMPLATES[template]?.name ?? '');
+      // Also fire DOM event for App-level listeners
       window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: template }));
-      return { template };
+      return { template, nodes: store.nodes.length };
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.DEPLOY, (_details) => {
