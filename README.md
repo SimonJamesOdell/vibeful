@@ -7,20 +7,22 @@ Vibeful — a multi-tenant AI agent platform that lets companies embed conversat
 ## Quick Start
 
 ```bash
-# 1. Set your DeepSeek API key
-export DEEPSEEK_API_KEY=sk-...
-
-# 2. Start all services
-docker compose up --build
-
-# 3. Services available
-# Agent Engine  → gRPC on :50051 (via Envoy :8080)
-# API Gateway   → :3000
-# Proxy         → :8000
-# SDK Dev       → :5173
-# PostgreSQL    → :5432
-# Redis         → :6379
+git clone https://github.com/SimonJamesOdell/vibeful.git
+cd vibeful
+bash scripts/setup.sh
 ```
+
+**That's it.** The setup script handles everything automatically:
+
+- Checks what's installed on your system
+- Offers to install anything that's missing
+- Installs Vibeful's dependencies
+- Checks your API key (you can paste it when prompted, or later in the browser)
+- Starts the agent engine and management console
+- Opens http://localhost:5174 — the Vibeful Guide greets you there
+
+**No Docker required.** Uses SQLite for local development.
+**No terminal expertise needed.** Just run the one command.
 
 ## Architecture
 
