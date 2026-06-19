@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { ReactFlow, Background, Controls, type Node } from '@xyflow/react';
+import { useEffect, useRef } from 'react';
+import { ReactFlow, Background, Controls, type Node, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useFlowStore, type VibefulNodeData } from '../lib/flowStore';
 import VibefulNode from './VibefulNode';
@@ -11,9 +11,24 @@ const nodeTypes = {
 
 export default function FlowCanvas() {
   const {
-    nodes, edges,
+    nodes, edges, lastAddedNodeId,
     onNodesChange, onEdgesChange, onConnect,
   } = useFlowStore();
+
+  const { fitView } = useReactFlow();
+  const prevAddedRef = useRef<string | null>(null);
+
+  // Auto-scroll viewport to newly added nodes
+  useEffect(() => {
+    if (lastAddedNodeId && lastAddedNodeId !== prevAddedRef.current) {
+      prevAddedRef.current = lastAddedNodeId;
+      // Small delay so React Flow has rendered the new node
+      const t = setTimeout(() => {
+        fitView({ nodes: [{ id: lastAddedNodeId }], duration: 300, padding: 0.3 });
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [lastAddedNodeId, fitView]);
 
   // Handle keyboard shortcuts
   useEffect(() => {

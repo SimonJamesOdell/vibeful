@@ -20,6 +20,7 @@ export interface FlowState {
   nodes: Node<VibefulNodeData>[];
   edges: Edge[];
   selectedNodeId: string | null;
+  lastAddedNodeId: string | null;
   codePreviewVisible: boolean;
   propertiesVisible: boolean;
   agentName: string;
@@ -75,6 +76,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  lastAddedNodeId: null,
   codePreviewVisible: true,
   propertiesVisible: true,
   agentName: '',
@@ -120,7 +122,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     };
 
     // New nodes start unconnected — the user manually links them by dragging handles
-    set({ nodes: [...nodes, newNode], selectedNodeId: id });
+    set({ nodes: [...nodes, newNode], selectedNodeId: id, lastAddedNodeId: id });
   },
 
   removeSelectedNodes: () => {
