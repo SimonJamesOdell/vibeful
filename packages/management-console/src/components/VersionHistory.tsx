@@ -21,7 +21,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [diffBase, setDiffBase] = useState<number | null>(null);
-  const [agentId, setAgentId] = useState<string | null>(null);
+  const [trackedId, setTrackedId] = useState<string | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
 
   const { nodes, edges, agentName, agentDescription, loadGraph, setAgentName, setAgentDescription } = useFlowStore();
@@ -51,10 +51,10 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
   };
 
   const saveVersion = async () => {
-    if (!agentId || nodes.length === 0) return;
+    if (!trackedId || nodes.length === 0) return;
     try {
       const yaml = generateYaml(nodes, edges, agentName, agentDescription);
-      await fetch(`/v1/agents/${agentId}/versions`, {
+      await fetch(`/v1/agents/${trackedId}/versions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,7 +65,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
         }),
       });
       // Refresh list
-      await fetchVersions(agentId);
+      await fetchVersions(trackedId);
     } catch {
       // Silent fail during auto-save
     }
@@ -93,7 +93,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
 
     // Save a new version marking the restore
     if (agentId) {
-      await fetch(`/v1/agents/${agentId}/versions`, {
+      await fetch(`/v1/agents/${trackedId}/versions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +104,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
           tags: ['restore'],
         }),
       });
-      await fetchVersions(agentId);
+      await fetchVersions(trackedId);
     }
   };
 
@@ -170,7 +170,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
         </div>
       </div>
 
-      {!agentId && (
+      {!trackedId && (
         <div className="px-4 py-3 bg-slate-800 border border-slate-700 rounded text-xs text-slate-400">
           Click "Deploy & Track" to start versioning. Versions are saved automatically as you edit.
         </div>
@@ -295,7 +295,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
           );
         })}
 
-        {versions.length === 0 && !loading && agentId && (
+        {versions.length === 0 && !loading && trackedId && (
           <div className="text-xs text-slate-500 text-center py-4">
             No versions yet. Make a change and it'll be auto-saved.
           </div>
