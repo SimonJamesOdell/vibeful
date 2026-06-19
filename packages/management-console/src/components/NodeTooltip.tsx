@@ -25,7 +25,7 @@ export default function NodeTooltip() {
   // Convert flow coordinates to viewport-relative screen coordinates
   // ReactFlow's viewport transform: screen = flow * zoom + vp
   const screenX = (flowPos.x + 280) * zoom + vpX;
-  const screenY = (flowPos.y - 20) * zoom + vpY;
+  const screenY = (flowPos.y + 10) * zoom + vpY;
 
   const isFirst = tourActiveIndex === 0;
   const isLast = tourActiveIndex === tourSteps.length - 1;
