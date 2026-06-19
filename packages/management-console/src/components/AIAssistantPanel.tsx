@@ -151,32 +151,12 @@ export default function AIAssistantPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Simple affirmatives for onboarding
-  const ONBOARDING_YES = new Set([
-    'yes', 'yeah', 'yea', 'yep', 'yup', 'sure', 'ok', 'okay',
-    "let's go", 'lets go', 'go ahead', 'please', 'do it',
-    'yes please', 'yes!', 'yeah!', 'sure!',
-  ]);
-
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-
   const handleSend = async () => {
     const msg = input.trim();
     if (!msg || loading) return;
 
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
-
-    // Onboarding fast path: "yes" without needing the LLM
-    const normMsg = normalize(msg);
-    const isOnboarding = nodes.length === 0 && edges.length === 0 && onboarding;
-    if (isOnboarding && ONBOARDING_YES.has(normMsg)) {
-      const explain = "Let's build your first agent! I'm setting up a minimal template on the canvas now — you'll see nodes appear in a moment.";
-      setMessages((prev) => [...prev, { role: 'assistant', content: explain }]);
-      window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: 'minimal' }));
-      setLoading(false);
-      return;
-    }
 
     setLoading(true);
     clearLastAIError();

@@ -37,6 +37,10 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
   {"action":"highlight_node","details":{"node":"Setup","explanation":"This initializes the conversation"}}
   \`\`\`
 - clear_highlights — dismiss all highlights
+- load_template — load a pre-built agent template when the user agrees to get started. Example:
+  \`\`\`vibeful-command
+  {"action":"load_template","details":{"template":"minimal"}}
+  \`\`\`
 - add_node — add a node to the canvas. Example:
   \`\`\`vibeful-command
   {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"}}
