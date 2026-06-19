@@ -105,7 +105,7 @@ export async function executeCommands(text: string): Promise<CommandResult[]> {
  */
 export function stripCommands(text: string | undefined): string {
   if (!text) return '';
-  return text.replace(/```vibeful-command\n[\s\S]*?```/g, '').trim();
+  return text.replace(/```vibeful-command\s*\n[\s\S]*?```/g, '').trim();
 }
 
 /**
