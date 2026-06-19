@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Lightbulb, TrendingUp, TrendingDown, AlertTriangle, Check, X, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useFlowStore } from '../lib/flowStore';
 import { generateProposals, type WorkflowProposal } from '../lib/proposalGenerator';
-import { applyAICommand } from '../lib/aiAssistant';
+const _unused = null; // Was applyAICommand — now using useFlowStore directly
 
 export default function ProposalCard() {
   const [proposals, setProposals] = useState<WorkflowProposal[]>([]);
@@ -34,24 +34,14 @@ export default function ProposalCard() {
   };
 
   const handleApplyProposal = (proposal: WorkflowProposal, index: number) => {
+    const { addNode, nodes: currentNodes } = useFlowStore.getState();
     for (const change of proposal.changes) {
       if (change.type === 'add_node') {
-        // Convert to AI command format
-        const result = applyAICommand(
-          {
-            action: 'add_node',
-            details: {
-              nodeType: `builtin.${change.target}`,
-              label: change.target.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-            },
-            explanation: proposal.solution,
-          },
-          nodes,
-          edges
-        );
-        if (result) {
-          loadGraph(result.nodes, result.edges);
-        }
+        const nodeType = `builtin.${change.target}`;
+        const label = change.target.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        // Position at end of current nodes
+        const y = currentNodes.length * 120 + 50;
+        addNode(nodeType, label, { x: 250, y });
       }
       if (change.type === 'enable_phase' || change.type === 'disable_phase') {
         window.dispatchEvent(
