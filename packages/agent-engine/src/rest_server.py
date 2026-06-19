@@ -38,16 +38,21 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _startup_db():
-    """Initialize the database connection for Lucid capability endpoints."""
+    """Initialize the database for Lucid endpoints.
+    Uses PostgreSQL in Docker mode, SQLite in local mode."""
     global _db_lucid
     try:
         from .database import Database
         _db_lucid = Database()
         await _db_lucid.init_schema()
     except Exception:
-        # SQLite fallback: connect without schema init
-        # (schema will be created on first use if needed)
-        pass
+        # SQLite fallback for local dev mode
+        try:
+            from .storage.sqlite import SqliteBackend
+            _db_lucid = SqliteBackend()
+            await _db_lucid.init_schema()
+        except Exception:
+            pass
 
 _graph = None
 
@@ -329,6 +334,69 @@ async def ai_assist(req: AIAssistRequest):
         max_tokens=req.max_tokens,
     )
     return {"response": response.content, "model": getattr(provider, "model", "unknown")}
+
+
+# ── Agents CRUD (local mode) ──────────────────────────────
+
+class AgentCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    system_prompt: str = ""
+    model: str = "deepseek-chat"
+    temperature: float = 0.7
+    config_yaml: str = ""
+
+
+@app.post("/v1/agents")
+async def create_agent(req: AgentCreateRequest):
+    db = _require_db()
+    agent = await db.create_agent({
+        "name": req.name, "description": req.description,
+        "system_prompt": req.system_prompt, "model": req.model,
+        "temperature": req.temperature, "config_yaml": req.config_yaml,
+    })
+    return agent
+
+
+@app.get("/v1/agents")
+async def list_agents():
+    db = _require_db()
+    return await db.list_agents()
+
+
+@app.get("/v1/agents/{agent_id}")
+async def get_agent(agent_id: str):
+    db = _require_db()
+    agent = await db.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "agent not found")
+    return agent
+
+
+# ── Setup (local mode) ────────────────────────────────────
+
+@app.post("/v1/setup/api-key")
+async def setup_api_key(request: Request):
+    body = await request.json()
+    key = body.get("api_key", "").strip()
+    if not key or len(key) < 10:
+        raise HTTPException(400, "Invalid API key")
+    from .llm.factory import set_runtime_api_key
+    set_runtime_api_key(key)
+    return {"configured": True, "note": "Key stored in-memory."}
+
+
+@app.get("/v1/health/config")
+async def health_config():
+    env_key = os.getenv("DEEPSEEK_API_KEY", "")
+    env_ok = bool(env_key and "your-deepseek" not in env_key.lower() and len(env_key) > 20)
+    from .llm.factory import get_runtime_api_key
+    configured = env_ok or bool(get_runtime_api_key())
+    return {
+        "deepseek_api_key_configured": configured,
+        "needs_setup": not configured,
+        "get_api_key_url": "https://platform.deepseek.com/api_keys",
+    }
 
 
 # ── Agent Versions ──────────────────────────────────────────
