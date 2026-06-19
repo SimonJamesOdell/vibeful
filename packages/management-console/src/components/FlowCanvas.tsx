@@ -66,6 +66,7 @@ export default function FlowCanvas() {
         multiSelectionKeyCode="Shift"
         fitView
         deleteKeyCode={['Delete', 'Backspace']}
+        proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{
           style: { stroke: '#475569', strokeWidth: 2 },
           animated: false,
