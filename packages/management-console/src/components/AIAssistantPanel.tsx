@@ -134,12 +134,40 @@ export default function AIAssistantPanel() {
     }
   };
 
+  // Simple affirmatives the user might respond with to the onboarding prompt
+  const ONBOARDING_YES = new Set([
+    'yes', 'yeah', 'yea', 'yep', 'yup', 'sure', 'ok', 'okay',
+    "let's go", 'lets go', 'go ahead', 'please', 'do it',
+    'yes please', 'yes!', 'yeah!', 'sure!',
+  ]);
+
   const handleSend = async () => {
     const msg = input.trim();
     if (!msg || loading) return;
 
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
+
+    // --- Onboarding fast path: "yes" without needing the LLM ---
+    const isOnboarding = nodes.length === 0 && edges.length === 0 && onboarding;
+    if (isOnboarding && ONBOARDING_YES.has(msg.toLowerCase())) {
+      const explain = "Let's build your first agent! I'm setting up a minimal template on the canvas now — you'll see nodes appear in a moment.";
+      const cmd: AICommand = {
+        action: 'setup_template',
+        details: { template: 'minimal' },
+        explanation: explain,
+      };
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: explain,
+        command: cmd,
+      }]);
+      window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: 'minimal' }));
+      setLoading(false);
+      setOnboarding(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -177,7 +205,7 @@ export default function AIAssistantPanel() {
           ...prev,
           {
             role: 'system',
-            content: "I couldn't process that. Try something like 'add an attack guard' or 'build me a simple agent'.",
+            content: "The AI service didn't return a usable response. Your DeepSeek API key may not be configured yet — click the amber banner at the top to set it up.",
           },
         ]);
       }
@@ -186,7 +214,7 @@ export default function AIAssistantPanel() {
         ...prev,
         {
           role: 'system',
-          content: 'Error connecting to AI service. Make sure the agent engine is running on port 50052.',
+          content: "Error reaching the AI engine on port 50052. Check that the agent engine is running (look for 'Vibeful is Ready').",
         },
       ]);
     } finally {
