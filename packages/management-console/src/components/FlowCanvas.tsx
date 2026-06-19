@@ -43,6 +43,13 @@ export default function FlowCanvas() {
         multiSelectionKeyCode="Shift"
         fitView
         deleteKeyCode={['Delete', 'Backspace']}
+        defaultEdgeOptions={{
+          style: { stroke: '#475569', strokeWidth: 2 },
+          animated: false,
+          deletable: true,
+          selectable: true,
+        }}
+        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
         className="bg-slate-900"
       >
         <Background color="#334155" gap={20} size={1} />

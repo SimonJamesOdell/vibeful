@@ -98,27 +98,44 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   addNode: (nodeType, label, position) => {
-    const { nodes, edges } = get();
-    // Auto-connect to last node if chain-building
+    const { nodes, edges, selectedNodeId } = get();
     const id = makeId();
     const newNode: Node<VibefulNodeData> = {
       id,
       type: 'vibefulNode',
-      position: position || { x: Math.random() * 400 + 50, y: nodes.length * 120 + 50 },
+      position: position || { x: 250, y: 50 },
       data: { label, nodeType, config: {} },
     };
 
-    let newEdges = edges;
-    if (nodes.length > 0) {
+    let newEdges = [...edges];
+
+    if (selectedNodeId && nodes.length > 0) {
+      // Insert after selected node: break its outgoing edge, bridge through new node
+      const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+      if (selectedNode) {
+        newNode.position = position || {
+          x: selectedNode.position.x,
+          y: selectedNode.position.y + 120,
+        };
+
+        const outgoingIdx = edges.findIndex((e) => e.source === selectedNodeId);
+        if (outgoingIdx >= 0) {
+          const oldTarget = edges[outgoingIdx].target;
+          newEdges = edges.filter((_, i) => i !== outgoingIdx);
+          newEdges.push({ id: `edge_${selectedNodeId}_${id}`, source: selectedNodeId, target: id });
+          newEdges.push({ id: `edge_${id}_${oldTarget}`, source: id, target: oldTarget });
+        } else {
+          newEdges.push({ id: `edge_${selectedNodeId}_${id}`, source: selectedNodeId, target: id });
+        }
+      }
+    } else if (nodes.length > 0) {
+      // No selection: append after last node (existing behavior)
       const lastNode = nodes[nodes.length - 1];
-      newEdges = [
-        ...edges,
-        {
-          id: `edge_${lastNode.id}_${id}`,
-          source: lastNode.id,
-          target: id,
-        },
-      ];
+      newNode.position = position || {
+        x: lastNode.position.x,
+        y: lastNode.position.y + 120,
+      };
+      newEdges.push({ id: `edge_${lastNode.id}_${id}`, source: lastNode.id, target: id });
     }
 
     set({ nodes: [...nodes, newNode], edges: newEdges, selectedNodeId: id });
