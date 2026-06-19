@@ -344,7 +344,7 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
   toggle.addEventListener('click', function() {
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden') && !sessionId) {
-      addMessage('bot', '👋 Hi! I\\'m the Vibeful assistant. Ask me anything about Vibeful — what it does, how it works, or how to get started.');
+      addMessage('bot', "👋 Hi! I'm the Vibeful assistant. Ask me anything about Vibeful — what it does, how it works, or how to get started.");
     }
   });
 
@@ -380,13 +380,13 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
       });
 
       const data = await resp.json();
-      const reply = data.response || data.content || 'Sorry, I couldn\\'t process that.';
+      const reply = data.response || data.content || "Sorry, I couldn't process that.";
       // Remove the "…" placeholder
       messages.lastChild.remove();
       addMessage('bot', reply);
     } catch (e) {
       messages.lastChild.remove();
-      addMessage('bot', 'Sorry, the Vibeful backend isn\\'t reachable right now. Try again later, or check the docs linked below!');
+      addMessage('bot', "Sorry, the Vibeful backend isn't reachable right now. Try again later, or check the docs linked below!");
     } finally {
       loading = false;
       sendBtn.disabled = false;
