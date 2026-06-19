@@ -27,7 +27,6 @@ export default function AIAssistantPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [visible, setVisible] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -145,7 +144,6 @@ export default function AIAssistantPanel() {
   useEffect(() => {
     if (nodes.length === 0 && messages.length === 0 && !onboarding) {
       setOnboarding(true);
-      setVisible(true);
       setMessages([{
         role: 'assistant',
         content: "👋 Welcome to Vibeful! I'm your Guide — an AI agent that helps you build AI agents.\n\nI see this is your first time here. Would you like me to walk you through building your first agent?\n\nJust say **yes** and I'll set up a working agent on this canvas in seconds. You can then embed it in your app with 3 lines of code.",
@@ -365,165 +363,141 @@ export default function AIAssistantPanel() {
   };
 
   return (
-    <>
-      {/* Toggle button */}
-      <button
-        onClick={() => setVisible(!visible)}
-        className={`fixed bottom-4 right-4 z-50 p-3 rounded-full shadow-lg transition-all ${
-          visible
-            ? 'bg-indigo-600 text-white scale-110'
-            : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:scale-105'
-        }`}
-        title="Vibeful Guide"
-      >
-        <Wand2 size={18} />
-      </button>
+    <div className="h-full flex flex-col bg-slate-900">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Brain size={14} className="text-indigo-400" />
+          <span className="text-sm font-medium text-slate-200">Vibeful Guide</span>
+          {onboarding && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded-full">
+              onboarding
+            </span>
+          )}
+        </div>
+      </div>
 
-      {/* Panel */}
-      {visible && (
-        <div className="fixed bottom-16 right-4 z-50 w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl flex flex-col max-h-[550px]">
-          {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-800/50">
-            <div className="flex items-center gap-2">
-              <Brain size={14} className="text-indigo-400" />
-              <span className="text-sm font-medium text-slate-200">Vibeful Guide</span>
-              {onboarding && (
-                <span className="text-[9px] px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded-full">
-                  onboarding
-                </span>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {messages.length === 0 && !onboarding && (
+          <div className="text-xs text-slate-500 text-center py-6">
+            <p className="mb-2">I'm your Vibeful Guide. I can help you:</p>
+            <div className="text-slate-600 space-y-1">
+              <p>• Build agents on the canvas</p>
+              <p>• Explain Vibeful concepts</p>
+              <p>• Configure the analysis pipeline</p>
+              <p>• Help you embed agents in your app</p>
+            </div>
+            <p className="mt-3 text-indigo-400">Just ask me anything!</p>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+            {msg.role !== 'user' && (
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Brain size={12} className="text-white" />
+              </div>
+            )}
+
+            <div className="max-w-[85%]">
+              <div
+                className={`rounded-lg px-3 py-2 text-xs ${
+                  msg.role === 'user'
+                    ? 'bg-indigo-600 text-white'
+                    : msg.role === 'system'
+                    ? 'bg-yellow-900/50 text-yellow-200 border border-yellow-800'
+                    : 'bg-slate-800 text-slate-200'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+
+              {/* Command results */}
+              {msg.commandResults && msg.commandResults.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-slate-700">
+                  {msg.commandResults.map((r, j) => (
+                    <div
+                      key={j}
+                      className={`text-[10px] flex items-center gap-1 ${
+                        r.success ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      <span>{r.success ? '✓' : '✗'}</span>
+                      <span>{r.action}</span>
+                      {r.error && <span className="text-red-300">— {r.error}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Analysis toggle */}
+              {msg.analysis && (
+                <button
+                  onClick={() => toggleAnalysis(i)}
+                  className="mt-2 flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  {msg.showAnalysis ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                  Analysis
+                </button>
+              )}
+              {msg.analysis && msg.showAnalysis && (
+                <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] text-slate-400 font-mono">
+                  {JSON.stringify(msg.analysis, null, 1)}
+                </div>
+              )}
+
+              {/* Apply button — hidden for explain-only commands */}
+              {msg.command && msg.command.action !== 'explain' && (
+                <button
+                  onClick={() => handleApplyCommand(msg.command!)}
+                  className="mt-2 flex items-center gap-1 px-2 py-1 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+                >
+                  <Wand2 size={10} /> Apply
+                </button>
+              )}
+                </div>
+              </div>
+
+              {msg.role === 'user' && (
+                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User size={12} className="text-slate-300" />
+                </div>
               )}
             </div>
-            <button
-              onClick={() => setVisible(false)}
-              className="text-slate-500 hover:text-slate-300 text-xs"
-            >
-              ✕
-            </button>
-          </div>
+          ))}
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px]">
-            {messages.length === 0 && !onboarding && (
-              <div className="text-xs text-slate-500 text-center py-6">
-                <p className="mb-2">I'm your Vibeful Guide. I can help you:</p>
-                <div className="text-slate-600 space-y-1">
-                  <p>• Build agents on the canvas</p>
-                  <p>• Explain Vibeful concepts</p>
-                  <p>• Configure the analysis pipeline</p>
-                  <p>• Help you embed agents in your app</p>
-                </div>
-                <p className="mt-3 text-indigo-400">Just ask me anything!</p>
+          {loading && (
+            <div className="flex gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Brain size={12} className="text-white" />
               </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                {msg.role !== 'user' && (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Brain size={12} className="text-white" />
-                  </div>
-                )}
-
-                <div className="max-w-[85%]">
-                  <div
-                    className={`rounded-lg px-3 py-2 text-xs ${
-                      msg.role === 'user'
-                        ? 'bg-indigo-600 text-white'
-                        : msg.role === 'system'
-                        ? 'bg-yellow-900/50 text-yellow-200 border border-yellow-800'
-                        : 'bg-slate-800 text-slate-200'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                    {/* Command results */}
-                    {msg.commandResults && msg.commandResults.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-slate-700">
-                        {msg.commandResults.map((r, j) => (
-                          <div
-                            key={j}
-                            className={`text-[10px] flex items-center gap-1 ${
-                              r.success ? 'text-green-400' : 'text-red-400'
-                            }`}
-                          >
-                            <span>{r.success ? '✓' : '✗'}</span>
-                            <span>{r.action}</span>
-                            {r.error && <span className="text-red-300">— {r.error}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Analysis toggle */}
-                    {msg.analysis && (
-                      <button
-                        onClick={() => toggleAnalysis(i)}
-                        className="mt-2 flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
-                      >
-                        {msg.showAnalysis ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-                        Analysis
-                      </button>
-                    )}
-                    {msg.analysis && msg.showAnalysis && (
-                      <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] text-slate-400 font-mono">
-                        {JSON.stringify(msg.analysis, null, 1)}
-                      </div>
-                    )}
-
-                    {/* Apply button — hidden for explain-only commands */}
-                    {msg.command && msg.command.action !== 'explain' && (
-                      <button
-                        onClick={() => handleApplyCommand(msg.command!)}
-                        className="mt-2 flex items-center gap-1 px-2 py-1 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
-                      >
-                        <Wand2 size={10} /> Apply
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {msg.role === 'user' && (
-                  <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <User size={12} className="text-slate-300" />
-                  </div>
-                )}
+              <div className="bg-slate-800 rounded-lg px-3 py-2">
+                <Loader2 size={14} className="animate-spin text-indigo-400" />
               </div>
-            ))}
+            </div>
+          )}
 
-            {loading && (
-              <div className="flex gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <Brain size={12} className="text-white" />
-                </div>
-                <div className="bg-slate-800 rounded-lg px-3 py-2">
-                  <Loader2 size={14} className="animate-spin text-indigo-400" />
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input */}
-          <div className="p-3 border-t border-slate-700 flex gap-2">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask me anything about Vibeful…"
-              className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
-            >
-              <Send size={12} />
-            </button>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
-      )}
-    </>
+
+        {/* Input */}
+        <div className="p-3 border-t border-slate-700 flex gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask me anything about Vibeful…"
+            className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
+          >
+            <Send size={12} />
+          </button>
+        </div>
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import PropertyPanel from './components/PropertyPanel';
 import CodePreview from './components/CodePreview';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, PanelLeft, PanelRight, Download } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, PanelLeft, PanelRight, Download, Bot } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import VersionHistory from './components/VersionHistory';
 import ABTestDashboard from './components/ABTestDashboard';
@@ -302,9 +302,14 @@ export default function App() {
         {activeTab === 'designer' ? (
           <div className="flex-1 flex overflow-hidden">
             <NodePalette />
-            <FlowCanvas />
-            {propertiesVisible && <PropertyPanel />}
-            {codePreviewVisible && <CodePreview />}
+            <div className="flex-1 flex flex-col min-w-0 relative">
+              <FlowCanvas />
+              {propertiesVisible && <PropertyPanel />}
+              {codePreviewVisible && <CodePreview />}
+            </div>
+            <div className="w-[340px] bg-slate-900 border-l border-slate-700 flex-shrink-0">
+              <AIAssistantPanel />
+            </div>
           </div>
         ) : activeTab === 'versions' ? (
           <div className="flex-1 overflow-y-auto">
@@ -360,7 +365,6 @@ export default function App() {
           </div>
         )}
       </div>
-      <AIAssistantPanel />
     </ReactFlowProvider>
   );
 }
