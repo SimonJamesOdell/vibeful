@@ -105,6 +105,40 @@ export default function AIAssistantPanel() {
       }
       throw new Error(`Could not find nodes: ${sourceLabel} → ${targetLabel}`);
     });
+
+    registerCommandHandler(CONSOLE_COMMANDS.HIGHLIGHT_NODE, (details) => {
+      const nodeLabel = details.node as string;
+      const explanation = (details.explanation as string) || '';
+      const state = useFlowStore.getState();
+      const node = state.nodes.find((n) => n.data.label === nodeLabel || n.id === nodeLabel);
+      if (node) {
+        state.startTour([{ nodeLabel: node.data.label, explanation }]);
+        return { node: nodeLabel };
+      }
+      return { node: nodeLabel, error: 'Node not found on canvas' };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.START_TOUR, (details) => {
+      const steps = details.steps as Array<{ node: string; explanation: string }> | undefined;
+      if (!steps || steps.length === 0) return { error: 'No tour steps provided' };
+      const state = useFlowStore.getState();
+      const tourSteps = steps
+        .map((s) => {
+          const node = state.nodes.find((n) => n.data.label === s.node || n.id === s.node);
+          return node ? { nodeLabel: node.data.label, explanation: s.explanation } : null;
+        })
+        .filter(Boolean) as Array<{ nodeLabel: string; explanation: string }>;
+      if (tourSteps.length > 0) {
+        state.startTour(tourSteps);
+        return { steps: tourSteps.length };
+      }
+      return { error: 'No matching nodes found on canvas' };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CLEAR_HIGHLIGHTS, () => {
+      useFlowStore.getState().dismissTour();
+      return {};
+    });
   }, []);
 
   // First-run onboarding: detect empty canvas
@@ -141,10 +175,17 @@ export default function AIAssistantPanel() {
   ]);
 
   // Local answers for common onboarding questions (no LLM needed)
+  const NODE_TOUR_INTRO = "Let me walk you through each node on your canvas! I've highlighted the first one — use the arrows below to step through.\n\n";
+  const NODE_TOUR_CMD = '```vibeful-command\n{"action":"start_tour","details":{"steps":[' +
+    '{"node":"Setup","explanation":"Setup initializes every conversation. It creates the message list, captures the user input, and prepares the response buffer."},' +
+    '{"node":"System Prompt Builder","explanation":"This node constructs the AI personality and instructions. It takes your system prompt and any context (like RAG results) to build the final prompt sent to the LLM."},' +
+    '{"node":"LLM Call","explanation":"This is where the magic happens! The LLM Call node sends everything to DeepSeek API and waits for a response. You can configure the model, temperature, and max tokens here."},' +
+    '{"node":"Output","explanation":"Output formats the LLM response for display. It handles streaming chunks, trims extra whitespace, and makes sure the final answer looks clean for your users."}' +
+    ']}}\n```';
   const ONBOARDING_QA: Record<string, string> = {
-    'what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
-    'what do the nodes mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
-    'i see the nodes what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+    'what does this mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
+    'what do the nodes mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
+    'i see the nodes what does this mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
     'what is this': "This is the Vibeful agent designer — a visual canvas where you build AI agents by connecting nodes. Each node is a step in your agent's decision process. You design the flow, Vibeful runs it. Think of it like a flowchart that makes AI decisions.",
     'what is vibeful': "Vibeful is a platform for building, testing, and deploying AI agents. You design an agent's behavior on this canvas, then embed it in your app with a few lines of code. No ML expertise needed — just describe what you want the agent to do.",
     'how do i build an agent': "You're already doing it! The 4 nodes on your canvas form a working agent. To customize it:\n\n• Add nodes: type 'add a RAG node' or 'add an attack guard'\n• Remove nodes: click a node and press Delete\n• Connect nodes: drag from one node's edge to another\n\nOnce you're happy, click Deploy and you'll get 3 lines of code to embed it in your app.",
@@ -164,9 +205,14 @@ export default function AIAssistantPanel() {
     // --- Local onboarding Q&A: answer common questions without the LLM ---
     const lowerMsg = msg.toLowerCase().replace(/[?!.,]+$/, '').trim();
     if (onboarding && ONBOARDING_QA[lowerMsg]) {
+      const response = ONBOARDING_QA[lowerMsg];
+      // Parse and execute any embedded vibeful-command blocks (e.g. highlight_node for tours)
+      const cmdResults = await executeCommands(response);
+      const cleanContent = stripCommands(response);
       setMessages((prev) => [...prev, {
         role: 'assistant',
-        content: ONBOARDING_QA[lowerMsg],
+        content: cleanContent,
+        commandResults: cmdResults.length > 0 ? cmdResults : undefined,
       }]);
       return;
     }

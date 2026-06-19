@@ -47,9 +47,22 @@ export interface FlowState {
   // Config
   updateNodeConfig: (nodeId: string, config: Record<string, unknown>) => void;
 
+  // Tour / guided walkthrough
+  tourSteps: TourStep[];
+  tourActiveIndex: number;
+  startTour: (steps: TourStep[]) => void;
+  nextTourStep: () => void;
+  prevTourStep: () => void;
+  dismissTour: () => void;
+
   // Bulk
   loadGraph: (nodes: Node<VibefulNodeData>[], edges: Edge[]) => void;
   clearGraph: () => void;
+}
+
+export interface TourStep {
+  nodeLabel: string;   // Matched against node.data.label to find the node
+  explanation: string; // Text to show in the tooltip
 }
 
 let nodeIdCounter = 0;
@@ -65,6 +78,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   propertiesVisible: true,
   agentName: '',
   agentDescription: '',
+  tourSteps: [],
+  tourActiveIndex: -1,
 
   onNodesChange: (changes) => {
     set({ nodes: applyNodeChanges(changes, get().nodes) as unknown as Node<VibefulNodeData>[] });
@@ -130,6 +145,40 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   selectNode: (nodeId) => {
     set({ selectedNodeId: nodeId });
+  },
+
+  startTour: (steps) => {
+    const { nodes } = get();
+    // Find the first step's node and select it
+    const first = steps[0];
+    const node = nodes.find((n) => n.data.label === first?.nodeLabel || n.id === first?.nodeLabel);
+    set({
+      tourSteps: steps,
+      tourActiveIndex: 0,
+      selectedNodeId: node?.id ?? null,
+    });
+  },
+  nextTourStep: () => {
+    const { tourSteps, tourActiveIndex, nodes } = get();
+    const next = tourActiveIndex + 1;
+    if (next >= tourSteps.length) {
+      set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null });
+      return;
+    }
+    const step = tourSteps[next];
+    const node = nodes.find((n) => n.data.label === step?.nodeLabel || n.id === step?.nodeLabel);
+    set({ tourActiveIndex: next, selectedNodeId: node?.id ?? null });
+  },
+  prevTourStep: () => {
+    const { tourSteps, tourActiveIndex, nodes } = get();
+    const prev = tourActiveIndex - 1;
+    if (prev < 0) return;
+    const step = tourSteps[prev];
+    const node = nodes.find((n) => n.data.label === step?.nodeLabel || n.id === step?.nodeLabel);
+    set({ tourActiveIndex: prev, selectedNodeId: node?.id ?? null });
+  },
+  dismissTour: () => {
+    set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null });
   },
 
   toggleCodePreview: () => {

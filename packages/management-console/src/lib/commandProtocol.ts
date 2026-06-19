@@ -119,6 +119,9 @@ export const CONSOLE_COMMANDS = {
   LOAD_TEMPLATE: 'load_template',
   CONFIGURE_ANALYSIS: 'configure_analysis',
   NAVIGATE: 'navigate',
+  HIGHLIGHT_NODE: 'highlight_node',
+  START_TOUR: 'start_tour',
+  CLEAR_HIGHLIGHTS: 'clear_highlights',
 } as const;
 
 /**
