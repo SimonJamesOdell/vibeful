@@ -108,8 +108,28 @@ export default function AIAssistantPanel() {
             target: outgoing.target,
           });
         }
+
+        // Shift downstream nodes up to close the visual gap
+        const updatedNodes = state.nodes
+          .filter((n) => n.id !== nodeId)
+          .map((n) => ({ ...n, position: { ...n.position } }));
+        if (outgoing) {
+          const shiftQueue = [outgoing.target];
+          const shifted = new Set<string>();
+          while (shiftQueue.length > 0) {
+            const currentId = shiftQueue.shift()!;
+            if (shifted.has(currentId)) continue;
+            shifted.add(currentId);
+            const targetNode = updatedNodes.find((n) => n.id === currentId);
+            if (targetNode) targetNode.position = { ...targetNode.position, y: targetNode.position.y - 120 };
+            for (const e of newEdges.filter((e) => e.source === currentId)) {
+              if (!shifted.has(e.target)) shiftQueue.push(e.target);
+            }
+          }
+        }
+
         useFlowStore.setState({
-          nodes: state.nodes.filter((n) => n.id !== nodeId),
+          nodes: updatedNodes,
           edges: newEdges,
         });
         return { label };
@@ -194,6 +214,11 @@ export default function AIAssistantPanel() {
 
     registerCommandHandler(CONSOLE_COMMANDS.CLEAR_HIGHLIGHTS, () => {
       useFlowStore.getState().dismissTour();
+      return {};
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.AUTO_ALIGN, () => {
+      useFlowStore.getState().autoAlign();
       return {};
     });
   }, []);

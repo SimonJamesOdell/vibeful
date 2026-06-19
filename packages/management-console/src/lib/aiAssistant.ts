@@ -55,6 +55,7 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
   \`\`\`
 - navigate — switch tabs
 - deploy — deploy the agent
+- auto_align — tidy up the graph layout (vertically align nodes by chain order)
 
 **Available node types:** ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
 
