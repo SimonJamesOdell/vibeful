@@ -208,9 +208,12 @@ if [ ! -d ".venv" ]; then
     python3 -m venv .venv
 fi
 source .venv/bin/activate
-pip install -e ".[dev]" --quiet 2>&1 | tail -1 || {
-    echo -e "  ${YELLOW}⚠ Python install had warnings (non-fatal)${NC}"
-}
+pip install -e ".[dev]" 2>&1 | tail -5
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo -e "  ${RED}✗ Python install failed${NC}"
+    echo "  Try manually: cd packages/agent-engine && source .venv/bin/activate && pip install -e \".[dev]\""
+    exit 1
+fi
 cd "$ROOT"
 echo -e "  ${GREEN}✓${NC} Python dependencies installed"
 
