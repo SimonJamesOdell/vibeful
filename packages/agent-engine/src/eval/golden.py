@@ -36,12 +36,12 @@ class GoldenRecorder:
     def record(self, name: str, input_text: str, response: str,
                metadata: dict[str, Any] | None = None) -> None:
         """Save a golden response to disk."""
-        from datetime import datetime
+        from datetime import datetime, timezone
         record = GoldenRecord(
             name=name,
             input=input_text,
             response=response,
-            recorded_at=datetime.utcnow().isoformat(),
+            recorded_at=datetime.now(timezone.utc).isoformat(),
             metadata=metadata or {},
         )
         path = os.path.join(self.directory, f"{name}.golden.json")

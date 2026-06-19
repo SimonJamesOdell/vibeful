@@ -314,7 +314,223 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 
 ---
 
-## Key Decisions Record
+## Phase 8: Platform Hardening
+
+> **Goal**: CI/CD pipeline, comprehensive testing, rate limiting, and database migrations.
+> **Priority**: P0 — the platform is feature-complete but lacks quality gates.
+
+### 8.1 — Local-First CI/CD Pipeline
+
+**Design principle**: Run everything on local hardware. Zero cloud CI cost. Provider-agnostic — any CI system invokes the same target.
+
+#### Tasks
+- [ ] Create `Makefile` at repo root with these targets:
+  - `make ci` — full pipeline (lint → typecheck → test → build)
+  - `make lint` — Python (ruff) + TypeScript (eslint)
+  - `make typecheck` — mypy + tsc --noEmit
+  - `make test` — pytest + vitest + Playwright E2E
+  - `make test-unit` — pytest only (fast feedback)
+  - `make test-e2e` — Playwright E2E
+  - `make build` — vite build (management-console + sdk)
+  - `make clean` — remove build artifacts
+- [ ] Create `scripts/ci.sh` — single script that runs `make ci` with colored output and timing
+- [ ] Create `scripts/pre-commit` — installable git hook (runs lint + typecheck on staged files)
+- [ ] Create optional `.github/workflows/ci.yml` — calls `make ci`, clearly documented as optional
+- [ ] Create `.gitlab-ci.yml.example` — shows how GitLab CI calls the same `make ci`
+- [ ] Document: "To run CI locally: `make ci`. To skip cloud CI, just don't push the workflow file."
+
+#### Files to create
+- `Makefile`
+- `scripts/ci.sh`
+- `scripts/pre-commit`
+- `.github/workflows/ci.yml` (optional, documented as such)
+- `.gitlab-ci.yml.example`
+
+### 8.2 — Management Console Test Suite
+
+> **Goal**: 80%+ coverage on the visual designer. Catch regressions in the drag-and-drop UX.
+
+#### Tasks
+- [ ] Add `vitest` + `@testing-library/react` to management-console devDependencies
+- [ ] Unit tests: `flowStore.test.ts` (node CRUD, selection, undo), `yamlGenerator.test.ts` (serialization round-trip)
+- [ ] Component tests: `NodePalette.test.tsx` (renders categories, collapse), `PropertyPanel.test.tsx` (field editors)
+- [ ] Integration: `FlowCanvas.test.tsx` (add node → connect → YAML matches expected)
+- [ ] Playwright E2E: `vibeful-console.spec.ts`
+  - Open console → drag "Setup" onto canvas → verify node appears
+  - Add 3 nodes → connect them → click Deploy → verify agent created
+  - Open AI Assistant → type "add an attack guard" → verify node appears on canvas
+
+#### Files to create
+- `management-console/src/__tests__/`
+- `management-console/src/__tests__/flowStore.test.ts`
+- `management-console/src/__tests__/yamlGenerator.test.ts`
+- `management-console/src/__tests__/NodePalette.test.tsx`
+- `management-console/src/__tests__/PropertyPanel.test.tsx`
+- `management-console/e2e/vibeful-console.spec.ts`
+
+### 8.3 — Rate Limiting
+
+> **Goal**: Prevent API abuse. Token credits handle budget; rate limiting handles volume.
+
+#### Tasks
+- [ ] Add `slowapi` (Python) dependency to agent-engine
+- [ ] Apply `@limiter.limit("60/minute")` to `/v1/sessions/:id/converse`
+- [ ] Apply `@limiter.limit("300/minute")` to GET endpoints
+- [ ] Apply `@limiter.limit("30/minute")` to POST `/v1/ai/assist`
+- [ ] Configurable via env: `VIBEFUL_RATE_LIMIT_CONVERSE`, `VIBEFUL_RATE_LIMIT_GLOBAL`
+- [ ] Rate limit headers in responses (`X-RateLimit-*`)
+- [ ] API Gateway: add `express-rate-limit` middleware as second layer
+
+#### Files to modify
+- `packages/agent-engine/src/rest_server.py`
+- `packages/agent-engine/pyproject.toml` (add `slowapi`)
+- `packages/api-gateway/src/index.ts` (add `express-rate-limit`)
+
+### 8.4 — Database Migrations (Alembic)
+
+> **Goal**: Replace imperative `init_schema()` with versioned, reversible migrations.
+
+#### Tasks
+- [ ] Add `alembic` to agent-engine devDependencies
+- [ ] Run `alembic init` in `packages/agent-engine/`
+- [ ] Extract current schema into initial migration (all CREATE TABLE statements)
+- [ ] Add Lucid tables migration (global_memories, concepts, glyphs, token_credits, transactions, agent_versions, ab_tests)
+- [ ] Add `make migrate` and `make migrate-rollback` targets to Makefile
+- [ ] Update `main.py` and `rest_server.py` to run `alembic upgrade head` instead of `init_schema()`
+- [ ] Keep `init_schema()` as dev-only SQLite fallback path
+
+#### Files to create/modify
+- `packages/agent-engine/alembic/` (directory + config + env.py)
+- `packages/agent-engine/alembic/versions/001_initial_schema.py`
+- `packages/agent-engine/alembic/versions/002_lucid_tables.py`
+- `packages/agent-engine/src/main.py` (replace init_schema call)
+- `packages/agent-engine/src/rest_server.py` (replace init_schema call)
+- `Makefile` (add migrate targets)
+
+---
+
+## Phase 9: Production Readiness
+
+> **Goal**: Backup/restore, structured logging, SQLite Lucid compatibility.
+> **Priority**: P1 — needed before any real production deployment.
+
+### 9.1 — Backup & Restore
+
+> **Goal**: One-command PostgreSQL backup and restore.
+
+#### Tasks
+- [ ] Create `scripts/backup.sh` — `pg_dump` to timestamped file
+- [ ] Create `scripts/restore.sh` — `pg_restore` from backup file
+- [ ] Add `make backup` and `make restore` targets
+- [ ] Document in `docs/production.md` (new doc)
+- [ ] Optional: S3/GCS backup script for automated off-site backups
+
+#### Files to create
+- `scripts/backup.sh`
+- `scripts/restore.sh`
+- `docs/production.md`
+
+### 9.2 — Structured Logging & Request Tracing
+
+> **Goal**: Every request gets a trace ID. Logs are JSON-structured. Debuggable in production.
+
+#### Tasks
+- [ ] Agent engine: add `structlog` for JSON-structured logging
+- [ ] Add request ID middleware (`X-Request-Id` header propagation)
+- [ ] Log every API call with: request_id, method, path, status, latency_ms, user_identity
+- [ ] API Gateway: add `morgan` with request ID injection
+- [ ] Document log format and how to query with `jq`
+
+#### Files to modify
+- `packages/agent-engine/src/rest_server.py`
+- `packages/agent-engine/src/main.py`
+- `packages/api-gateway/src/index.ts`
+- `packages/agent-engine/pyproject.toml` (add `structlog`)
+
+### 9.3 — SQLite Dev Mode Lucid Compatibility
+
+> **Goal**: Lucid tables work in SQLite dev mode (no Docker/PostgreSQL required).
+
+#### Tasks
+- [ ] Add SQLite schema creation for all Lucid tables in `storage/sqlite.py`
+- [ ] Replace pgvector embedding ops with SQLite-compatible alternatives:
+  - Cosine similarity via pure Python (numpy) for dev mode
+  - Or use `sqlite-vec` extension
+- [ ] Test: `VIBEFUL_STORAGE=sqlite pytest tests/` passes without PostgreSQL
+- [ ] Document: "For production, use PostgreSQL. For local dev, SQLite works for everything except vector search quality."
+
+#### Files to modify
+- `packages/agent-engine/src/storage/sqlite.py`
+- `packages/agent-engine/src/database_lucid.py`
+
+---
+
+## Phase 10: Ecosystem Growth
+
+> **Goal**: MCP server examples, interactive docs, and a developer playground.
+> **Priority**: P2 — strategic differentiators, not blocking.
+
+### 10.1 — MCP Server Examples
+
+> **Goal**: Ready-to-use tool servers so users don't start from scratch.
+
+#### Tasks
+- [ ] `mcp-web-search` — DuckDuckGo/Bing search tool (already scaffolded)
+- [ ] `mcp-weather` — Open-Meteo free weather API tool
+- [ ] `mcp-calculator` — Safe math evaluation tool
+- [ ] `mcp-filesystem` — Read/write files within a sandboxed directory
+- [ ] Each server: Dockerfile, README with curl test, registered in `docker-compose.yml`
+- [ ] Document in `docs/mcp-servers.md` (new doc)
+
+#### Files to create
+- `packages/mcp-servers/src/web-search/`
+- `packages/mcp-servers/src/weather/`
+- `packages/mcp-servers/src/calculator/`
+- `packages/mcp-servers/src/filesystem/`
+- `docs/mcp-servers.md`
+
+### 10.2 — SDK Documentation Site
+
+> **Goal**: Interactive docs with live playground. Not a marketing page — a developer tool.
+
+#### Tasks
+- [ ] Create `website/` as a VitePress or Docusaurus site
+- [ ] Pages: Getting Started, API Reference, SDK Guide, MCP Guide, Architecture, FAQ
+- [ ] Embed live playground: `<VibefulChat>` component with a demo agent
+- [ ] Publish to GitHub Pages or similar
+- [ ] Link from root README and main website
+
+#### Files to create/modify
+- `website/` (convert from single HTML to full doc site)
+
+### 10.3 — E2E Test Expansion
+
+> **Goal**: End-to-end tests covering the full user journey.
+
+#### Tasks
+- [ ] SDK E2E: mount widget → send message → verify response
+- [ ] Console E2E: drag nodes → deploy → converse via SDK → verify analysis results
+- [ ] API E2E: create agent → create session → converse → check facts stored → check token debited
+- [ ] Run in CI: `make test-e2e` starts Docker Compose, runs Playwright, tears down
+
+#### Files to create
+- `packages/sdk/e2e/` (expand existing)
+- `packages/management-console/e2e/`
+- `tests/e2e/` (API-level E2E)
+
+---
+
+## Updated Implementation Order
+
+```
+Phase 1-7 (done) → Platform feature-complete ✅
+Phase 8 (now)    → CI/CD, tests, rate limiting, DB migrations
+Phase 9           → Backup, logging, SQLite Lucid support
+Phase 10          → MCP examples, interactive docs, E2E expansion
+```
+
+---
+
 
 1. **Visual designer generates YAML, not LSML** — Vibeful's native config format
 2. **React 19 + React Flow + Tailwind 4 + shadcn/ui** — same stack as LSML Composer
@@ -324,3 +540,4 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 6. **New tables in PostgreSQL, not MySQL** — existing infrastructure
 7. **Management console is a NEW package** — doesn't modify sdk or agent-engine
 8. **No LSML Composer code copied directly** — patterns adapted, code rewritten
+9. **Local-first CI/CD** — `make ci` runs everything locally. No cloud CI required. Provider-agnostic by design — any CI system (GitHub Actions, GitLab CI, Jenkins, etc.) invokes the same `make ci` target.

@@ -36,7 +36,7 @@ def test_all_builtins_registered():
     assert "builtin.attack_guard" in names
     assert "builtin.rag" in names
     assert "builtin.router" in names
-    assert len(names) == 14
+    assert len(names) == 16  # +analysis_pipeline +output_router
 
 
 def test_get_node_known():
