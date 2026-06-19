@@ -15,7 +15,7 @@ interface Version {
   created_at: string;
 }
 
-export default function VersionHistory() {
+export default function VersionHistory({ agentId }: { agentId?: string | null }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

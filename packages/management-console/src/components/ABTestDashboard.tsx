@@ -24,7 +24,7 @@ interface ABTest {
   winner: string | null;
 }
 
-export default function ABTestDashboard() {
+export default function ABTestDashboard({ agentId }: { agentId?: string | null }) {
   const [tests, setTests] = useState<ABTest[]>([]);
   const [selectedTest, setSelectedTest] = useState<ABTest | null>(null);
   const [results, setResults] = useState<ABTestResult[]>([]);

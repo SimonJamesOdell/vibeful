@@ -4,7 +4,7 @@ import { useFlowStore } from '../lib/flowStore';
 import { generateProposals, type WorkflowProposal } from '../lib/proposalGenerator';
 const _unused = null; // Was applyAICommand — now using useFlowStore directly
 
-export default function ProposalCard() {
+export default function ProposalCard({ agentId }: { agentId?: string | null }) {
   const [proposals, setProposals] = useState<WorkflowProposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

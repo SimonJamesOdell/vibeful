@@ -26,7 +26,7 @@ interface PerformanceSummary {
   baselines: Record<string, NodeBaseline>;
 }
 
-export default function RegressionMonitor() {
+export default function RegressionMonitor({ agentId }: { agentId?: string | null }) {
   const [agentId, setAgentId] = useState('');
   const [summary, setSummary] = useState<PerformanceSummary | null>(null);
   const [loading, setLoading] = useState(false);

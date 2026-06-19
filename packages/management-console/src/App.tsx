@@ -411,19 +411,19 @@ export default function App() {
           </div>
         ) : activeTab === 'versions' ? (
           <div className="flex-1 overflow-y-auto">
-            <VersionHistory />
+            <VersionHistory agentId={activeAgentId} />
           </div>
         ) : activeTab === 'proposals' ? (
           <div className="flex-1 overflow-y-auto">
-            <ProposalCard />
+            <ProposalCard agentId={activeAgentId} />
           </div>
         ) : activeTab === 'abtest' ? (
           <div className="flex-1 overflow-y-auto">
-            <ABTestDashboard />
+            <ABTestDashboard agentId={activeAgentId} />
           </div>
         ) : activeTab === 'monitor' ? (
           <div className="flex-1 overflow-y-auto">
-            <RegressionMonitor />
+            <RegressionMonitor agentId={activeAgentId} />
           </div>
         ) : activeTab === 'glyphs' ? (
           <div className="flex-1 overflow-y-auto">
