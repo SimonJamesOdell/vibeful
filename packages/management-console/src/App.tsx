@@ -16,6 +16,7 @@ import GlyphManager from './components/GlyphManager';
 import ConceptBrowser from './components/ConceptBrowser';
 import GlobalMemoryExplorer from './components/GlobalMemoryExplorer';
 import TokenDashboard from './components/TokenDashboard';
+import SetupWizard from './components/SetupWizard';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'designer' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens'>('designer');
@@ -195,6 +196,7 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
+      <SetupWizard />
       <div className="h-screen flex flex-col bg-slate-950">
         {/* Header */}
         <header className="h-12 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0">

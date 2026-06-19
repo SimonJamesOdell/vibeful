@@ -58,6 +58,23 @@ async def health():
     return {"status": "ok", "service": "proxy", "phase": 1}
 
 
+@app.get("/health/config")
+async def health_config():
+    """Report configuration status for the Management Console setup wizard."""
+    key = os.getenv("DEEPSEEK_API_KEY", "")
+    key_configured = bool(key and "your-deepseek" not in key.lower() and len(key) > 20)
+    return {
+        "deepseek_api_key_configured": key_configured,
+        "llm_provider": os.getenv("VIBEFUL_LLM_PROVIDER", "deepseek"),
+        "auth_provider": os.getenv("VIBEFUL_AUTH_PROVIDER", "passthrough"),
+        "needs_setup": not key_configured,
+        "setup_instructions":
+            "1. Copy .env.example to .env\n"
+            "2. Add your DEEPSEEK_API_KEY (get one at https://platform.deepseek.com/api_keys)\n"
+            "3. Restart: docker compose down && docker compose up -d",
+        "get_api_key_url": "https://platform.deepseek.com/api_keys",
+    }
+
 # ── Agents ─────────────────────────────────────────────────────
 
 @app.post("/v1/agents")
