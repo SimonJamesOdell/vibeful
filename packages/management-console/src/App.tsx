@@ -26,6 +26,7 @@ export default function App() {
     agentDescription, setAgentDescription,
     codePreviewVisible, toggleCodePreview,
     propertiesVisible, toggleProperties,
+    selectedNodeId,
     loadGraph, clearGraph,
   } = useFlowStore();
 
@@ -292,7 +293,11 @@ export default function App() {
             <div className="flex-1 min-w-0 relative">
               <FlowCanvas />
             </div>
-            <div className="w-72 bg-slate-900 border-l border-slate-700 flex-shrink-0">
+            <div className={`
+              transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0
+              bg-slate-900 border-l border-slate-700
+              ${selectedNodeId ? 'w-72 opacity-100' : 'w-0 opacity-0 border-l-0'}
+            `}>
               <PropertyPanel />
             </div>
             <div className="w-[340px] bg-slate-900 border-l border-slate-700 flex-shrink-0">
