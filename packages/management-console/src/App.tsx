@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import FlowCanvas from './components/FlowCanvas';
 import NodePalette from './components/NodePalette';
@@ -160,6 +160,38 @@ export default function App() {
     loadGraph(template.nodes as any, template.edges);
     setAgentName(template.name);
   };
+
+  // ── Vibeful Guide event handlers ────────────────────────────
+  // The Guide agent emits custom DOM events to control the console.
+  // This demonstrates the same command protocol end users' agents will use.
+
+  useEffect(() => {
+    const onDeploy = () => { handleDeploy(); };
+    const onLoadTemplate = (e: Event) => {
+      loadTemplateFromYaml((e as CustomEvent).detail);
+    };
+    const onNavigate = (e: Event) => {
+      const tab = (e as CustomEvent).detail as string;
+      const validTabs = ['designer', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens'];
+      if (validTabs.includes(tab)) setActiveTab(tab as typeof activeTab);
+    };
+    const onConfigureAnalysis = (e: Event) => {
+      const phases = (e as CustomEvent).detail;
+      console.log('[Vibeful Guide] Analysis configured:', phases);
+    };
+
+    window.addEventListener('vibeful:deploy', onDeploy);
+    window.addEventListener('vibeful:load-template', onLoadTemplate);
+    window.addEventListener('vibeful:navigate', onNavigate);
+    window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
+
+    return () => {
+      window.removeEventListener('vibeful:deploy', onDeploy);
+      window.removeEventListener('vibeful:load-template', onLoadTemplate);
+      window.removeEventListener('vibeful:navigate', onNavigate);
+      window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
+    };
+  }, []);
 
   return (
     <ReactFlowProvider>
