@@ -96,10 +96,21 @@ export default function AIAssistantPanel() {
         (n) => n.data.label === label || n.id === label
       );
       if (node) {
-        // Remove the node and any edges connected to it
+        const nodeId = node.id;
+        // Find incoming and outgoing edges to bridge the gap after removal
+        const incoming = state.edges.find((e) => e.target === nodeId);
+        const outgoing = state.edges.find((e) => e.source === nodeId);
+        let newEdges = state.edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+        if (incoming && outgoing) {
+          newEdges.push({
+            id: `edge_${incoming.source}_${outgoing.target}`,
+            source: incoming.source,
+            target: outgoing.target,
+          });
+        }
         useFlowStore.setState({
-          nodes: state.nodes.filter((n) => n.id !== node.id),
-          edges: state.edges.filter((e) => e.source !== node.id && e.target !== node.id),
+          nodes: state.nodes.filter((n) => n.id !== nodeId),
+          edges: newEdges,
         });
         return { label };
       }
