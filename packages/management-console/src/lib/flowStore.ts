@@ -82,7 +82,13 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   tourActiveIndex: -1,
 
   onNodesChange: (changes) => {
-    set({ nodes: applyNodeChanges(changes, get().nodes) as unknown as Node<VibefulNodeData>[] });
+    const newNodes = applyNodeChanges(changes, get().nodes) as unknown as Node<VibefulNodeData>[];
+    // Sync selectedNodeId when the user clicks a node on the canvas
+    const selectChanges = changes.filter((c) => c.type === 'select');
+    const newSelectedNodeId = selectChanges.length > 0
+      ? (newNodes.find((n) => n.selected)?.id ?? null)
+      : get().selectedNodeId;
+    set({ nodes: newNodes, selectedNodeId: newSelectedNodeId });
   },
   onEdgesChange: (changes) => {
     set({ edges: applyEdgeChanges(changes, get().edges) });
