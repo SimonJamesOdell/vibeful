@@ -9,7 +9,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Loader2, Wand2, Brain, ChevronDown, ChevronRight } from 'lucide-react';
 import { useFlowStore } from '../lib/flowStore';
 import { processAICommand, applyAICommand, type AICommand, lastAIError, clearLastAIError } from '../lib/aiAssistant';
-import { VIBEFUL_GUIDE_SYSTEM_PROMPT } from '../lib/vibefulGuide';
 import {
   parseCommands, executeCommands, stripCommands, registerCommandHandler,
   CONSOLE_COMMANDS, type CommandResult,
@@ -141,6 +140,20 @@ export default function AIAssistantPanel() {
     'yes please', 'yes!', 'yeah!', 'sure!',
   ]);
 
+  // Local answers for common onboarding questions (no LLM needed)
+  const ONBOARDING_QA: Record<string, string> = {
+    'what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+    'what do the nodes mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+    'i see the nodes what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+    'what is this': "This is the Vibeful agent designer — a visual canvas where you build AI agents by connecting nodes. Each node is a step in your agent's decision process. You design the flow, Vibeful runs it. Think of it like a flowchart that makes AI decisions.",
+    'what is vibeful': "Vibeful is a platform for building, testing, and deploying AI agents. You design an agent's behavior on this canvas, then embed it in your app with a few lines of code. No ML expertise needed — just describe what you want the agent to do.",
+    'how do i build an agent': "You're already doing it! The 4 nodes on your canvas form a working agent. To customize it:\n\n• Add nodes: type 'add a RAG node' or 'add an attack guard'\n• Remove nodes: click a node and press Delete\n• Connect nodes: drag from one node's edge to another\n\nOnce you're happy, click Deploy and you'll get 3 lines of code to embed it in your app.",
+    'how do i deploy': "Click the Deploy button in the toolbar (top right), or type 'deploy' here. You'll get a code snippet — 3 lines of JavaScript/TypeScript — that you paste into your app. The agent runs on Vibeful's infrastructure; your app just sends messages and receives responses.",
+    'what next': "You've got a working agent on the canvas! Here are some ideas:\n\n• **Add intelligence**: type 'add a RAG node' to give your agent knowledge from your documents\n• **Add safety**: type 'add an attack guard' to protect against prompt injection\n• **Test it**: switch to the Conversations tab and chat with your agent\n• **Deploy it**: click Deploy to get the embed code\n\nWhat would you like to try?",
+    'ok i see them what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+    'ok i see them what do they mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+  };
+
   const handleSend = async () => {
     const msg = input.trim();
     if (!msg || loading) return;
@@ -148,9 +161,19 @@ export default function AIAssistantPanel() {
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
 
+    // --- Local onboarding Q&A: answer common questions without the LLM ---
+    const lowerMsg = msg.toLowerCase().replace(/[?!.,]+$/, '').trim();
+    if (onboarding && ONBOARDING_QA[lowerMsg]) {
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: ONBOARDING_QA[lowerMsg],
+      }]);
+      return;
+    }
+
     // --- Onboarding fast path: "yes" without needing the LLM ---
     const isOnboarding = nodes.length === 0 && edges.length === 0 && onboarding;
-    if (isOnboarding && ONBOARDING_YES.has(msg.toLowerCase())) {
+    if (isOnboarding && ONBOARDING_YES.has(lowerMsg)) {
       const explain = "Let's build your first agent! I'm setting up a minimal template on the canvas now — you'll see nodes appear in a moment.";
       setMessages((prev) => [...prev, {
         role: 'assistant',
@@ -166,33 +189,37 @@ export default function AIAssistantPanel() {
     clearLastAIError();
 
     try {
-      const command = await processAICommand(
-        `${VIBEFUL_GUIDE_SYSTEM_PROMPT}\n\n---\n\n${msg}`,
-        nodes,
-        edges
-      );
+      const command = await processAICommand(msg, nodes, edges);
 
       if (command) {
-        // Parse any embedded vibeful-command blocks from explanation
-        const cmdResults = await executeCommands(command.explanation);
-        const cleanContent = stripCommands(command.explanation);
-        const analysis = extractAnalysis(command.explanation);
+        // Explain commands: just show the text, no action buttons
+        if (command.action === 'explain') {
+          setMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: command.explanation,
+          }]);
+        } else {
+          // Parse any embedded vibeful-command blocks from explanation
+          const cmdResults = await executeCommands(command.explanation);
+          const cleanContent = stripCommands(command.explanation);
+          const analysis = extractAnalysis(command.explanation);
 
-        const newMsg: ChatMessage = {
-          role: 'assistant',
-          content: cleanContent || command.explanation,
-          command,
-          commandResults: cmdResults.length > 0 ? cmdResults : undefined,
-          analysis,
-        };
+          const newMsg: ChatMessage = {
+            role: 'assistant',
+            content: cleanContent || command.explanation,
+            command,
+            commandResults: cmdResults.length > 0 ? cmdResults : undefined,
+            analysis,
+          };
 
-        setMessages((prev) => [...prev, newMsg]);
+          setMessages((prev) => [...prev, newMsg]);
 
-        // Auto-apply commands if they affect the graph
-        if (command.action !== 'setup_template' && command.action !== 'configure_analysis') {
-          const result = applyAICommand(command, useFlowStore.getState().nodes, useFlowStore.getState().edges);
-          if (result) {
-            loadGraph(result.nodes, result.edges);
+          // Auto-apply commands if they affect the graph
+          if (command.action !== 'setup_template' && command.action !== 'configure_analysis') {
+            const result = applyAICommand(command, useFlowStore.getState().nodes, useFlowStore.getState().edges);
+            if (result) {
+              loadGraph(result.nodes, result.edges);
+            }
           }
         }
       } else {
@@ -221,6 +248,9 @@ export default function AIAssistantPanel() {
   };
 
   const handleApplyCommand = (command: AICommand) => {
+    if (command.action === 'explain') {
+      return; // No action to apply for conversational responses
+    }
     if (command.action === 'setup_template') {
       const { template } = command.details as { template: string };
       window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: template }));
@@ -358,8 +388,8 @@ export default function AIAssistantPanel() {
                       </div>
                     )}
 
-                    {/* Apply button */}
-                    {msg.command && (
+                    {/* Apply button — hidden for explain-only commands */}
+                    {msg.command && msg.command.action !== 'explain' && (
                       <button
                         onClick={() => handleApplyCommand(msg.command!)}
                         className="mt-2 flex items-center gap-1 px-2 py-1 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"

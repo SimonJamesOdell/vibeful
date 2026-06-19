@@ -10,59 +10,38 @@ import type { VibefulNodeData } from './flowStore';
 import { VIBEFUL_NODE_TYPES } from '../const';
 
 export interface AICommand {
-  action: 'add_node' | 'remove_node' | 'add_edge' | 'remove_edge' | 'modify_node' | 'setup_template' | 'configure_analysis';
+  action: 'add_node' | 'remove_node' | 'add_edge' | 'remove_edge' | 'modify_node' | 'setup_template' | 'configure_analysis' | 'explain';
   details: Record<string, unknown>;
   explanation: string;
 }
 
-const SYSTEM_PROMPT = `You are an AI assistant for Vibeful Management Console, a visual agent graph design tool.
+const SYSTEM_PROMPT = `You are the Vibeful Guide — an AI assistant that helps users build AI agents on a visual canvas. You are friendly, helpful, and concise.
 
 **Available Node Types:**
 ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
 
 **Your Task:**
-1. Understand the user's natural language request
-2. Analyze the current workflow state (nodes and edges provided below)
-3. Generate a JSON command to modify the workflow
+1. If the user asks a question or wants an explanation → respond conversationally with action "explain"
+2. If the user wants to modify the graph → generate a JSON command with the appropriate action
 
 **Command Format — Return ONLY valid JSON:**
 {
-  "action": "add_node" | "remove_node" | "add_edge" | "remove_edge" | "modify_node" | "setup_template" | "configure_analysis",
+  "action": "explain" | "add_node" | "remove_node" | "add_edge" | "remove_edge" | "modify_node" | "setup_template" | "configure_analysis",
   "details": {
-    // For add_node:
-    "nodeType": "builtin.react_agent",
-    "label": "ReAct Agent",
-    "afterNodeId": "optional-node-id-to-place-after",
-    
-    // For remove_node:
-    "nodeId": "node-id-to-remove",
-    
-    // For add_edge:
-    "sourceNodeId": "source-node-id",
-    "targetNodeId": "target-node-id",
-    
-    // For modify_node:
-    "nodeId": "node-id",
-    "updates": { "label": "New Name", "config": { "max_iterations": 3 } },
-    
-    // For setup_template:
-    "template": "minimal" | "full" | "lucid",
-    
-    // For configure_analysis:
-    "phases": { "impressions": { "enabled": true, "temperature": 0.5 } }
+    // For explain: leave empty {}
+    // For add_node: "nodeType": "...", "label": "...", "afterNodeId": "optional"
+    // For setup_template: "template": "minimal" | "full" | "lucid"
+    // For configure_analysis: "phases": { "name": { "enabled": true, ... } }
   },
-  "explanation": "Brief explanation of the change"
+  "explanation": "Your helpful response to the user"
 }
 
 **Examples:**
+User: "what do these nodes mean?"
+Response: {"action":"explain","details":{},"explanation":"Here's what each node does: Setup initializes the conversation and captures the user's intent. System Prompt Builder constructs the instructions for the AI. LLM Call sends the request to DeepSeek and gets the response. Output captures and formats the result."}
+
 User: "add an attack guard at the start"
 Response: {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"},"explanation":"Adding Attack Guard node to detect prompt injection and jailbreak attempts."}
-
-User: "enable impressions analysis with temperature 0.3"
-Response: {"action":"configure_analysis","details":{"phases":{"impressions":{"enabled":true,"temperature":0.3}}},"explanation":"Enabling impressions analysis phase at temperature 0.3 to detect user emotional state."}
-
-User: "add a RAG node after the system prompt"
-Response: {"action":"add_node","details":{"nodeType":"builtin.rag","label":"RAG","afterNodeId":"system_prompt"},"explanation":"Adding RAG node for knowledge retrieval after the system prompt builder."}
 
 User: "make a full lucid agent"
 Response: {"action":"setup_template","details":{"template":"lucid"},"explanation":"Setting up a full Lucid Analysis Agent template with analysis pipeline and output router."}`;
@@ -117,10 +96,14 @@ export async function processAICommand(
 
     const data = await resp.json();
     const content = data.response || data.content || '';
-    const result = parseAIResponse(content);
-    if (!result && content) {
-      // LLM responded but not in the expected JSON format — capture for diagnostics
-      lastAIError = `LLM responded (truncated): "${content.slice(0, 200)}" — expected JSON command`;
+    let result = parseAIResponse(content);
+    // If the LLM responded conversationally (not JSON), wrap it as an explain command
+    if (!result && content.trim()) {
+      result = {
+        action: 'explain',
+        details: {},
+        explanation: content.trim(),
+      };
     }
     return result;
   } catch (e: unknown) {
