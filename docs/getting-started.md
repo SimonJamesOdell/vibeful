@@ -1,13 +1,18 @@
 # Getting Started
 
-Add AI agents to your app in 5 minutes.
+Add AI agents to your app in 5 minutes. Two paths — pick the one that fits.
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) installed
 - A [DeepSeek API key](https://platform.deepseek.com/api_keys) (free tier available)
+- **Path A (Docker):** [Docker](https://docs.docker.com/get-docker/) — recommended for production
+- **Path B (Local):** Python 3.12+ and Node.js 22+ — fastest for development
 
-## 1. Clone and Configure
+---
+
+## Path A: Docker (Recommended for Production)
+
+### 1. Clone and start
 
 ```bash
 git clone https://github.com/vibeful/vibeful.git
@@ -112,3 +117,46 @@ VibefulSDK.mount({
 ```
 
 That's it. Your app now has an AI agent.
+
+---
+
+## Path B: Local (No Docker Required)
+
+Best for development, small-scale apps, or when you don't want Docker overhead. Uses SQLite instead of PostgreSQL.
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/vibeful/vibeful.git
+cd vibeful
+cd packages/agent-engine && pip install -e ".[dev]" && cd ../..
+cd packages/management-console && pnpm install && cd ../..
+```
+
+### 2. Set your API key
+
+```bash
+export DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+Or paste it in the Management Console when prompted — no file editing needed.
+
+### 3. Start
+
+```bash
+# Terminal 1: Agent engine
+cd packages/agent-engine
+VIBEFUL_STORAGE=sqlite python -m uvicorn src.rest_server:app --host 0.0.0.0 --port 50052
+
+# Terminal 2: Management console
+cd packages/management-console
+pnpm dev
+```
+
+Open **http://localhost:5174**. Design your agent on the canvas, deploy, and embed.
+
+### Local mode limitations
+
+- **SQLite** instead of PostgreSQL/pgvector — fine for dev, use Docker for production vector search
+- **No Redis** — session caching is in-memory
+- **No MCP servers or Envoy** — use the REST API directly

@@ -194,17 +194,39 @@
 <section class="section">
   <div class="container">
     <h2>Get started</h2>
-    <p class="subtitle">Clone, start, and you're building agents in minutes. Full documentation ships with the repo.</p>
-    <div class="code-block">
-<span class="c"># Clone the repo</span>
+    <p class="subtitle">Two paths — pick the one that fits your setup. Docker for production, local for development.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.5rem;">
+      <div class="card">
+        <div class="card-icon">🐳</div>
+        <h3>Docker <span style="font-weight:400;font-size:0.8rem;color:var(--text-dim);">— production</span></h3>
+        <p style="margin-bottom:0.75rem;">PostgreSQL, Redis, Envoy, MCP servers — everything in one command.</p>
+        <div class="code-block" style="font-size:0.8rem;">
 git clone https://github.com/vibeful/vibeful.git
-cd vibeful
+<span class="k">cd</span> vibeful && docker compose up -d
+<span class="c"># Open http://localhost:5174</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">💻</div>
+        <h3>Local <span style="font-weight:400;font-size:0.8rem;color:var(--text-dim);">— no Docker</span></h3>
+        <p style="margin-bottom:0.75rem;">Python 3.12 + Node.js 22. SQLite storage. Two terminals.</p>
+        <div class="code-block" style="font-size:0.8rem;">
+<span class="c"># Terminal 1: Agent engine</span>
+<span class="k">cd</span> packages/agent-engine
+pip install -e <span class="s">".[dev]"</span>
+python -m uvicorn src.rest_server:app --port 50052
 
-<span class="c"># Start everything — PostgreSQL, Redis, Agent Engine, Console, SDK</span>
-docker compose up -d
-
-<span class="c"># Open http://localhost:5174 — the console guides you from there</span>
+<span class="c"># Terminal 2: Console</span>
+<span class="k">cd</span> packages/management-console
+pnpm install && pnpm dev
+        </div>
+      </div>
     </div>
+
+    <p style="text-align:center;margin-top:1.5rem;font-size:0.85rem;color:var(--text-dim);">
+      Full docs: <a href="docs.html">Documentation</a> · <a href="https://github.com/vibeful/vibeful">GitHub</a>
+    </p>
   </div>
 </section>
 

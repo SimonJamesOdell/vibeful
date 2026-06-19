@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibeful Documentation</title>
+<style>
+  :root {
+    --bg: #0f172a; --bg-sidebar: #0a0f1c; --bg-card: #1e293b;
+    --border: #334155; --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+    --accent: #6366f1; --accent-hover: #818cf8; --green: #22c55e;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.7;
+    display: flex; min-height: 100vh;
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────────── */
+  .sidebar {
+    width: 260px; min-width: 260px; background: var(--bg-sidebar);
+    border-right: 1px solid var(--border); padding: 1.25rem 0;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 0 1.25rem 1rem; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem;
+  }
+  .sidebar-header a { font-size: 1.1rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+  .sidebar-header a:hover { text-decoration: none; }
+  .sidebar-section {
+    padding: 0.5rem 1.25rem; font-size: 0.7rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+  }
+  .sidebar-nav { list-style: none; }
+  .sidebar-nav li a {
+    display: block; padding: 0.35rem 1.25rem; font-size: 0.85rem; color: var(--text-muted);
+    border-left: 2px solid transparent; transition: all 0.15s; cursor: pointer;
+  }
+  .sidebar-nav li a:hover { color: var(--text); background: rgba(99,102,241,0.06); border-left-color: var(--accent); text-decoration: none; }
+  .sidebar-footer { margin-top: auto; padding: 1rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim); }
+
+  /* ── Content ───────────────────────────────────────────────── */
+  .content { flex: 1; padding: 2.5rem 3rem; max-width: 850px; overflow-y: auto; height: 100vh; }
+  .content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1rem; letter-spacing: -0.02em; }
+  .content h2 { font-size: 1.4rem; font-weight: 600; margin: 2rem 0 0.75rem; padding-top: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  .content h3 { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--accent-hover); }
+  .content p { margin-bottom: 0.75rem; color: var(--text-muted); font-size: 0.9rem; }
+  .content ul, .content ol { margin: 0.75rem 0 1rem 1.5rem; color: var(--text-muted); font-size: 0.9rem; }
+  .content li { margin-bottom: 0.35rem; }
+  .content a { color: var(--accent-hover); }
+  .content strong { color: var(--text); }
+  .content pre, .content code {
+    background: #0a0f1c; border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem;
+  }
+  .content code { padding: 0.15rem 0.4rem; }
+  .content pre { padding: 1rem 1.25rem; overflow-x: auto; margin: 0.75rem 0 1.25rem; line-height: 1.5; }
+  .content pre code { background: none; border: none; padding: 0; }
+  .content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+  .content th { text-align: left; padding: 0.5rem 0.75rem; background: var(--bg-card); border-bottom: 2px solid var(--border); color: var(--text); font-weight: 600; }
+  .content td { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+  .content td:first-child code { background: rgba(99,102,241,0.1); color: var(--accent-hover); font-size: 0.75rem; white-space: nowrap; }
+  .content hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  .content blockquote {
+    border-left: 3px solid var(--accent); background: rgba(99,102,241,0.06);
+    padding: 0.5rem 1rem; border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 1rem 0; color: var(--text-muted); font-size: 0.9rem;
+  }
+  .content blockquote strong { color: var(--accent-hover); }
+  .loading { color: var(--text-dim); font-style: italic; }
+  .error { color: #ef4444; }
+
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
+    .sidebar { width: 100%; min-width: 0; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 0.75rem; }
+    .sidebar-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .sidebar-nav li a { border-left: none; border-radius: var(--radius); padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+    .sidebar-section { display: none; }
+    .content { padding: 1.5rem; height: auto; }
+    .content h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <a href="index.html">← Vibeful</a>
+  </div>
+  <div class="sidebar-section">Documentation</div>
+  <ul class="sidebar-nav" id="nav"></ul>
+  <div class="sidebar-footer">Docs source: <code style="color:var(--text-dim);font-size:0.7rem">docs/*.md</code></div>
+</nav>
+
+<main class="content" id="content"><p class="loading">Loading documentation…</p></main>
+
+<script>
+// ── Docs config — single source of truth: docs/*.md ──────────
+const DOCS = [
+  { file: '../docs/getting-started.md',   nav: 'Getting Started',   section: 'Start Here' },
+  { file: '../docs/architecture.md',      nav: 'Architecture',      section: 'Core Concepts' },
+  { file: '../docs/api-reference.md',     nav: 'API Reference',     section: 'Core Concepts' },
+  { file: '../docs/sdk-guide.md',         nav: 'SDK Guide',         section: 'Integration' },
+  { file: '../docs/faq.md',               nav: 'FAQ',               section: 'Resources' },
+  { file: '../CONTRIBUTING.md',           nav: 'Contributing',      section: 'Resources' },
+  { file: '../ROADMAP.md',                nav: 'Roadmap',           section: 'Resources' },
+];
+
+// ── Minimal markdown → HTML renderer ────────────────────────
+function md2html(md) {
+  let h = md;
+  // Code blocks (fenced)
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
+    `<pre><code>${esc(code.trim())}</code></pre>`);
+  // Inline code
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Headings
+  h = h.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // Bold and italic
+  h = h.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Links
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  // Images
+  h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%">');
+  // Horizontal rules
+  h = h.replace(/^---$/gm, '<hr>');
+  // Blockquotes
+  h = h.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  // Consecutive blockquotes merge
+  h = h.replace(/<\/blockquote>\n<blockquote>/g, '\n');
+  // Unordered lists
+  h = h.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  // Ordered lists
+  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  // Tables
+  h = h.replace(/^\|(.+)\|$/gm, (line) => {
+    const cells = line.split('|').filter(c => c.trim());
+    if (cells.every(c => /^[-:]+$/.test(c.trim()))) return '<!-- separator -->';
+    const tag = line.replace(/^\|/, '').startsWith('--') ? 'td' : 'td';
+    return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+  });
+  h = h.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+  // Paragraphs (lines that aren't already HTML)
+  h = h.replace(/^(?!<[a-z\/!])(.+)$/gm, '<p>$1</p>');
+  // Clean up empty paragraphs
+  h = h.replace(/<p>\s*<\/p>/g, '');
+  // Merge consecutive paragraphs separated only by newlines
+  h = h.replace(/<\/p>\n<p>/g, '</p><p>');
+  return h;
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Fetch and render ────────────────────────────────────────
+const nav = document.getElementById('nav');
+const content = document.getElementById('content');
+let currentSection = '';
+
+DOCS.forEach((doc, i) => {
+  // Add nav section header if new section
+  if (doc.section !== currentSection) {
+    currentSection = doc.section;
+    const hdr = document.createElement('div');
+    hdr.className = 'sidebar-section';
+    hdr.textContent = currentSection;
+    nav.appendChild(hdr);
+  }
+  const li = document.createElement('li');
+  const a = document.createElement('a');
+  a.textContent = doc.nav;
+  a.onclick = () => loadDoc(i);
+  li.appendChild(a);
+  nav.appendChild(li);
+});
+
+async function loadDoc(index) {
+  const doc = DOCS[index];
+  content.innerHTML = `<p class="loading">Loading ${doc.nav}…</p>`;
+  try {
+    const resp = await fetch(doc.file);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const md = await resp.text();
+    // Strip YAML frontmatter if present
+    const clean = md.replace(/^---[\s\S]*?---\n*/, '');
+    content.innerHTML = md2html(clean);
+    // Highlight active nav
+    document.querySelectorAll('.sidebar-nav li a').forEach((a, i) => {
+      a.style.color = i === index ? 'var(--accent-hover)' : '';
+      a.style.borderLeftColor = i === index ? 'var(--accent-hover)' : 'transparent';
+    });
+    content.scrollTop = 0;
+  } catch (err) {
+    content.innerHTML = `<p class="error">Could not load ${doc.nav}: ${err.message}</p>
+      <p class="loading">Docs are available in the repository's <code>docs/</code> directory.</p>`;
+  }
+}
+
+// Load first doc by default
+loadDoc(0);
+</script>
+
+</body>
+</html>
