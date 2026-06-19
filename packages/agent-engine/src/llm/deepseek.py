@@ -39,12 +39,13 @@ class DeepSeekProvider:
         model: str | None = None,
         tools: list[ToolDefinition] | None = None,
         temperature: float = 0.7,
+        top_p: float = 1.0,
         max_tokens: int = 4096,
         system_prompt: str | None = None,
     ) -> LlmResponse:
         payload = self._build_payload(
             messages=messages, model=model, tools=tools,
-            temperature=temperature, max_tokens=max_tokens,
+            temperature=temperature, top_p=top_p, max_tokens=max_tokens,
             system_prompt=system_prompt, stream=False,
         )
         async with httpx.AsyncClient(timeout=180.0) as client:
@@ -68,12 +69,13 @@ class DeepSeekProvider:
         model: str | None = None,
         tools: list[ToolDefinition] | None = None,
         temperature: float = 0.7,
+        top_p: float = 1.0,
         max_tokens: int = 4096,
         system_prompt: str | None = None,
     ) -> AsyncIterator[StreamChunk]:
         payload = self._build_payload(
             messages=messages, model=model, tools=tools,
-            temperature=temperature, max_tokens=max_tokens,
+            temperature=temperature, top_p=top_p, max_tokens=max_tokens,
             system_prompt=system_prompt, stream=True,
             stream_options={"include_usage": True},
         )
@@ -104,7 +106,7 @@ class DeepSeekProvider:
     # ── Helpers ───────────────────────────────────────────────
 
     def _build_payload(
-        self, *, messages, model, tools, temperature, max_tokens,
+        self, *, messages, model, tools, temperature, top_p, max_tokens,
         system_prompt=None, stream=False, stream_options=None,
     ) -> dict[str, Any]:
         built = []
@@ -115,6 +117,7 @@ class DeepSeekProvider:
             "model": model or self.default_model,
             "messages": built,
             "temperature": temperature,
+            "top_p": top_p,
             "max_tokens": max_tokens,
             "stream": stream,
         }

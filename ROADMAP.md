@@ -1,587 +1,326 @@
-# Vibeful — Development Roadmap
+# Vibeful Unified Platform — Roadmap
 
-> **Principle:** Build a multi-tenant AI agent platform from the ground up.
-> **Date:** 2026-06-18
+> Last updated: 2026-06-19
+> Current state: All 7 phases code-complete. 78/78 tests passing. TypeScript clean. Vite build passing.
 
 ---
 
-## Architecture Overview (The Target)
+## What's Built (Complete)
+
+### Core Agent Engine
+- [x] LangGraph agent graph (14 nodes): attack_guard, setup, fact_recall, planning, buttons, system_message_builder, analysis_pipeline, rag, mcp_discovery, react_agent, output_router, stream_completion, citation, follow_up, fact_mining
+- [x] Configurable graph builder (YAML/JSON → compiled StateGraph)
+- [x] Node registry (builtin.* namespace, custom node registration)
+- [x] LLM provider abstraction (DeepSeek + OpenAI + Anthropic protocol)
+- [x] ReAct tool-calling loop (built-in tools + MCP tools)
+- [x] RAG pipeline (pgvector semantic search)
+- [x] MCP client (tool discovery + execution)
+- [x] Agent Memory (fact mining, recall, deletion)
+- [x] Streaming (SSE) and gRPC servers
+- [x] REST API server (FastAPI)
+- [x] Multi-tenant session management
+- [x] Attack guard (prompt injection, jailbreak, XSS, SQLi)
+- [x] Prometheus metrics
+- [x] Quality nodes (citations, follow-ups, quick replies)
+- [x] API Gateway (Express/TypeScript): agent CRUD, contexts, sessions, content ingestion
+
+### Analysis Pipeline (Lucid Sensai parity)
+- [x] Pre-response analysis (11 parallel LLM phases):
+  - memories (0.2), impressions (0.5), concepts (0.5), assumptions (0.2)
+  - intent (0.4), code_detect (0.5), search_detect (0.4)
+  - global_memories (0.5), next (0.5), search_execute
+- [x] Conductor phase — dynamically overrides response temperature/top_p
+- [x] DML output router — 6 precision profiles (CODE:0.1, MATH:0.1, FACT:0.3, ANALOGY:1.0, HUMOR:1.8, STORY:1.5)
+- [x] DML instruction injection into system prompt
+- [x] Per-phase toggle + per-phase temperature configuration
+- [x] pipeline orchestrator (asyncio.gather for parallel phases)
+
+### Database
+- [x] PostgreSQL + pgvector
+- [x] Tables: agents, sessions, messages, events, contexts, context_files, context_chunks, facts, mcp_servers, workflows, threads
+- [x] Lucid tables: global_memories (with embedding search), concepts (with embedding search), glyphs, token_credits, token_transactions
+- [x] DatabaseLucidMixin — CRUD for all Lucid tables
+- [x] TokenTracker — per-user budget management (debit/credit/balance)
+- [x] GlyphSystem — glyph CRUD + prompt formatting
+
+### Configuration
+- [x] Analysis config block in AgentConfig (YAML + TypeScript types)
+- [x] agent-lucid.yaml — full example with all 11 phases
+- [x] Backward compatibility — analysis disabled by default, no-op when absent
+- [x] All phases individually toggleable from AMS
+
+### Tests
+- [x] test_analysis_pipeline.py — 60+ tests
+- [x] AnalysisConfig parsing, phase toggling, parallel execution
+- [x] Conductor override, DML parsing, output routing
+- [x] Global memories, next predictions, search execution
+- [x] TokenTracker, GlyphSystem, backward compatibility
+
+### Files Modified
+- `vibeful/packages/agent-engine/src/agent_graph.py` — 17 insertions
+- `vibeful/packages/agent-engine/src/database.py` — 44 insertions
+- `vibeful/packages/agent-engine/src/graph/registry.py` — 3 insertions
+- `vibeful/packages/agent-engine/src/llm/deepseek.py` — 9 insertions
+- `vibeful/packages/agent-engine/src/llm/protocol.py` — 2 insertions
+- `vibeful/packages/agent-engine/src/main.py` — 4 insertions
+- `vibeful/packages/agent-engine/src/rest_server.py` — 6 insertions
+- `vibeful/packages/api-gateway/src/index.ts` — 25 insertions
+
+### Files Created
+- `vibeful/packages/agent-engine/src/analysis_pipeline.py` — 1,108 lines
+- `vibeful/packages/agent-engine/src/database_lucid.py` — 296 lines
+- `vibeful/packages/agent-engine/src/token_tracker.py` — 43 lines
+- `vibeful/packages/agent-engine/src/glyph_system.py` — 70 lines
+- `vibeful/packages/agent-engine/configs/agent-lucid.yaml` — 65 lines
+- `vibeful/packages/agent-engine/tests/test_analysis_pipeline.py` — 1,163 lines
+
+---
+
+## Phase 1: Visual Agent Graph Designer
+
+> **Source pattern**: LSML Composer React Flow canvas
+> **Goal**: Replace hand-edited YAML with drag-and-drop visual designer
+
+### Tasks
+- [ ] Create `vibeful/packages/management-console/` package (React 19 + Vite + Tailwind 4 + shadcn/ui)
+- [ ] React Flow canvas with Vibeful node palette (14 node types in collapsible sections)
+- [ ] Property panel — per-node-type editors (react_agent: max_iterations; rag: context_ids; analysis: 11 phase toggles)
+- [ ] Edge connection with conditional route labels (safe/end for attack_guard, rag/react_agent/mcp_discovery for router)
+- [ ] Real-time YAML preview panel (generates valid `graph:` YAML on every change)
+- [ ] Save/Load — POST/GET `/v1/agents` via existing api-gateway
+- [ ] Deploy button — pushes config to agent engine, returns agent ID
+- [ ] Template system — save/load common agent patterns (support bot, sales, lucid, minimal)
+- [ ] Keyboard shortcuts: Ctrl+Z undo, Ctrl+Y redo, Delete remove, Ctrl+C/V copy/paste nodes
+- [ ] Multi-select + bulk operations (move, delete, duplicate)
+
+### Files to create
+- `management-console/package.json`
+- `management-console/src/App.tsx`
+- `management-console/src/components/FlowCanvas.tsx`
+- `management-console/src/components/NodePalette.tsx`
+- `management-console/src/components/PropertyPanel.tsx`
+- `management-console/src/components/CodePreview.tsx`
+- `management-console/src/lib/yamlGenerator.ts`
+- `management-console/src/lib/flowStore.ts` (Zustand)
+
+---
+
+## Phase 2: AI-Assisted Configuration
+
+> **Source pattern**: LSML Composer aiAssistant.ts + proposalGenerator.ts
+> **Goal**: Natural language commands + AI-suggested optimizations
+
+### Tasks
+- [ ] AI Assistant chat panel — natural language → graph mutations
+- [ ] Supported commands: "add X node", "remove Y", "connect A to B", "enable impressions analysis"
+- [ ] LLM Proposals tab — AI analyzes current agent config, suggests optimizations
+- [ ] Proposal display: problem, solution, benefits, risks, confidence score
+- [ ] One-click apply / dismiss for proposals
+- [ ] Integration with Vibeful's LLM provider abstraction (Groq/DeepSeek)
+- [ ] Context injection: available node types, current graph state, analysis phases
+
+### Files to create
+- `management-console/src/components/AIAssistantPanel.tsx`
+- `management-console/src/components/ProposalCard.tsx`
+- `management-console/src/lib/aiAssistant.ts`
+- `management-console/src/lib/proposalGenerator.ts`
+- `management-console/src/lib/workflowMutation.ts` (adapted from lsml-composer)
+
+---
+
+## Phase 3: Version Management
+
+> **Source pattern**: LSML Composer VERSIONING.md + workflowVersions table
+> **Goal**: Complete audit trail for every agent config change
+
+### Backend
+- [ ] New PostgreSQL table: `agent_versions` (agent_id, version_number, author, change_description, config_snapshot, lsml_code, tags, created_at)
+- [ ] API endpoints: `GET /v1/agents/:id/versions`, `GET /v1/agents/:id/versions/:vid`, `POST /v1/agents/:id/versions/:vid/restore`
+- [ ] Auto-save trigger on agent config changes (debounced 2s)
+
+### Frontend
+- [ ] Version history panel — chronological timeline
+- [ ] Diff viewer — side-by-side config comparison
+- [ ] Rollback — one-click restore to any version
+- [ ] Authorship badges: human vs ai:{model}
+- [ ] Export/Import version history as JSON
+- [ ] 100-version limit with automatic cleanup
+
+### Files to modify
+- `vibeful/packages/api-gateway/src/index.ts` — new version endpoints
+- `vibeful/packages/agent-engine/src/database.py` — agent_versions table + methods
+
+### Files to create
+- `management-console/src/components/VersionHistory.tsx`
+- `management-console/src/components/DiffViewer.tsx`
+
+---
+
+## Phase 4: A/B Testing Framework
+
+> **Source pattern**: LSML Composer AB_TESTING.md + abTests table
+> **Goal**: Scientific comparison of agent config variants
+
+### Backend
+- [ ] New PostgreSQL tables: `ab_tests`, `ab_test_results`
+- [ ] API endpoints: `POST /v1/ab-tests`, `GET /v1/ab-tests`, `POST /v1/ab-tests/:id/start`, `POST /v1/ab-tests/:id/stop`
+- [ ] Traffic splitting at proxy/API gateway level (variant A vs B)
+- [ ] Metric collection: success rate, latency, token cost, CSAT
+- [ ] Statistical analysis: confidence intervals, p-values, winner declaration
+
+### Frontend
+- [ ] A/B Test creation wizard — select baseline + variant, set metrics, sample size
+- [ ] Live results dashboard — per-variant metrics, running statistics
+- [ ] Winner declaration with confidence level
+- [ ] Test history with archived results
+
+### Files to modify
+- `vibeful/packages/api-gateway/src/index.ts` — A/B test endpoints
+- `vibeful/packages/agent-engine/src/database.py` — ab_tests + ab_test_results tables
+
+### Files to create
+- `management-console/src/components/ABTestWizard.tsx`
+- `management-console/src/components/ABTestDashboard.tsx`
+- `management-console/src/lib/statistics.ts`
+
+---
+
+## Phase 5: Regression Detection
+
+> **Source pattern**: LSML Composer regressionDetection.ts
+> **Goal**: Detect when agent config changes degrade performance
+
+### Backend
+- [ ] New Python module: `regression_detector.py`
+- [ ] Metrics tracked: node failure rate, average latency, token consumption, error rate
+- [ ] Baseline establishment on deploy
+- [ ] Statistical comparison (Student's t-test, Mann-Whitney)
+- [ ] Alert thresholds: p < 0.05 with >10% degradation
+- [ ] Integration with Prometheus metrics
+
+### Frontend
+- [ ] Regression monitor dashboard
+- [ ] Per-node performance charts (success rate, latency, tokens)
+- [ ] Alert feed with severity levels
+- [ ] Rollback suggestion on detected regression
+
+### Files to create
+- `vibeful/packages/agent-engine/src/regression_detector.py`
+- `management-console/src/components/RegressionMonitor.tsx`
+- `management-console/src/components/PerformanceCharts.tsx`
+
+---
+
+## Phase 6: Glyph, Concept & Global Memory Manager
+
+> **Goal**: Visual management for Lucid capability stores
+
+### Tasks
+- [ ] Glyph Manager: add/edit/delete glyphs, assign to concepts, preview symbols
+- [ ] Concept Browser: search by domain, view glyph associations, edit descriptions
+- [ ] Global Memory Explorer: browse by type (system_ontology, concept_synthesis, collective_truth), search by embedding
+- [ ] All CRUD via existing api-gateway (new endpoints or direct DB queries)
+
+### Files to modify
+- `vibeful/packages/api-gateway/src/index.ts` — glyph/concept/global_memory endpoints
+
+### Files to create
+- `management-console/src/components/GlyphManager.tsx`
+- `management-console/src/components/ConceptBrowser.tsx`
+- `management-console/src/components/GlobalMemoryExplorer.tsx`
+
+---
+
+## Phase 7: Token Credit Dashboard
+
+> **Goal**: Per-user budget management UI
+
+### Tasks
+- [ ] Balance overview — current balance, total used, total purchased
+- [ ] Transaction history — chronological list, filter by type
+- [ ] Purchase flow — credit tokens to user account
+- [ ] Refund flow — reverse usage debits
+- [ ] Per-agent budget limits
+
+### Files to create
+- `management-console/src/components/TokenDashboard.tsx`
+- `management-console/src/components/TransactionHistory.tsx`
+- `management-console/src/components/PurchaseFlow.tsx`
+
+---
+
+## Architecture Diagram
 
 ```
-                      Customer Product (Web/Mobile)
-                                │
-                      ┌─────────┴─────────┐
-                      │  Embeddable SDK    │  React/TypeScript, Shadow DOM
-                      │  (Display Tier)    │  port :5173 (Vite dev)
-                      └─────────┬─────────┘
-                                │ gRPC-Web (HTTP/2)
-                      ┌─────────┴─────────┐
-                      │  Envoy Proxy       │  gRPC-Web → gRPC bridge
-                      │  port :8080        │
-                      └─────────┬─────────┘
-                                │ gRPC (HTTP/2)
-          ┌─────────────────────┼─────────────────────┐
-          │                     │                     │
-  ┌───────┴───────┐   ┌────────┴────────┐   ┌───────┴───────┐
-  │  Agent Engine  │   │  API Gateway     │   │  Proxy         │
-  │  Python        │   │  Node/TypeScript │   │  FastAPI        │
-  │  LangGraph     │   │  REST + CRUD     │   │  Auth, routing  │
-  │  gRPC :50051   │   │  port :3000      │   │  port :8000     │
-  └───────┬───────┘   └────────┬────────┘   └───────┬───────┘
-          │                    │                     │
-          │         ┌──────────┴──────────┐          │
-          │         │                     │          │
-  ┌───────┴─────┐  ┌┴────────────┐  ┌────┴────┐     │
-  │ MCP Servers │  │ PostgreSQL   │  │  Redis  │     │
-  │ Node/TS     │  │ + pgvector   │  │  cache  │     │
-  │ :3006+      │  │ :5432        │  │ :6379   │     │
-  └─────────────┘  └─────────────┘  └─────────┘     │
-                                                     │
-  ┌──────────────────────────────────────────────────┘
-  │  DeepSeek API (inference + embeddings)
-  │  api.deepseek.com
-  └──────────────────────────────────────────────────
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐ │
+│  │ Vibeful SDK  │  │ Mgmt Console │  │ LSML Composer (legacy) │ │
+│  │(chat widget) │  │(React Flow)  │  │(reference patterns)   │ │
+│  └──────┬───────┘  └──────┬───────┘  └───────────────────────┘ │
+└─────────┼─────────────────┼─────────────────────────────────────┘
+          │                 │
+┌─────────┼─────────────────┼─────────────────────────────────────┐
+│  Envoy :8080                                                     │
+│  ┌──────┴─────────────────┴──────────────────────────────────┐  │
+│  │  Proxy :8000 (auth, routing)                               │  │
+│  └──────────────────────┬─────────────────────────────────────┘  │
+│                         │                                        │
+│  ┌──────────────────────┴──────────────────────────────────┐    │
+│  │  API Gateway :3000 (Express/TypeScript)                  │    │
+│  │  /v1/agents  /v1/contexts  /v1/sessions                  │    │
+│  │  /v1/versions /v1/ab-tests (Phase 3-4)                   │    │
+│  └──────────┬───────────────────────────────┬───────────────┘    │
+│             │                               │                    │
+│  ┌──────────┴───────────┐  ┌────────────────┴──────────────┐    │
+│  │ Agent Engine :50051  │  │ Agent Engine REST :50052      │    │
+│  │ (gRPC)               │  │ (FastAPI)                      │    │
+│  │                      │  │                                │    │
+│  │ LangGraph (14 nodes) │  │ Analysis Pipeline (11 phases)  │    │
+│  │ ReAct loop           │  │ Conductor + DML Router         │    │
+│  │ RAG + MCP            │  │                                │    │
+│  └──────────┬───────────┘  └────────────────┬──────────────┘    │
+│             │                               │                    │
+│  ┌──────────┴───────────────────────────────┴──────────────┐    │
+│  │ PostgreSQL :5432 + pgvector                              │    │
+│  │                                                          │    │
+│  │ Core:   agents, sessions, messages, events, contexts     │    │
+│  │ Memory: facts, global_memories, concepts, glyphs         │    │
+│  │ Billing: token_credits, token_transactions               │    │
+│  │ Mgmt:   agent_versions, ab_tests (Phase 3-4)             │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │ Redis :6379 (cache)                                       │    │
+│  └──────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 0 — Foundation (Week 1-2)
+## Implementation Order
 
-*Goal: A single agent that can hold a conversation. No UI, no multi-tenancy, no MCP. Just the core loop working end-to-end.*
+```
+Phase 1 (now)     → Visual Designer    — the core UX unlock
+Phase 2           → AI Assistant       — builds on Phase 1's graph state
+Phase 3           → Version Management — tracks Phase 1-2 changes
+Phase 4           → A/B Testing        — uses Version Management + metrics
+Phase 5           → Regression Detect  — uses A/B Testing data
+Phase 6           → Glyph/Concept/Mgr  — independent, can parallelize
+Phase 7           → Token Dashboard    — independent, can parallelize
+```
 
-### 0.1 — Project Scaffold
-- [x] Set up monorepo: `vibeful/packages/{agent-engine, api-gateway, proxy, sdk, mcp-servers, shared}`
-- [x] Configure: Python (uv/pip), Node.js/TypeScript (pnpm workspaces), shared ESLint + prettier
-- [x] Set up Docker Compose: PostgreSQL+pgvector, Redis, Envoy, all services
-- [x] Initialize Git repo with `.gitignore`, `docker-compose.yml`, `README.md`
-
-### 0.2 — Agent Engine Core (Python 3.12, LangGraph, gRPC)
-- [x] Scaffold `packages/agent-engine/` with Python project (pyproject.toml, venv)
-- [x] Implement LangGraph agent graph: `START → Setup → SystemPrompt → Router → ReActAgent → StreamCompletion → END`
-- [x] DeepSeek API client: chat completions with tool-calling support
-- [x] gRPC service definition (`agent.proto`): `StreamConversation` RPC with bidirectional streaming
-- [x] Streaming response states: `STREAMING`, `TOOL_USED`, `COMPLETED`, `FOLLOW_UP`
-- [x] Basic state management per conversation turn (TypedDict state)
-- [x] Tool-calling loop: agent decides → execute → feed result → continue
-
-### 0.3 — Conversation Protocol
-- [x] Define turn-based conversation contract (messages, tools, streaming states)
-- [x] Session lifecycle: create, resume (5-minute staleness eviction), expire
-- [x] Message persistence: PostgreSQL `messages` table (session_id, role, content, tool_calls)
-
-### 0.4 — Verification
-- [x] "Hello world" agent that responds to text input
-- [x] Agent that uses a single hardcoded tool (e.g., `get_current_time`)
-- [x] Multi-turn conversation with context retention
-- [x] Streaming response works end-to-end
+Phases 6 and 7 are independent and can be built concurrently with any phase.
 
 ---
 
-## Phase 1 — APIs & Configuration (Week 3-4)
-
-*Goal: Create and configure agents through an API. Still no UI — everything via curl/HTTP.*
-
-### 1.1 — Management API
-- [ ] Agent CRUD: create, read, update, delete agent configurations
-- [ ] Agent config fields: name, description, personality, tone, LLM model selection, output format, icebreaker messages, policy boundaries
-- [ ] API authentication (API keys, at minimum)
-- [ ] Request validation and error handling
-
-### 1.2 — Knowledge Contexts
-- [ ] Context CRUD: create, read, update, delete knowledge contexts
-- [ ] Content ingestion: text upload endpoint
-- [ ] Vector embedding pipeline: chunk → embed → store (use pgvector, Chroma, or similar)
-- [ ] RAG retrieval: semantic search against stored knowledge
-- [ ] Wire RAG into the agent graph (RAGNode in the agent pipeline)
-
-### 1.3 — Agent Session Binding
-- [ ] Session creation: bind user + agent + knowledge contexts + tools
-- [ ] Multi-tenancy model: same agent, isolated knowledge per session
-- [ ] Session metadata: pass context IDs, tool lists, feature flags
-- [ ] Anonymous vs authenticated session modes
-
-### 1.4 — Verification
-- [ ] Create agent via API → converse with it → verify it uses configured personality
-- [ ] Upload knowledge → query agent → verify grounded responses from knowledge
-- [ ] Two sessions with different knowledge → verify responses differ
-- [ ] Session expiry and cleanup
-
----
-
-## Phase 2 — Tools & Extensibility (Week 5-6)
-
-*Goal: Agents can call external tools through a standardized protocol. The platform becomes extensible.*
-
-### 2.1 — MCP Server Protocol
-- [ ] Implement Model Context Protocol (MCP) server interface
-- [ ] Tool discovery: `tools/list` endpoint
-- [ ] Tool execution: `tools/call` endpoint with JSON-RPC
-- [ ] Server lifecycle: initialize, heartbeat, shutdown
-- [ ] Server registration: configure MCP server URLs per agent
-
-### 2.2 — First MCP Servers
-- [ ] **Search MCP** — web search capability
-- [ ] **Calculator MCP** — deterministic computation
-- [ ] **File MCP** — read/write files in a sandbox
-- [ ] Each server as a standalone process, connected via HTTP/SSE
-
-### 2.3 — Widget System (Dynamic UI)
-- [ ] Define widget protocol: when an agent calls a tool, the SDK renders a widget
-- [ ] Widget types: chart, form, table, card, custom
-- [ ] Widget Studio concept: conversational UI builder
-- [ ] First widget: data table rendering from tool output
-
-### 2.4 — Workflows
-- [ ] Workflow definition: pre-built sequences of steps
-- [ ] Step types: gather_input, rag_search, llm_analyze, deliver_message
-- [ ] Variable passing between steps (`@variable_name`)
-- [ ] Workflow execution engine inside the agent graph
-
-### 2.5 — Verification
-- [ ] Agent calls external MCP server → tool executes → result flows back to conversation
-- [ ] Widget renders in SDK when tool is called
-- [ ] Multi-step workflow completes end-to-end
-
----
-
-## Phase 3 — Frontend SDK (Week 7-8)
-
-*Goal: Embed agents into customer products. The thing prospects actually see.*
-
-### 3.1 — Embeddable Chat SDK
-- [ ] React component library for agent chat
-- [ ] Shadow DOM encapsulation for style isolation
-- [ ] Streaming message display (typewriter effect)
-- [ ] Widget rendering inside chat (charts, forms, tables)
-- [ ] Theming: CSS custom properties for brand colors, fonts, spacing
-- [ ] Responsive design (mobile + desktop)
-
-### 3.2 — Agent Management Studio (AMS)
-- [ ] Admin dashboard for agent configuration
-- [ ] Agent builder: form-based creation with preview
-- [ ] Knowledge context manager: upload, view, test retrieval
-- [ ] Tool/MCP server configuration UI
-- [ ] Session analytics: usage, costs, common questions
-
-### 3.3 — Voice Input
-- [x] Speech-to-text via browser Web Speech API
-- [x] Voice input button in chat widget
-- [x] Review/edit before send pattern
-
-### 3.4 — Verification
-- [ ] Embed SDK in a test page → full conversation works
-- [ ] Theme customization applies correctly
-- [ ] Widget renders inside chat
-- [ ] Voice input → transcription → agent response
-
----
-
-## Phase 4 — Observability & Trust (Week 9-10)
-
-*Goal: Know what's happening in production. Answer: "can I trust this agent?"*
-
-### 4.1 — Event Pipeline
-- [ ] Structured event emission from all services
-- [ ] Event types:
-  - `SESSION_ENVELOPE` — agent config served to client
-  - `llm_call` — every LLM invocation (messages, tokens, cost, tools)
-  - `MCP_TOOL_CALL` — every tool execution (latency, success/failure)
-  - `MCP_SESSION_INIT` — MCP server health
-  - `MCP_TOOLS_LISTED` — tool discovery results
-  - Client-side: turn health, turn completion
-- [ ] Event storage (ClickHouse or PostgreSQL)
-- [ ] Cost tracking per call, per session, per agent
-
-### 4.2 — Agent Behavior Testing (Supply Side)
-- [ ] Scenario-based test framework
-- [ ] Synthetic user: LLM-driven simulated conversation partner
-- [ ] Assertions: deterministic + LLM-judge evaluators
-- [ ] Test case creation: conversational (admin describes scenario, system generates test)
-- [ ] Regression detection: run test battery on config changes
-
-### 4.3 — Conversational Analytics (Demand Side)
-- [ ] Intent persistence: log user inputs with embeddings
-- [ ] Output persistence: log agent responses with embeddings
-- [ ] Hybrid search: semantic (vector) + lexical (BM25) across conversations
-- [ ] Cohort theme detection: cluster intents to surface emerging topics
-- [ ] Knowledge gap detection: "users ask X, agent has no good answer"
-
-### 4.4 — Trust Engine (Combined)
-- [ ] Feedback loop: analytics surfaces problem → test case created → fix applied → test verifies → regression caught
-- [ ] Meta Agent: conversational interface for querying analytics + running tests
-- [ ] Predictors: per-turn classifiers (refusal reason, tool grounding, outcome status, knowledge gap)
-
-### 4.5 — Verification
-- [ ] Events flow to storage and are queryable
-- [ ] Cost dashboard shows accurate per-agent spend
-- [ ] Behavior test catches a regression after a config change
-- [ ] Analytics surfaces a knowledge gap from real conversations
-
----
-
-## Phase 5 — Production Hardening (Week 11-12)
-
-*Goal: Multi-tenant, secure, scalable, deployable.*
-
-### 5.1 — Multi-Tenancy
-- [ ] Tenant isolation: separate data per organization
-- [ ] Account management: create, configure, manage tenants
-- [ ] Role-based access: admin, editor, viewer per tenant
-- [ ] API key management per tenant
-
-### 5.2 — Authentication & Authorization
-- [ ] User authentication (OAuth2, magic links, or SSO)
-- [ ] API authentication (bearer tokens, API keys)
-- [ ] Session-level access control (which agent + contexts per user)
-- [ ] Rate limiting per tenant
-
-### 5.3 — Webhooks
-- [ ] Webhook registration API (max 50 per tenant)
-- [ ] Event triggers: agent.created, agent.updated, context.file_added, session.completed, mcp_server.connected
-- [ ] Retry logic with exponential backoff
-- [ ] Webhook delivery logs
-
-### 5.4 — Deployment
-- [ ] Dockerize all services
-- [ ] CI/CD pipeline (build, test, deploy)
-- [ ] Infrastructure-as-code (Terraform or Pulumi)
-- [ ] Environment separation: dev, staging, production
-- [ ] Secrets management (environment variables, vault)
-
-### 5.5 — Documentation
-- [ ] Public API reference (OpenAPI spec)
-- [ ] SDK integration guide
-- [ ] Agent configuration guide
-- [ ] MCP server development guide
-- [ ] Self-serve onboarding flow
-
----
-
-## Phase 6 — Advanced Features (Week 13+)
-
-*Goal: Features that differentiate the platform.*
-
-### 6.1 — Agent Memory (Fact System)
-- [ ] Fact mining: extract user facts from conversations
-- [ ] Fact recall: retrieve relevant facts in new conversations
-- [ ] Three-layer access control: org policy → agent config → user controls
-- [ ] User data rights: view, edit, delete own facts
-
-### 6.2 — Threads (Event-Driven Conversations)
-- [ ] Backend-initiated sessions
-- [ ] Pre-generated first response before user arrives
-- [ ] Notification + deep link delivery
-- [ ] Thread title auto-generation
-
-### 6.3 — Content Sync & Scheduled Ingestion
-- [ ] Scheduled content sync: poll external sources and ingest into knowledge contexts
-- [ ] Webhook-driven ingestion: receive content from third-party systems
-- [ ] File upload API: PDF, DOCX, HTML → extract text → chunk → embed
-- [ ] Status dashboard: last sync time, chunk count, ingest errors
-
-### 6.4 — Agent Builder SDK
-- [ ] Embeddable agent configuration inside customer products
-- [ ] Components: Agent Builder, Agent Configuration, Context Builder, Context Configuration
-- [ ] White-label: customer's end-users build their own agents
-
-### 6.5 — Edge Architecture (Client-Side Agent)
-- [ ] Client-side LangGraph runtime (browser-compatible)
-- [ ] Proxy service for credential injection and LLM routing
-- [ ] Three-tier separation: display → orchestration → platform
-- [ ] Directive system for agent instructions
-- [ ] Headless service for non-browser callers and testing
-
----
-
-## Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Agent-first interface** for analytics/testing | Admins interact via conversation with a Meta Agent, not dashboards |
-| **Session-based multi-tenancy** | Same agent, isolated knowledge per session — simpler than per-tenant agent instances |
-| **Shadow DOM for SDK** | Style isolation prevents host-page CSS from breaking the chat widget |
-| **Dual demand/supply trust model** | Neither analytics alone nor testing alone answers "can I trust this agent?" |
-| **Closed feedback loop** | Analytics finds problems → tests pin expected behavior → changes fix → tests verify → regressions caught |
-| **Stateless proxy** | Credential injection, LLM routing, event logging — no business logic in the gateway |
-| **MCP for extensibility** | Standardized tool protocol — once a tool speaks MCP, any agent can use it |
-| **Structured events from day one** | Every llm_call, tool execution, session init logged — non-negotiable for debugging and cost tracking |
-
----
-
-## Concrete Tech Stack
-
-| Layer | Vibeful | Why |
-|-------|---------------------|---------|-----|
-| **Inference** | **DeepSeek API** | User directive |
-| **Embeddings** | DeepSeek embeddings (or local model) | Consistency with inference provider |
-| **Agent Engine** | Python 3.12, LangGraph, gRPC (:50051) | Proven pattern with streaming support |
-| **API Gateway** | Node.js/TypeScript, containerized | Standard containers, portable |
-| **Proxy** | FastAPI (Python), stateless | Credential injection, LLM routing, event logging |
-| **gRPC Bridge** | Envoy Proxy (:8080) | Browsers can't speak gRPC natively |
-| **Frontend SDK** | React/TypeScript, Shadow DOM | Style isolation, embeddable widgets |
-| **Admin Studio** | React/TypeScript | Consistent stack with the SDK |
-| **MCP Servers** | Node.js/TypeScript | Standard MCP protocol, portable tool servers |
-| **Edge Runtime** | LangGraph JS (TypeScript) | Client-side agent execution (Phase 6) |
-| **Database** | PostgreSQL (with pgvector) | Document model + vector search in one DB |
-| **Vector DB** | pgvector (in PostgreSQL) | Single DB for vectors + documents |
-| **Caching** | Redis | Fast, battle-tested session/rate-limit store |
-| **Auth** | Supabase Auth or Clerk | Portable; no cloud lock-in |
-| **Secrets** | Environment variables + Doppler | Simple, container-native |
-| **Observability** | PostgreSQL events + structured logging | Simple pipeline; queryable with standard SQL |
-| **Hosting** | Docker (dev) → any cloud (prod) | No vendor lock-in; standard containers |
-| **CI/CD** | GitHub Actions | Widely supported, free for public repos |
-| **Testing** | Playwright (E2E), Vitest (JS), pytest (Python) | Full-stack test coverage across languages |
-| **Monorepo** | Single repo: `vibeful/packages/*` | Simpler coordination, shared tooling |
-
-### Why these choices
-
-- **Python for the agent engine.** LangGraph is Python-native. The graph pipeline (Setup → Router → RAG → ReAct → Stream) maps cleanly to Python's async model. gRPC streaming is well-supported.
-- **Node.js/TypeScript for everything else.** One language for API, MCP servers, and SDK. The edge runtime needs to run in browsers — TypeScript compiles to JS.
-- **PostgreSQL + pgvector as single DB.** pgvector handles vector search. JSONB columns handle document storage. One database to operate.
-- **DeepSeek for LLM.** DeepSeek offers both chat and reasoner models, covering general conversation and complex reasoning in one API.
-- **No cloud lock-in.** Standard containers and open-source equivalents so Vibeful runs anywhere.
-
----
-
-## Iteration Strategy
-
-**Principle:** A working minimal system beats a complete design document.
-
-- Each phase ends with a **working** artifact you can show someone
-- Phase 0 is the hard gate — if the core agent loop doesn't work, nothing else matters
-- Phases 1-3 build the product surface (what customers see)
-- Phases 4-5 build the operational surface (what you need to run it)
-- Phase 6 is the long tail — prioritize based on customer demand
-
-**First milestone:** End of Phase 0. A single agent that converses with streaming responses and uses one hardcoded tool. That's the "hello world" that proves the architecture works.
-
----
-
-## Architecture Decisions — Why We Chose This Stack
-
-| Decision | Rationale |
-|----------|-----------|
-| PostgreSQL + pgvector as single DB | Vector search and document storage in one database. Simple to operate. |
-| No separate workflow engine | REST API + RAG pipeline handles content ingestion directly. |
-| No separate vector DB | pgvector avoids managing a second database for embeddings. |
-| Container-native secrets | `.env` + Docker env vars + optional Doppler. No cloud lock-in. |
-| Widget Studio included | Conversational widget creation is core to the platform. |
-| Attack guard from day one | Production agents get attacked. Guard before public launch. |
-| Connection chain monitoring | Production-ready platforms need chain visibility. |
-
----
-
-## Implementation Roadmap
-
-### Phase 7 — Trust & Conversation Quality (must-have)
-
-*Goal: Agents that cite sources, guide conversations, and route intelligently.*
-
-#### 7.1 — CitationNode
-- [ ] After RAG retrieval, mark which chunks were used in the response
-- [ ] Emit `RESPONSE_STATE_REFERENCES` with chunk IDs and similarity scores
-- [ ] Render citations in the SDK chat widget as clickable source links
-
-#### 7.2 — FollowUpQuestionsNode
-- [ ] After stream completion, ask LLM to generate 2-3 follow-up questions
-- [ ] Emit `RESPONSE_STATE_FOLLOW_UP` with question strings
-- [ ] Render as tappable chips below the agent response in the SDK
-
-#### 7.3 — ButtonsNode (Quick Replies)
-- [ ] Agent config: define quick-reply buttons ("What's your refund policy?", "Talk to a human")
-- [ ] Emit quick replies as structured data in the conversation response
-- [ ] Render as horizontal chip bar in the SDK
-
-#### 7.4 — RouterNode (Full Routing)
-- [ ] Classify user input into: `rag_required`, `direct_answer`, `workflow_trigger`
-- [ ] Route to RAGNode, ReActAgent, or WorkflowEngine based on classification
-- [ ] Use a lightweight classifier (keyword + embedding similarity, not a full LLM call)
-
-### Phase 8 — Platform Integrity (must-have)
-
-*Goal: Multi-tenant access control, browser E2E tests, and the edge architecture.*
-
-#### 8.1 — Labels & Access Control
-- [ ] Tag system: agents, contexts, and sessions carry label arrays
-- [ ] Session creation: filter available agents/contexts by user's labels
-- [ ] API-level enforcement: reject access to unlabeled resources
-- [ ] SDK: only show agents/contexts the current user can access
-
-#### 8.2 — E2E Tests (Playwright)
-- [ ] Agent creation + conversation flow
-- [ ] Knowledge context ingestion + RAG-grounded response
-- [ ] MCP tool execution (web_search)
-- [ ] SDK embedding: chat widget renders, sends message, receives response
-- [ ] Error states: invalid agent ID, missing API key, network failure
-
-#### 8.3 — Widget Studio (Conversational Widget Builder)
-- [ ] Conversational interface: admin says "Build me a product catalog widget"
-- [ ] Agent generates widget config from conversation (type, fields, data mapping)
-- [ ] Preview: widget renders in-chat before saving
-- [ ] Save: widget config stored, mapped to MCP tool
-- [ ] SDK: auto-render configured widget when mapped tool is called
-
-#### 8.4 — Edge Architecture (Client-Side Graph)
-- [ ] Tier 2: Build LangGraph JS runtime in `packages/edge-runtime/`
-- [ ] Port the agent graph (setup → fact_recall → router → RAG → ReAct → completion → citations → follow_up → fact_mining) to TypeScript
-- [ ] Tier 3: Proxy service already exists — verify it works with edge runtime
-- [ ] Tier 1: Build display adapter that consumes RuntimeEvents and updates SDK state
-- [ ] Headless mode: verify edge runtime works in Node.js (no browser)
-
-### Phase 9 — Production & Refinement (should-have)
-
-*Goal: Ship-ready deployment, branded UX, and proactive conversations.*
-
-#### 9.1 — Production Deployment
-- [ ] Multi-environment config (dev/staging/prod)
-- [ ] Terraform or Pulumi for infrastructure-as-code
-- [ ] SSL termination + domain configuration
-- [ ] Health check monitoring + alerting
-- [ ] Database backup + restore procedures
-
-#### 9.2 — Design System & Theming
-- [ ] Design token specification (colors, typography, spacing, radii, shadows)
-- [ ] Per-agent theme configuration in agent config
-- [ ] SDK: apply theme tokens to chat widget, widgets, and AMS
-- [ ] White-label: remove Vibeful branding, allow full customer branding
-
-#### 9.3 — PlanningNode
-- [ ] LLM-generated execution plans for complex multi-step queries
-- [ ] Plan visualization in the SDK (step list with checkmarks)
-- [ ] Fallback to ReAct loop when no plan is needed
-
-#### 9.4 — AttackResponseNode
-- [ ] Detect adversarial inputs (prompt injection, jailbreak attempts, excessive length)
-- [ ] Return safe canned response instead of processing the attack
-- [ ] Log attack attempts with pattern classification
-
-#### 9.5 — Connection Chain Monitoring
-- [ ] Real-time health checks: SDK → Agent Engine → MCP Server → Tool
-- [ ] Status dashboard in AMS Observability tab
-- [ ] Alert when any link in the chain fails (configurable threshold)
-
-#### 9.6 — One-Click Deploy & SDK Snippet
-- [ ] "Deploy to production" button in AMS — generates Docker run command or cloud deploy script
-- [ ] SDK snippet generator: paste agent ID, get copy-paste HTML/JS embed code
-- [ ] Embed code includes theme customization, placeholder text, and agent ID
-
-#### 9.7 — Usage Analytics Dashboard
-- [ ] Embedded analytics in AMS: per-agent usage, cost trends, session counts, tool usage breakdown
-- [ ] Time-range selector (7d, 30d, 90d)
-- [ ] Export to CSV / PDF
-- [ ] Scheduled email reports
-
-#### 9.8 — Meta Agent (Closed Feedback Loop)
-- [ ] Conversational interface for querying analytics ("Show me the top 5 knowledge gaps")
-- [ ] Auto-generate behavior tests from knowledge gaps ("Create a test for the refund question")
-- [ ] Run test battery on config changes, flag regressions
-- [ ] Present results conversationally: "3 tests passed, 1 regression in refund handling"
-
-### Phase 10 — Refinements (could-have)
-
-*Goal: Advanced analytics and predictor infrastructure.*
-
-#### 10.1 — Corpus Intelligence
-- [ ] Hot docs: most-retrieved chunks per context
-- [ ] Dead docs: never-retrieved chunks
-- [ ] Retrieved-but-not-used: chunks that were retrieved but not cited in final response
-
-#### 10.2 — Predictor Scaffold
-- [ ] Per-turn classifiers: refusal_reason, tool_grounding, outcome_status, knowledge_gap_signal
-- [ ] Uniform train / serve / correct loop
-- [ ] Embed in analytics pipeline
-
-#### 10.3 — Voice TTS
-- [ ] Text-to-speech for agent responses
-- [ ] Toggle in SDK: text-only / voice / both
-
----
-
-## Build Status (2026-06-18)
-
-| Phase | Status | Priority |
-|-------|--------|----------|
-| **0 — Foundation** | ✅ Complete | — |
-| **1 — APIs & Config** | ✅ Complete | — |
-| **2 — MCP & Tools** | ✅ Complete | — |
-| **3 — Frontend SDK** | ✅ Complete | — |
-| **4 — Observability** | ✅ Complete | — |
-| **5 — Production** | ✅ Complete | — |
-| **6 — Advanced (memory, threads)** | ✅ Complete | — |
-| **7 — Trust & Conversation** | ✅ Complete | 🔴 Must-have |
-| **8 — Platform Integrity** | ✅ Complete | 🔴 Must-have |
-| **9 — Production & Refinement** | ✅ Complete | 🟡 Should-have |
-| **10 — Refinements** | ✅ Complete | 🟢 Could-have |
-
----
-
-## Phase 11 — General Solution Improvements (P0-P3)
-
-*Goal: Make Vibeful adoptable by any SaaS company as the foundation of their own agentic systems.*
-
-### P0 — Five-Minute Quickstart (must-have for adoption)
-
-#### P0.1 — LLM Provider Abstraction
-- [x] Define `LlmProvider` protocol (`src/llm/protocol.py`)
-- [x] Rename `DeepSeekClient` → `DeepSeekProvider` implementing the protocol
-- [x] Add `OpenAIProvider` (trivial, same API shape)
-- [x] Add `AnthropicProvider`
-- [x] Create `get_provider(name)` factory
-- [x] Wire provider selection through agent config
-
-#### P0.2 — Zero-Dependency Dev Mode
-- [x] Define `StorageBackend` protocol
-- [x] Implement `SqliteBackend` with `sqlite-vec` for vector search
-- [x] Refactor existing PostgreSQL code behind `PostgresBackend`
-- [x] Add in-memory fallback when no DB is configured
-- [x] `vibeful dev` works with zero external dependencies
-
-#### P0.3 — CLI
-- [ ] `vibeful dev` — start local dev server (SQLite mode)
-- [ ] `vibeful dev --docker` — start with full Docker stack
-- [ ] `vibeful chat <agent>` — interactive terminal chat
-- [ ] `pip install vibeful` package entry point
-
-### P1 — Enterprise Adoption (blocks serious use)
-
-#### P1.1 — Configurable Agent Graphs
-- [ ] Agent graph defined in YAML/JSON
-- [ ] `build_agent_graph(config)` reads config and wires dynamically
-- [ ] Plugin system: `register_node(name, node_fn)`
-- [ ] Built-in node library: guard, setup, router, react, rag, completion, citation, follow_up
-- [ ] Custom nodes via plugin registration
-
-#### P1.2 — Auth Plugin System
-- [ ] `AuthProvider` protocol (`authenticate`, `authorize`)
-- [ ] Built-in: `api_key`, `jwt`, `passthrough` providers
-- [ ] Wire into proxy middleware
-- [ ] Per-agent auth configuration
-
-#### P1.3 — Agent Evaluation Framework
-- [ ] YAML-based eval test definitions (input, expects)
-- [ ] Assertion types: contains, not_contains, tone, blocked, max_tokens
-- [ ] LLM-as-judge for semantic assertions
-- [ ] Golden-response recording and diffing
-- [ ] `vibeful agent test <name>` CLI command
-
-#### P1.4 — SDK as Standalone npm Package
-- [ ] Extract SDK to publishable `@vibeful/sdk` package
-- [ ] Pluggable transport layer (gRPC-Web, WebSocket, OpenAI-compatible)
-- [ ] Storybook for component development
-- [ ] npm publish pipeline
-
-### P2 — Production Hardening
-
-- [ ] REST + WebSocket transport alongside gRPC
-- [ ] Prometheus metrics endpoint on all services
-- [ ] OpenTelemetry tracing across the service chain
-- [ ] `vibeful dashboard` — terminal UI for live observability
-- [ ] Rate limiting and quota management
-- [ ] Agent versioning with rollback
-
-### P3 — Deployment & Ecosystem
-
-- [ ] `vibeful export helm` — generate Helm chart
-- [ ] `vibeful export docker-compose` — production compose
-- [ ] One-click deploy scripts for common clouds (AWS, GCP, Azure)
-- [ ] Terraform module for infrastructure
+## Key Decisions Record
+
+1. **Visual designer generates YAML, not LSML** — Vibeful's native config format
+2. **React 19 + React Flow + Tailwind 4 + shadcn/ui** — same stack as LSML Composer
+3. **Zustand for state** — lighter than Redux, already in LSML Composer
+4. **Auth via existing session/cookie system** — no new auth layer
+5. **All AI calls use Vibeful's LLM provider abstraction** — DeepSeek/Groq, not direct API calls
+6. **New tables in PostgreSQL, not MySQL** — existing infrastructure
+7. **Management console is a NEW package** — doesn't modify sdk or agent-engine
+8. **No LSML Composer code copied directly** — patterns adapted, code rewritten

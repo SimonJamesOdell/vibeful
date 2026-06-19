@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* React Flow overrides for dark theme */
+.react-flow__node {
+  font-size: 12px;
+}
+
+.react-flow__background {
+  background-color: #0f172a !important;
+}
+
+.react-flow__minimap {
+  background-color: #1e293b !important;
+}
+
+.react-flow__controls button {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: #334155 !important;
+}

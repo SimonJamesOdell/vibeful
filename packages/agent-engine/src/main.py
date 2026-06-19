@@ -58,9 +58,11 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                         "system_prompt": req.config.system_prompt,
                         "model": req.config.model or "deepseek-chat",
                         "temperature": req.config.temperature or 0.7,
+                        "top_p": getattr(req.config, "top_p", None) or 1.0,
                         "max_tokens": req.config.max_tokens or 4096,
                         "context_ids": list(req.config.context_ids),
                         "mcp_server_urls": list(req.config.mcp_server_urls),
+                        "analysis": req.config.analysis if hasattr(req.config, 'analysis') else None,
                     }
                 session = await _db.create_session({
                     "session_id": session_id,
@@ -81,9 +83,11 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 system_prompt=session.get("agent_config", {}).get("system_prompt", ""),
                 model=session.get("agent_config", {}).get("model", "deepseek-chat"),
                 temperature=session.get("agent_config", {}).get("temperature", 0.7),
+                top_p=session.get("agent_config", {}).get("top_p", 1.0),
                 max_tokens=session.get("agent_config", {}).get("max_tokens", 4096),
                 context_ids=session.get("context_ids", []),
                 messages=session.get("messages", []),
+                analysis_config=session.get("agent_config", {}).get("analysis"),
             )
 
             try:

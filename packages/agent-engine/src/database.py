@@ -7,11 +7,12 @@ from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+from .database_lucid import extend_schema_lucid, DatabaseLucidMixin
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://vibeful:vibeful_dev@localhost:5432/vibeful")
 
 
-class Database:
+class Database(DatabaseLucidMixin):
     """Shared database connection and schema management."""
 
     def __init__(self, db_url: str = DATABASE_URL):
@@ -245,6 +246,47 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_events_session
                     ON events(session_id)
             """)
+
+            await conn.commit()
+            # Global Memories (cross-user knowledge)
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS global_memories (
+                    id              TEXT PRIMARY KEY,
+                    name            TEXT NOT NULL,
+                    domain          TEXT NOT NULL DEFAULT 'general',
+                    description     TEXT NOT NULL,
+                    glyphset        TEXT DEFAULT '',
+                    memory_type     TEXT NOT NULL DEFAULT 'general'
+                        CHECK (memory_type IN ('system_ontology', 'concept_synthesis', 'collective_truth', 'general')),
+                    embedding       vector(256),
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+            """)
+            await cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_global_memories_domain
+                    ON global_memories(domain)
+            """)
+
+            # -- Concepts (named conceptual frameworks) ------
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS concepts (
+                    id              TEXT PRIMARY KEY,
+                    name            TEXT NOT NULL,
+                    domain          TEXT NOT NULL DEFAULT 'general',
+                    description     TEXT NOT NULL,
+                    glyphset        TEXT DEFAULT '',
+                    embedding       vector(256),
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+            """)
+            await cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_concepts_name
+                    ON concepts(name)
+            """)
+            # -- Lucid extensions (glyphs, token credits, etc.) --
+            await extend_schema_lucid(cur)
 
             await conn.commit()
 

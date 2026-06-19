@@ -28,31 +28,75 @@ docker compose up -d
 
 This starts 10 services: PostgreSQL, Redis, Agent Engine, Proxy, API Gateway, 3 MCP servers, SDK dev server, and Envoy. First run downloads images (~2 min).
 
-## 3. Open the Admin Panel
+## 3. Open the Management Console
 
-Go to **http://localhost:5173** — the Agent Management Studio (AMS).
+Go to **http://localhost:5174** — the Vibeful Management Console.
 
-## 4. Create Your First Agent
+This is a visual agent design tool where you can drag-and-drop agent graph nodes, configure the analysis pipeline, manage versions, run A/B tests, and monitor performance — all from a React Flow canvas.
 
-1. Click the **Agents** tab
-2. Fill in: Name = "Support Agent", System Prompt = "You are a helpful support agent. Be concise."
-3. Click **Create Agent**
-4. Copy the Agent ID that appears in the sidebar
+## 4. Design Your First Agent
+
+1. Drag nodes from the **Node Palette** onto the canvas (start with Setup → System Prompt → ReAct Agent → Stream Completion)
+2. Click any node to edit its **Properties** (e.g., set `max_iterations` on ReAct Agent)
+3. Give your agent a **name** in the header bar
+4. See the **YAML Preview** panel update in real-time
+5. Click **Deploy** to push the config to the agent engine
+6. Copy the **Agent ID** that appears
+
+> **Tip:** Use the **AI Assistant** (wand button, bottom-right) to build agents with natural language: "Add an attack guard at the start" or "Enable impressions analysis."
 
 ## 5. Test Your Agent
 
-1. Click the **Chat** tab
-2. Paste your Agent ID in the header input
-3. Type "Hello!" and press Send
+```bash
+curl -X POST http://localhost:3000/v1/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"agent_id":"YOUR_AGENT_ID"}'
 
-## 6. Add Knowledge (RAG)
+curl -X POST http://localhost:3000/v1/sessions/SESSION_ID/converse \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Hello!"}'
+```
 
-1. Click the **Contexts** tab
-2. Create a context called "FAQ"
-3. Paste some knowledge text and click **Ingest & Embed**
-4. Go back to the Chat tab — your agent now answers from your knowledge
+## 6. Enable Analysis Pipeline
 
-## 7. Embed in Your App
+Give your agent deeper understanding by enabling the analysis pipeline:
+
+1. In the Management Console, add an **Analysis Pipeline** node before the ReAct Agent
+2. Configure which phases to enable (memories, impressions, intent classification, etc.)
+3. The **Conductor** phase dynamically adjusts response temperature based on user state
+
+Or via API — add to your agent config:
+
+```json
+{
+  "analysis": {
+    "enabled": true,
+    "phases": {
+      "impressions": { "enabled": true, "temperature": 0.5 },
+      "conductor": { "enabled": true, "temperature": 0.5 }
+    }
+  }
+}
+```
+
+## 7. Add Knowledge (RAG)
+
+1. Go to the **API Gateway** (`http://localhost:3000`)
+2. Create a context:
+   ```bash
+   curl -X POST http://localhost:3000/v1/contexts \
+     -H "Content-Type: application/json" \
+     -d '{"name":"FAQ","description":"Support knowledge base"}'
+   ```
+3. Ingest knowledge:
+   ```bash
+   curl -X POST http://localhost:3000/v1/contexts/CONTEXT_ID/ingest \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Your knowledge here","filename":"doc.txt"}'
+   ```
+4. Add a **RAG node** to your agent graph — it will automatically search your knowledge
+
+## 8. Embed in Your App
 
 Add this to any HTML page:
 

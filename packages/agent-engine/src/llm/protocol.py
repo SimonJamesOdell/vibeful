@@ -62,6 +62,7 @@ class LlmProvider(Protocol):
         model: str | None = None,
         tools: list[ToolDefinition] | None = None,
         temperature: float = 0.7,
+        top_p: float = 1.0,
         max_tokens: int = 4096,
         system_prompt: str | None = None,
     ) -> LlmResponse:
@@ -75,6 +76,7 @@ class LlmProvider(Protocol):
         model: str | None = None,
         tools: list[ToolDefinition] | None = None,
         temperature: float = 0.7,
+        top_p: float = 1.0,
         max_tokens: int = 4096,
         system_prompt: str | None = None,
     ) -> AsyncIterator[StreamChunk]:

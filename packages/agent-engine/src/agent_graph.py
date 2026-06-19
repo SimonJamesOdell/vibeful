@@ -39,6 +39,7 @@ class AgentState:
     system_prompt: str = ""
     model: str = "deepseek-chat"
     temperature: float = 0.7
+    top_p: float = 1.0
     max_tokens: int = 4096
     context_ids: list[str] = field(default_factory=list)
     mcp_server_urls: list[str] = field(default_factory=list)
@@ -54,6 +55,8 @@ class AgentState:
     citations: list[dict[str, Any]] = field(default_factory=list)
     route: str = "safe"
     error: str | None = None
+    analysis_config: dict[str, Any] | None = None
+    analysis_results: dict[str, Any] | None = None
 
 
 # ── Built-in Tools ─────────────────────────────────────────────
@@ -344,6 +347,7 @@ async def react_agent_node(state: AgentState) -> AgentState:
             model=state.model,
             tools=tools,
             temperature=state.temperature,
+            top_p=state.top_p,
             max_tokens=state.max_tokens,
             system_prompt=state.system_prompt,
         )
@@ -488,6 +492,8 @@ async def stream_completion_node(state: AgentState) -> AgentState:
 # ── Build Graph ─────────────────────────────────────────────────
 
 def build_agent_graph() -> CompiledStateGraph:
+    from .analysis_pipeline import analysis_pipeline_node, output_router_node
+
     builder = StateGraph(AgentState)
 
     builder.add_node("attack_guard", attack_guard_node)
@@ -496,9 +502,13 @@ def build_agent_graph() -> CompiledStateGraph:
     builder.add_node("planning", planning_node)
     builder.add_node("buttons", buttons_node)
     builder.add_node("system_message_builder", system_message_builder_node)
+    # Analysis pipeline — injected before routing; no‑op when not configured
+    builder.add_node("analysis_pipeline", analysis_pipeline_node)
     builder.add_node("rag", rag_node)
     builder.add_node("mcp_discovery", mcp_discovery_node)
     builder.add_node("react_agent", react_agent_node)
+    # Output router — post-processes response through DML segment routing
+    builder.add_node("output_router", output_router_node)
     builder.add_node("stream_completion", stream_completion_node)
     builder.add_node("citation", citation_node)
     builder.add_node("follow_up", follow_up_node)
@@ -510,13 +520,16 @@ def build_agent_graph() -> CompiledStateGraph:
     builder.add_edge("fact_recall", "planning")
     builder.add_edge("planning", "buttons")
     builder.add_edge("buttons", "system_message_builder")
+    # Route through analysis pipeline, then to router
+    builder.add_edge("system_message_builder", "analysis_pipeline")
     builder.add_conditional_edges(
-        "system_message_builder", router_node,
+        "analysis_pipeline", router_node,
         {"rag": "rag", "react_agent": "react_agent", "mcp_discovery": "mcp_discovery"},
     )
     builder.add_edge("rag", "mcp_discovery")
     builder.add_edge("mcp_discovery", "react_agent")
-    builder.add_edge("react_agent", "stream_completion")
+    builder.add_edge("react_agent", "output_router")
+    builder.add_edge("output_router", "stream_completion")
     builder.add_edge("stream_completion", "citation")
     builder.add_edge("citation", "follow_up")
     builder.add_edge("follow_up", "fact_mining")

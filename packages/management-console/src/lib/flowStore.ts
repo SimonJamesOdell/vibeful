@@ -1,0 +1,159 @@
+import { create } from 'zustand';
+import {
+  type Node,
+  type Edge,
+  type Connection,
+  type NodeChange,
+  type EdgeChange,
+  applyNodeChanges,
+  applyEdgeChanges,
+  addEdge,
+} from '@xyflow/react';
+
+export interface VibefulNodeData extends Record<string, unknown> {
+  label: string;
+  nodeType: string;
+  config: Record<string, unknown>;
+}
+
+export interface FlowState {
+  nodes: Node<VibefulNodeData>[];
+  edges: Edge[];
+  selectedNodeId: string | null;
+  codePreviewVisible: boolean;
+  propertiesVisible: boolean;
+  agentName: string;
+  agentDescription: string;
+
+  // Node operations
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onConnect: (connection: Connection) => void;
+  addNode: (nodeType: string, label: string, position?: { x: number; y: number }) => void;
+  removeSelectedNodes: () => void;
+  duplicateSelectedNodes: () => void;
+
+  // Selection
+  selectNode: (nodeId: string | null) => void;
+
+  // Panel visibility
+  toggleCodePreview: () => void;
+  toggleProperties: () => void;
+
+  // Agent metadata
+  setAgentName: (name: string) => void;
+  setAgentDescription: (desc: string) => void;
+
+  // Config
+  updateNodeConfig: (nodeId: string, config: Record<string, unknown>) => void;
+
+  // Bulk
+  loadGraph: (nodes: Node<VibefulNodeData>[], edges: Edge[]) => void;
+  clearGraph: () => void;
+}
+
+let nodeIdCounter = 0;
+function makeId(): string {
+  return `node_${Date.now()}_${++nodeIdCounter}`;
+}
+
+export const useFlowStore = create<FlowState>((set, get) => ({
+  nodes: [],
+  edges: [],
+  selectedNodeId: null,
+  codePreviewVisible: true,
+  propertiesVisible: true,
+  agentName: '',
+  agentDescription: '',
+
+  onNodesChange: (changes) => {
+    set({ nodes: applyNodeChanges(changes, get().nodes) as unknown as Node<VibefulNodeData>[] });
+  },
+  onEdgesChange: (changes) => {
+    set({ edges: applyEdgeChanges(changes, get().edges) });
+  },
+  onConnect: (connection) => {
+    set({ edges: addEdge(connection, get().edges) });
+  },
+
+  addNode: (nodeType, label, position) => {
+    const { nodes, edges } = get();
+    // Auto-connect to last node if chain-building
+    const id = makeId();
+    const newNode: Node<VibefulNodeData> = {
+      id,
+      type: 'vibefulNode',
+      position: position || { x: Math.random() * 400 + 50, y: nodes.length * 120 + 50 },
+      data: { label, nodeType, config: {} },
+    };
+
+    let newEdges = edges;
+    if (nodes.length > 0) {
+      const lastNode = nodes[nodes.length - 1];
+      newEdges = [
+        ...edges,
+        {
+          id: `edge_${lastNode.id}_${id}`,
+          source: lastNode.id,
+          target: id,
+        },
+      ];
+    }
+
+    set({ nodes: [...nodes, newNode], edges: newEdges, selectedNodeId: id });
+  },
+
+  removeSelectedNodes: () => {
+    const { nodes, edges, selectedNodeId } = get();
+    if (!selectedNodeId) return;
+    set({
+      nodes: nodes.filter((n) => n.id !== selectedNodeId),
+      edges: edges.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId),
+      selectedNodeId: null,
+    });
+  },
+
+  duplicateSelectedNodes: () => {
+    const { nodes, selectedNodeId } = get();
+    if (!selectedNodeId) return;
+    const node = nodes.find((n) => n.id === selectedNodeId);
+    if (!node) return;
+    const id = makeId();
+    const dup: Node<VibefulNodeData> = {
+      ...node,
+      id,
+      position: { x: node.position.x + 50, y: node.position.y + 50 },
+      selected: false,
+    };
+    set({ nodes: [...nodes, dup], selectedNodeId: id });
+  },
+
+  selectNode: (nodeId) => {
+    set({ selectedNodeId: nodeId });
+  },
+
+  toggleCodePreview: () => {
+    set((s) => ({ codePreviewVisible: !s.codePreviewVisible }));
+  },
+  toggleProperties: () => {
+    set((s) => ({ propertiesVisible: !s.propertiesVisible }));
+  },
+
+  setAgentName: (name) => set({ agentName: name }),
+  setAgentDescription: (desc) => set({ agentDescription: desc }),
+
+  updateNodeConfig: (nodeId, config) => {
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, config } } : n
+      ),
+    });
+  },
+
+  loadGraph: (nodes, edges) => {
+    set({ nodes, edges, selectedNodeId: null });
+  },
+  clearGraph: () => {
+    set({ nodes: [], edges: [], selectedNodeId: null });
+  },
+}));

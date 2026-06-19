@@ -23,12 +23,36 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // ── Agents ─────────────────────────────────────────────────────
 
+interface PhaseConfig {
+  enabled?: boolean;
+  temperature?: number;
+}
+
+interface AnalysisConfig {
+  enabled?: boolean;
+  phases?: {
+    memories?: PhaseConfig;
+    impressions?: PhaseConfig;
+    concepts?: PhaseConfig;
+    assumptions?: PhaseConfig;
+    intent?: PhaseConfig;
+    conductor?: PhaseConfig;
+    code_detect?: PhaseConfig;
+    search_detect?: PhaseConfig;
+    global_memories?: PhaseConfig;
+    next?: PhaseConfig;
+    search_execute?: PhaseConfig;
+    output_routing?: PhaseConfig;
+  };
+}
+
 interface AgentConfig {
   name: string;
   description?: string;
   system_prompt?: string;
   model?: string;
   temperature?: number;
+  top_p?: number;
   max_tokens?: number;
   personality?: string;
   tone?: string;
@@ -38,6 +62,7 @@ interface AgentConfig {
   tools?: string[];
   context_ids?: string[];
   mcp_server_urls?: string[];
+  analysis?: AnalysisConfig;
 }
 
 // POST /v1/agents — create agent
@@ -102,6 +127,146 @@ app.delete('/v1/agents/:id', async (req: Request, res: Response) => {
     const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}`, {
       method: 'DELETE',
     });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Agent Versions ─────────────────────────────────────────────
+
+// GET /v1/agents/:id/versions — list version history
+app.get('/v1/agents/:id/versions', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/versions`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /v1/agents/:id/versions/:vid — get specific version
+app.get('/v1/agents/:id/versions/:vid', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/versions/${req.params.vid}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /v1/agents/:id/versions — save a new version
+app.post('/v1/agents/:id/versions', async (req: Request, res: Response) => {
+  try {
+    const body = req.body as { config?: any; yaml_str?: string; author?: string; change_description?: string; tags?: string[] };
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/versions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /v1/agents/:id/versions/:vid/restore — restore a version
+app.post('/v1/agents/:id/versions/:vid/restore', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/versions/${req.params.vid}/restore`, {
+      method: 'POST',
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── A/B Tests ──────────────────────────────────────────────────
+
+// POST /v1/ab-tests — create test
+app.post('/v1/ab-tests', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ab-tests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /v1/ab-tests — list tests
+app.get('/v1/ab-tests', async (req: Request, res: Response) => {
+  try {
+    const agentId = req.query.agent_id as string;
+    const url = agentId ? `${PROXY_URL}/v1/ab-tests?agent_id=${agentId}` : `${PROXY_URL}/v1/ab-tests`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /v1/ab-tests/:id/start
+app.post('/v1/ab-tests/:id/start', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ab-tests/${req.params.id}/start`, { method: 'POST' });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /v1/ab-tests/:id/stop
+app.post('/v1/ab-tests/:id/stop', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ab-tests/${req.params.id}/stop`, { method: 'POST' });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Performance / Regression ───────────────────────────────────
+
+// GET /v1/agents/:id/performance
+app.get('/v1/agents/:id/performance', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/performance`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /v1/agents/:id/baseline — establish performance baseline
+app.post('/v1/agents/:id/baseline', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/agents/${req.params.id}/baseline`, { method: 'POST' });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /v1/ab-tests/:id/results
+app.get('/v1/ab-tests/:id/results', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ab-tests/${req.params.id}/results`);
     const data = await resp.json();
     res.status(resp.status).json(data);
   } catch (err: any) {
@@ -199,6 +364,143 @@ app.post('/v1/sessions/:id/converse', async (req: Request, res: Response) => {
 app.get('/v1/sessions/:id', async (req: Request, res: Response) => {
   try {
     const resp = await fetch(`${PROXY_URL}/v1/sessions/${req.params.id}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Glyphs ─────────────────────────────────────────────────────
+
+app.get('/v1/glyphs', async (_req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/glyphs`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/v1/glyphs', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/glyphs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/glyphs/:name', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/glyphs/${req.params.name}`, { method: 'DELETE' });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Concepts ───────────────────────────────────────────────────
+
+app.get('/v1/concepts', async (req: Request, res: Response) => {
+  try {
+    const params = new URLSearchParams();
+    if (req.query.domain) params.set('domain', req.query.domain as string);
+    if (req.query.search) params.set('search', req.query.search as string);
+    const qs = params.toString();
+    const resp = await fetch(`${PROXY_URL}/v1/concepts${qs ? '?' + qs : ''}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Global Memories ────────────────────────────────────────────
+
+app.get('/v1/global-memories', async (req: Request, res: Response) => {
+  try {
+    const params = new URLSearchParams();
+    if (req.query.type) params.set('type', req.query.type as string);
+    const qs = params.toString();
+    const resp = await fetch(`${PROXY_URL}/v1/global-memories${qs ? '?' + qs : ''}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Token Credits ──────────────────────────────────────────────
+
+app.get('/v1/tokens/balance', async (req: Request, res: Response) => {
+  try {
+    const params = new URLSearchParams();
+    params.set('user_identity', req.query.user_identity as string);
+    if (req.query.agent_id) params.set('agent_id', req.query.agent_id as string);
+    const resp = await fetch(`${PROXY_URL}/v1/tokens/balance?${params}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/v1/tokens/credit', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/tokens/credit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/v1/tokens/transactions', async (req: Request, res: Response) => {
+  try {
+    const params = new URLSearchParams();
+    params.set('user_identity', req.query.user_identity as string);
+    if (req.query.limit) params.set('limit', req.query.limit as string);
+    const resp = await fetch(`${PROXY_URL}/v1/tokens/transactions?${params}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── AI Assist ──────────────────────────────────────────────────
+
+app.post('/v1/ai/assist', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ai/assist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── A/B Test Results ───────────────────────────────────────────
+
+app.get('/v1/ab-tests/:id/results', async (req: Request, res: Response) => {
+  try {
+    const resp = await fetch(`${PROXY_URL}/v1/ab-tests/${req.params.id}/results`);
     const data = await resp.json();
     res.status(resp.status).json(data);
   } catch (err: any) {

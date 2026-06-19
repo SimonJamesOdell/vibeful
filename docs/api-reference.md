@@ -100,6 +100,133 @@ All endpoints are available at `http://localhost:3000/v1/`.
 | `GET` | `/v1/threads/:id` | Get thread status |
 | `POST` | `/v1/threads/:id/deliver` | Mark thread as delivered |
 
+## Agent Versions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/agents/:id/versions` | List version history |
+| `GET` | `/v1/agents/:id/versions/:vid` | Get specific version |
+| `POST` | `/v1/agents/:id/versions` | Save a new version |
+| `POST` | `/v1/agents/:id/versions/:vid/restore` | Restore agent to a previous version |
+
+### Save Version Body
+
+```json
+{
+  "config": { "nodes": [...], "edges": [...], "agentName": "..." },
+  "yaml_str": "name: Support Agent\n...",
+  "author": "human",
+  "change_description": "Added attack guard node",
+  "tags": ["security"]
+}
+```
+
+## A/B Tests
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/ab-tests` | Create A/B test |
+| `GET` | `/v1/ab-tests` | List tests (optional `?agent_id=`) |
+| `POST` | `/v1/ab-tests/:id/start` | Start test (begin traffic splitting) |
+| `POST` | `/v1/ab-tests/:id/stop` | Stop test and declare winner |
+| `GET` | `/v1/ab-tests/:id/results` | Get test results with statistics |
+
+## Performance & Regression
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/agents/:id/performance` | Get per-node performance metrics |
+| `POST` | `/v1/agents/:id/baseline` | Establish performance baseline |
+
+## Glyphs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/glyphs` | List all glyphs |
+| `POST` | `/v1/glyphs` | Create or update a glyph |
+| `DELETE` | `/v1/glyphs/:name` | Delete a glyph by name |
+
+### Glyph Object
+
+```json
+{
+  "name": "recursion",
+  "symbol": "🌀",
+  "description": "Recursive depth and self-reference",
+  "glyphset": "meta"
+}
+```
+
+## Concepts
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/concepts` | List concepts (`?domain=`&`search=`) |
+
+## Global Memories
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/global-memories` | List global memories (`?type=system_ontology`) |
+
+## Token Credits
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/tokens/balance` | Get balance (`?user_identity=`&`agent_id=`) |
+| `POST` | `/v1/tokens/credit` | Add credits to a user |
+| `GET` | `/v1/tokens/transactions` | Transaction history (`?user_identity=`&`limit=`) |
+
+### Credit Request Body
+
+```json
+{
+  "user_identity": "user-123",
+  "amount": 10000,
+  "transaction_type": "purchase",
+  "description": "Monthly top-up",
+  "agent_id": "agent-abc"
+}
+```
+
+## AI Assist
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/ai/assist` | Natural language → graph mutations |
+
+### Request Body
+
+```json
+{
+  "system_prompt": "You are an AI assistant for the Vibeful visual agent designer...",
+  "message": "Add an attack guard at the start",
+  "temperature": 0.2,
+  "max_tokens": 500
+}
+```
+
+## Analysis Configuration
+
+Configure per-agent analysis pipeline in the agent config:
+
+```json
+{
+  "analysis": {
+    "enabled": true,
+    "phases": {
+      "memories": { "enabled": true, "temperature": 0.2 },
+      "impressions": { "enabled": true, "temperature": 0.5 },
+      "concepts": { "enabled": false },
+      "conductor": { "enabled": true, "temperature": 0.5 },
+      "code_detect": { "enabled": true, "temperature": 0.5 }
+    }
+  }
+}
+```
+
+**Phases:** `memories`, `impressions`, `concepts`, `assumptions`, `intent`, `conductor`, `code_detect`, `search_detect`, `global_memories`, `next`, `search_execute`, `output_routing`
+
 ## Authentication
 
 All endpoints (except `/health`) require an API key:

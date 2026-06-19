@@ -35,6 +35,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def _startup_db():
+    """Initialize the database connection for Lucid capability endpoints."""
+    global _db_lucid
+    try:
+        from .database import Database
+        _db_lucid = Database()
+        await _db_lucid.init_schema()
+    except Exception:
+        # SQLite fallback: connect without schema init
+        # (schema will be created on first use if needed)
+        pass
+
 _graph = None
 
 
@@ -50,9 +64,11 @@ class ConverseRequest(BaseModel):
     system_prompt: str | None = None
     model: str = "deepseek-chat"
     temperature: float = 0.7
+    top_p: float = 1.0
     max_tokens: int = 4096
     context_ids: list[str] = []
     mcp_server_urls: list[str] = []
+    analysis: dict | None = None
 
 
 @app.get("/health")
@@ -87,9 +103,11 @@ async def converse_stream(req: ConverseRequest):
         system_prompt=req.system_prompt or "",
         model=req.model,
         temperature=req.temperature,
+        top_p=req.top_p,
         max_tokens=req.max_tokens,
         context_ids=req.context_ids,
         mcp_server_urls=req.mcp_server_urls,
+        analysis_config=req.analysis,
     )
 
     async def event_stream():
@@ -124,9 +142,11 @@ async def converse(req: ConverseRequest):
         system_prompt=req.system_prompt or "",
         model=req.model,
         temperature=req.temperature,
+        top_p=req.top_p,
         max_tokens=req.max_tokens,
         context_ids=req.context_ids,
         mcp_server_urls=req.mcp_server_urls,
+        analysis_config=req.analysis,
     )
 
     try:
@@ -173,6 +193,268 @@ async def get_metrics_json():
     """Metrics as JSON."""
     from .metrics import metrics as m
     return m.to_dict()
+
+
+# ── Lucid Capability Endpoints ───────────────────────────────────
+
+_db_lucid = None
+
+
+def set_database(db: Any) -> None:
+    """Set the database instance for Lucid endpoints (called from main.py)."""
+    global _db_lucid
+    _db_lucid = db
+
+
+def _require_db():
+    if _db_lucid is None:
+        raise HTTPException(503, "Database not initialized")
+    return _db_lucid
+
+
+# ── Glyphs ─────────────────────────────────────────────────
+
+@app.get("/v1/glyphs")
+async def list_glyphs():
+    db = _require_db()
+    glyphs = await db.list_glyphs()
+    return {"glyphs": glyphs}
+
+
+@app.post("/v1/glyphs")
+async def create_glyph(glyph: dict):
+    db = _require_db()
+    if not glyph.get("name") or not glyph.get("symbol"):
+        raise HTTPException(400, "name and symbol are required")
+    result = await db.add_glyph(glyph)
+    return result
+
+
+@app.delete("/v1/glyphs/{name}")
+async def delete_glyph(name: str):
+    db = _require_db()
+    deleted = await db.delete_glyph(name)
+    if not deleted:
+        raise HTTPException(404, f"Glyph '{name}' not found")
+    return {"deleted": name}
+
+
+# ── Concepts ───────────────────────────────────────────────
+
+@app.get("/v1/concepts")
+async def list_concepts(domain: str = "", search: str = ""):
+    db = _require_db()
+    concepts = await db.get_concepts_by_domain(domain=domain or None)
+    if search:
+        concepts = [
+            c for c in concepts
+            if search.lower() in c.get("name", "").lower()
+            or search.lower() in c.get("description", "").lower()
+        ]
+    return {"concepts": concepts}
+
+
+# ── Global Memories ────────────────────────────────────────
+
+@app.get("/v1/global-memories")
+async def list_global_memories(type: str = ""):
+    db = _require_db()
+    memories = await db.list_global_memories(memory_type=type or None)
+    return {"memories": memories}
+
+
+# ── Token Credits ──────────────────────────────────────────
+
+class CreditRequest(BaseModel):
+    user_identity: str
+    amount: int
+    transaction_type: str = "purchase"
+    description: str = ""
+    agent_id: str | None = None
+
+
+@app.get("/v1/tokens/balance")
+async def get_token_balance(user_identity: str, agent_id: str = ""):
+    db = _require_db()
+    from .token_tracker import TokenTracker
+    tracker = TokenTracker(db)
+    balance = await tracker.get_balance(user_identity, agent_id or None)
+    return {"user_identity": user_identity, "balance": balance}
+
+
+@app.post("/v1/tokens/credit")
+async def credit_tokens(req: CreditRequest):
+    db = _require_db()
+    from .token_tracker import TokenTracker
+    tracker = TokenTracker(db)
+    result = await tracker.credit(
+        user_identity=req.user_identity,
+        amount=req.amount,
+        transaction_type=req.transaction_type,
+        description=req.description,
+        agent_id=req.agent_id,
+    )
+    return result
+
+
+@app.get("/v1/tokens/transactions")
+async def list_transactions(user_identity: str, limit: int = 50):
+    db = _require_db()
+    from .token_tracker import TokenTracker
+    tracker = TokenTracker(db)
+    transactions = await tracker.get_transaction_history(user_identity, limit)
+    return {"transactions": transactions}
+
+
+# ── AI Assist ──────────────────────────────────────────────
+
+class AIAssistRequest(BaseModel):
+    system_prompt: str
+    message: str
+    temperature: float = 0.2
+    max_tokens: int = 500
+
+
+@app.post("/v1/ai/assist")
+async def ai_assist(req: AIAssistRequest):
+    """Process natural language commands for the visual agent designer."""
+    from .llm import get_provider
+    provider = get_provider()
+    response = await provider.chat(
+        messages=[
+            {"role": "system", "content": req.system_prompt},
+            {"role": "user", "content": req.message},
+        ],
+        temperature=req.temperature,
+        max_tokens=req.max_tokens,
+    )
+    return {"response": response.content, "model": getattr(provider, "model", "unknown")}
+
+
+# ── Agent Versions ──────────────────────────────────────────
+
+class VersionSaveRequest(BaseModel):
+    config: dict | None = None
+    yaml_str: str = ""
+    author: str = "human"
+    change_description: str = ""
+    tags: list[str] = []
+
+
+@app.get("/v1/agents/{agent_id}/versions")
+async def get_agent_versions(agent_id: str, limit: int = 50):
+    db = _require_db()
+    versions = await db.get_agent_versions(agent_id, limit)
+    return {"versions": versions}
+
+
+@app.get("/v1/agents/{agent_id}/versions/{vid}")
+async def get_agent_version(agent_id: str, vid: str):
+    db = _require_db()
+    versions = await db.get_agent_versions(agent_id)
+    for v in versions:
+        if v.get("id") == vid or str(v.get("version_number")) == vid:
+            return v
+    raise HTTPException(404, f"Version {vid} not found")
+
+
+@app.post("/v1/agents/{agent_id}/versions")
+async def save_agent_version(agent_id: str, req: VersionSaveRequest):
+    db = _require_db()
+    result = await db.save_agent_version(
+        agent_id=agent_id,
+        config=req.config or {},
+        yaml_str=req.yaml_str,
+        author=req.author,
+        change_description=req.change_description,
+        tags=req.tags,
+    )
+    return result
+
+
+@app.post("/v1/agents/{agent_id}/versions/{vid}/restore")
+async def restore_agent_version(agent_id: str, vid: str):
+    db = _require_db()
+    import json as _json
+    versions = await db.get_agent_versions(agent_id)
+    target = None
+    for v in versions:
+        if v.get("id") == vid or str(v.get("version_number")) == vid:
+            target = v
+            break
+    if target is None:
+        raise HTTPException(404, f"Version {vid} not found")
+    config = target.get("config_snapshot", "{}")
+    if isinstance(config, str):
+        config = _json.loads(config)
+    result = await db.save_agent_version(
+        agent_id=agent_id,
+        config=config,
+        yaml_str=target.get("yaml_snapshot", ""),
+        author="restore",
+        change_description=f"Restored from version {target.get('version_number', vid)}",
+        tags=["restore"],
+    )
+    return result
+
+
+# ── A/B Tests ───────────────────────────────────────────────
+
+class ABTestCreateRequest(BaseModel):
+    agent_id: str
+    name: str
+    primary_metric: str = "success_rate"
+    min_sample_size: int = 100
+    variant_a_config: dict
+    variant_b_config: dict
+
+
+@app.post("/v1/ab-tests")
+async def create_ab_test(req: ABTestCreateRequest):
+    db = _require_db()
+    result = await db.create_ab_test({
+        "agent_id": req.agent_id,
+        "name": req.name,
+        "status": "draft",
+        "primary_metric": req.primary_metric,
+        "min_sample_size": req.min_sample_size,
+        "variant_a_config": req.variant_a_config,
+        "variant_b_config": req.variant_b_config,
+    })
+    return result
+
+
+@app.get("/v1/ab-tests")
+async def get_ab_tests(agent_id: str = ""):
+    db = _require_db()
+    tests = await db.get_ab_tests(agent_id=agent_id or None)
+    return {"tests": tests}
+
+
+@app.post("/v1/ab-tests/{test_id}/start")
+async def start_ab_test(test_id: str):
+    db = _require_db()
+    result = await db.update_ab_test_status(test_id, "running")
+    if result is None:
+        raise HTTPException(404, f"Test {test_id} not found")
+    return result
+
+
+@app.post("/v1/ab-tests/{test_id}/stop")
+async def stop_ab_test(test_id: str):
+    db = _require_db()
+    result = await db.update_ab_test_status(test_id, "completed")
+    if result is None:
+        raise HTTPException(404, f"Test {test_id} not found")
+    return result
+
+
+@app.get("/v1/ab-tests/{test_id}/results")
+async def get_ab_test_results(test_id: str):
+    db = _require_db()
+    results = await db.get_ab_results(test_id)
+    aggregate = await db.get_ab_aggregate(test_id)
+    return {"results": results, "aggregate": aggregate}
 
 
 async def serve_rest(port: int = REST_PORT) -> None:

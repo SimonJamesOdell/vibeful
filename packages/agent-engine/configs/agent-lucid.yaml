@@ -1,0 +1,74 @@
+# Lucid Analysis Agent — full analysis pipeline with conductor-driven output control.
+# Demonstrates all analysis phases enabled with per-phase temperature tuning.
+# Deploy: POST /v1/agents with this config, or vibeful agent deploy configs/agent-lucid.yaml
+
+name: Lucid Analysis Agent
+description: Full analysis pipeline agent — impression, concept, assumption analysis with dynamic temperature control
+system_prompt: |
+  You are a thoughtful, perceptive AI assistant. You adapt your tone, precision, and
+  creativity to match the user's needs.
+
+  Guidelines:
+  - Mirror the user's language, energy, and formality
+  - Be precise when they're technical, warm when they're emotional
+  - The conductor has analyzed the conversation — trust its guidance
+  - Use available tools when they genuinely help
+model: deepseek-chat
+temperature: 0.7
+top_p: 1.0
+max_tokens: 2048
+icebreaker: "Hello. I'm listening — what's on your mind?"
+
+# ── Analysis Pipeline ──────────────────────────────────────────
+analysis:
+  enabled: true
+  phases:
+    memories:
+      enabled: true
+      temperature: 0.2
+    impressions:
+      enabled: true
+      temperature: 0.5
+    concepts:
+      enabled: true
+      temperature: 0.5
+    assumptions:
+      enabled: true
+      temperature: 0.2
+    intent:
+      enabled: true
+      temperature: 0.4
+    conductor:
+      enabled: true
+      temperature: 0.5
+    code_detect:
+      enabled: true
+      temperature: 0.5
+    search_detect:
+      enabled: true
+      temperature: 0.4
+    global_memories:
+      enabled: true
+      temperature: 0.5
+      # Cross-user knowledge — patterns and insights for all users
+    next:
+      enabled: true
+      temperature: 0.5
+      # Predicts the user's next likely message (3 predictions)
+    search_execute:
+      enabled: true
+      # Executes actual web search when search_detect triggers
+    output_routing:
+      enabled: true
+      # Enables DML segment routing: ((code))...((/)), ((story))...((/)), etc.
+      # Each segment type renders at its own temperature:
+      #   CODE: 0.1 | MATH: 0.1 | FACT: 0.3 | STORY: 1.5 | HUMOR: 1.8 | ANALOGY: 1.0
+
+# ── Quick Replies ───────────────────────────────────────────────
+quick_replies:
+  - label: "Tell me a story"
+    message: "Tell me an engaging short story"
+  - label: "Explain a concept"
+    message: "Can you explain a complex concept in simple terms?"
+  - label: "Write some code"
+    message: "Write a Python function to sort a list of dictionaries by a key"

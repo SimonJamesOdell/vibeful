@@ -74,8 +74,32 @@ LangChain and CrewAI are frameworks for building AI applications. Vibeful is a c
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md). Good first issues: add new MCP servers, improve documentation, write E2E tests, add widget types.
 
+## What is the Analysis Pipeline?
+
+The Analysis Pipeline runs 11 parallel LLM phases on every user message BEFORE the agent responds. It extracts memories, impressions, concepts, and assumptions; classifies intent; detects code requests; and a Conductor phase dynamically adjusts the response temperature based on analysis results. This gives agents deeper contextual understanding — inspired by the Lucid Sensai research system.
+
+Enable it by adding an Analysis Pipeline node to your agent graph, or via the `analysis` config block in the agent JSON/YAML.
+
+## What is the Management Console?
+
+A visual agent designer at `http://localhost:5174`. Drag and drop 14 agent node types onto a React Flow canvas, connect them, configure properties, and deploy with one click. Includes AI-assisted design (natural language → graph mutations), version history with diff viewer, A/B testing, regression monitoring, and management tools for glyphs, concepts, and token credits.
+
+## What are Glyphs, Concepts, and Global Memories?
+
+Lucid capability stores:
+- **Glyphs** — Symbolic visual representations (e.g., 🌀 for recursion) linked to concepts
+- **Concepts** — Named conceptual frameworks organized by domain
+- **Global Memories** — Cross-user knowledge patterns (system ontology, concept synthesis, collective truth)
+
+These are managed through both the Management Console UI and REST API.
+
+## What are Token Credits?
+
+A per-user budget system for tracking and limiting LLM usage. Users have token balances; each conversation turn debits tokens. Admins can credit users, view transaction history, and set per-agent limits.
+
 ## Where can I get help?
 
 - GitHub Discussions
 - Documentation: `docs/`
 - API Reference: `docs/api-reference.md`
+- Management Console: `http://localhost:5174`

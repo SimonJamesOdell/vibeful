@@ -65,14 +65,17 @@ pnpm test
 ## Status
 
 - ✅ Protocol defined (agent.proto)
-- ✅ Agent graph (LangGraph: 13 nodes)
+- ✅ Agent graph (LangGraph: 14 nodes + 11-phase analysis pipeline)
 - ✅ LLM provider abstraction (DeepSeek + OpenAI)
 - ✅ SQLite dev mode (no Docker required)
 - ✅ Configurable agent graphs (YAML/JSON)
 - ✅ Auth plugin system (api_key, jwt, passthrough)
 - ✅ Eval framework (84 tests)
-- ✅ REST API + Prometheus metrics
+- ✅ REST API + Prometheus metrics + Lucid endpoints
 - ✅ Helm chart + Docker Compose
+- ✅ Analysis Pipeline (Lucid Sensai parity — 78/78 tests)
+- ✅ Management Console (React Flow visual designer — 10 tabs) 
+- ✅ Lucid capabilities (Glyphs, Concepts, Global Memories, Token Credits)
 
 ## Getting Started
 

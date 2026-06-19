@@ -62,6 +62,7 @@ def _register_builtins() -> None:
         follow_up_node,
         fact_mining_node,
     )
+    from ..analysis_pipeline import analysis_pipeline_node, output_router_node
     from ..quality_nodes import classify_intent as router_node
 
     builtins = {
@@ -79,6 +80,8 @@ def _register_builtins() -> None:
         "builtin.follow_up": follow_up_node,
         "builtin.fact_mining": fact_mining_node,
         "builtin.router": router_node,
+        "builtin.analysis_pipeline": analysis_pipeline_node,
+        "builtin.output_router": output_router_node,
     }
     for name, fn in builtins.items():
         register_node(name, fn)
