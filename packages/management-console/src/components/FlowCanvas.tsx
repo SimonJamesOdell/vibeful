@@ -33,6 +33,10 @@ export default function FlowCanvas() {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ignore events from input fields so chat typing doesn't delete nodes
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
       const store = useFlowStore.getState();
       if (e.key === 'Delete' || e.key === 'Backspace') {
         store.removeSelectedNodes();
