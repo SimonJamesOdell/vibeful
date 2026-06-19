@@ -57,6 +57,7 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
 - When the user wants to modify the canvas → use add_node/remove_node
 - Always be helpful and conversational`;
 
+export { SYSTEM_PROMPT };
 export type { Node, Edge };
 export { VIBEFUL_NODE_TYPES };
 
