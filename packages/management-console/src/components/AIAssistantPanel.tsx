@@ -174,6 +174,9 @@ export default function AIAssistantPanel() {
     'yes please', 'yes!', 'yeah!', 'sure!',
   ]);
 
+  // Normalize text for flexible matching: strip punctuation, collapse whitespace, lowercase
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
   // Local answers for common onboarding questions (no LLM needed)
   const NODE_TOUR_INTRO = "Let me walk you through each node on your canvas! I've highlighted the first one — use the arrows below to step through.\n\n";
   const NODE_TOUR_CMD = '```vibeful-command\n{"action":"start_tour","details":{"steps":[' +
@@ -182,17 +185,31 @@ export default function AIAssistantPanel() {
     '{"node":"LLM Call","explanation":"This is where the magic happens! The LLM Call node sends everything to DeepSeek API and waits for a response. You can configure the model, temperature, and max tokens here."},' +
     '{"node":"Output","explanation":"Output formats the LLM response for display. It handles streaming chunks, trims extra whitespace, and makes sure the final answer looks clean for your users."}' +
     ']}}\n```';
-  const ONBOARDING_QA: Record<string, string> = {
-    'what does this mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
-    'what do the nodes mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
-    'i see the nodes what does this mean': NODE_TOUR_INTRO + NODE_TOUR_CMD,
-    'what is this': "This is the Vibeful agent designer — a visual canvas where you build AI agents by connecting nodes. Each node is a step in your agent's decision process. You design the flow, Vibeful runs it. Think of it like a flowchart that makes AI decisions.",
-    'what is vibeful': "Vibeful is a platform for building, testing, and deploying AI agents. You design an agent's behavior on this canvas, then embed it in your app with a few lines of code. No ML expertise needed — just describe what you want the agent to do.",
-    'how do i build an agent': "You're already doing it! The 4 nodes on your canvas form a working agent. To customize it:\n\n• Add nodes: type 'add a RAG node' or 'add an attack guard'\n• Remove nodes: click a node and press Delete\n• Connect nodes: drag from one node's edge to another\n\nOnce you're happy, click Deploy and you'll get 3 lines of code to embed it in your app.",
-    'how do i deploy': "Click the Deploy button in the toolbar (top right), or type 'deploy' here. You'll get a code snippet — 3 lines of JavaScript/TypeScript — that you paste into your app. The agent runs on Vibeful's infrastructure; your app just sends messages and receives responses.",
-    'what next': "You've got a working agent on the canvas! Here are some ideas:\n\n• **Add intelligence**: type 'add a RAG node' to give your agent knowledge from your documents\n• **Add safety**: type 'add an attack guard' to protect against prompt injection\n• **Test it**: switch to the Conversations tab and chat with your agent\n• **Deploy it**: click Deploy to get the embed code\n\nWhat would you like to try?",
-    'ok i see them what does this mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
-    'ok i see them what do they mean': "Great question! You're looking at your first agent graph. Here's what each node does:\n\n• **Setup** — Initializes the conversation and captures user input\n• **System Prompt Builder** — Constructs the AI's instructions and personality\n• **LLM Call** — Sends the request to DeepSeek and waits for the response\n• **Output** — Formats the final answer for display\n\nYou can add more nodes by typing commands like 'add an attack guard'. Want to try?",
+
+  // Build Q&A with normalized keys for flexible matching
+  const _rawQa: Array<[string, string]> = [
+    ['what does this mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what do the nodes mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['i see the nodes what does this mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what is this', "This is the Vibeful agent designer — a visual canvas where you build AI agents by connecting nodes. Each node is a step in your agent's decision process. You design the flow, Vibeful runs it. Think of it like a flowchart that makes AI decisions."],
+    ['what is vibeful', "Vibeful is a platform for building, testing, and deploying AI agents. You design an agent's behavior on this canvas, then embed it in your app with a few lines of code. No ML expertise needed — just describe what you want the agent to do."],
+    ['how do i build an agent', "You're already doing it! The 4 nodes on your canvas form a working agent. To customize it:\n\n• Add nodes: type 'add a RAG node' or 'add an attack guard'\n• Remove nodes: click a node and press Delete\n• Connect nodes: drag from one node's edge to another\n\nOnce you're happy, click Deploy and you'll get 3 lines of code to embed it in your app."],
+    ['how do i deploy', "Click the Deploy button in the toolbar (top right), or type 'deploy' here. You'll get a code snippet — 3 lines of JavaScript/TypeScript — that you paste into your app. The agent runs on Vibeful's infrastructure; your app just sends messages and receives responses."],
+    ['what next', "You've got a working agent on the canvas! Here are some ideas:\n\n• **Add intelligence**: type 'add a RAG node' to give your agent knowledge from your documents\n• **Add safety**: type 'add an attack guard' to protect against prompt injection\n• **Test it**: switch to the Conversations tab and chat with your agent\n• **Deploy it**: click Deploy to get the embed code\n\nWhat would you like to try?"],
+  ];
+  const ONBOARDING_QA: Record<string, string> = {};
+  for (const [key, val] of _rawQa) {
+    ONBOARDING_QA[normalize(key)] = val;
+  }
+
+  // Keywords that indicate the user is confused about nodes and wants a tour
+  const isNodeConfusion = (s: string) => {
+    const words = s.split(/\s+/);
+    return words.includes('node') || words.includes('nodes') || words.includes('box') || words.includes('boxes');
+  };
+  const isQuestion = (s: string) => {
+    const words = s.split(/\s+/);
+    return words.some(w => ['what', 'mean', 'means', 'explain', 'how', 'who', 'why'].includes(w));
   };
 
   const handleSend = async () => {
@@ -203,13 +220,22 @@ export default function AIAssistantPanel() {
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
 
     // --- Local onboarding Q&A: answer common questions without the LLM ---
-    // Works whenever onboarding is true (covers follow-up questions after template loads)
-    const lowerMsg = msg.toLowerCase().replace(/[?!.,]+$/, '').trim();
-    if (onboarding && ONBOARDING_QA[lowerMsg]) {
-      const response = ONBOARDING_QA[lowerMsg];
-      // Parse and execute any embedded vibeful-command blocks (e.g. highlight_node for tours)
-      const cmdResults = await executeCommands(response);
-      const cleanContent = stripCommands(response);
+    const normMsg = normalize(msg);
+    let localResponse: string | undefined;
+
+    // 1. Exact normalized match
+    if (onboarding) {
+      localResponse = ONBOARDING_QA[normMsg];
+    }
+
+    // 2. Keyword fallback: any question that mentions "node(s)" → start the tour
+    if (!localResponse && onboarding && isNodeConfusion(normMsg) && isQuestion(normMsg)) {
+      localResponse = NODE_TOUR_INTRO + NODE_TOUR_CMD;
+    }
+
+    if (localResponse) {
+      const cmdResults = await executeCommands(localResponse);
+      const cleanContent = stripCommands(localResponse);
       setMessages((prev) => [...prev, {
         role: 'assistant',
         content: cleanContent,
