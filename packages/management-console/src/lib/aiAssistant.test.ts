@@ -21,22 +21,22 @@ describe('SYSTEM_PROMPT invariants', () => {
 
   it('forbids auto-triggering start_tour alongside text explanations', () => {
     // The prompt must contain language that explicitly prevents
-    // the LLM from emitting start_tour when it's already providing
-    // a conversational text walkthrough.
-    const hasExplicitDoNotEmit = SYSTEM_PROMPT.includes('do not also emit start_tour')
-      || SYSTEM_PROMPT.includes('Do NOT emit start_tour')
-      || SYSTEM_PROMPT.includes('do not also emit start_tour');
+    // the LLM from auto-triggering start_tour when it's giving
+    // unsolicited text explanations (not when the user asks).
+    const hasExplicitDoNotEmit = SYSTEM_PROMPT.includes('Do NOT auto-trigger start_tour')
+      || SYSTEM_PROMPT.includes('Do NOT emit start_tour');
 
-    const hasTextAloneRule = SYSTEM_PROMPT.includes('text alone')
-      || SYSTEM_PROMPT.includes('text alone is sufficient');
+    const hasUnsolicitedRule = SYSTEM_PROMPT.includes('unsolicited text explanations')
+      || SYSTEM_PROMPT.includes('text alone');
 
-    expect(hasExplicitDoNotEmit || hasTextAloneRule).toBe(true);
+    expect(hasExplicitDoNotEmit || hasUnsolicitedRule).toBe(true);
   });
 
   it('requires explicit user request for start_tour', () => {
     // The prompt must indicate that start_tour is for user-requested tours only
     const requiresExplicitAsk =
-      SYSTEM_PROMPT.includes('explicitly asks for a tour')
+      SYSTEM_PROMPT.includes('when the user asks')
+      || SYSTEM_PROMPT.includes('explicitly asks for a tour')
       || SYSTEM_PROMPT.includes('explicitly asks')
       || SYSTEM_PROMPT.includes('only when the user explicitly asks');
 
