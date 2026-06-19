@@ -314,7 +314,132 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 
 ---
 
-## Phase 8: Platform Hardening
+## Phase 8: Multi-Agent Console
+
+> **Goal**: Manage multiple agents from one dashboard. Switch between agents in the Designer. Clone, delete, and organize agents.
+> **Priority**: P0 — backend supports multiple agents, console doesn't expose it.
+
+### 8.1 — Agent List Dashboard
+
+- [ ] New "Agents" tab in the console header
+- [ ] Fetch agents from `GET /v1/agents` (endpoint exists)
+- [ ] Agent cards: name, description, model, node count, last modified
+- [ ] Click agent → switches to Designer with that agent's graph loaded
+- [ ] Empty state: "No agents yet — create one in the Designer"
+- [ ] Delete agent with confirmation dialog
+
+### 8.2 — Agent Selector in Designer
+
+- [ ] Dropdown in the Designer header listing all agents
+- [ ] Switching agents loads that agent's saved graph (or fresh canvas if new)
+- [ ] "New Agent" option in the dropdown
+- [ ] Current agent name editable in the header
+- [ ] Single-agent users see no dropdown — no UX change
+
+### 8.3 — Clone & Delete
+
+- [ ] Clone button: duplicates agent config and graph, opens the clone
+- [ ] Delete button: confirmation dialog, removes from list, switches to next agent
+- [ ] Both operations use existing REST endpoints
+
+### 8.4 — Agent-Scoped Tabs
+
+- [ ] Versions tab filters by selected agent
+- [ ] Proposals tab scoped to selected agent
+- [ ] A/B Tests tab scoped to selected agent
+- [ ] Monitor tab scoped to selected agent
+- [ ] Glyphs, Concepts, Memories, Tokens remain global (cross-agent)
+
+### Files to create
+- `management-console/src/components/AgentList.tsx`
+- `management-console/src/components/AgentSelector.tsx`
+
+### Files to modify
+- `management-console/src/App.tsx` — add Agents tab, agent selector, agent state
+
+---
+
+## Phase 9: UI Widget System
+
+> **Goal**: Agents can render widgets (buttons, cards, forms, charts, tables) in the host application on demand via the vibeful-command protocol.
+> **Priority**: P1 — unlocks "WordPress for agents" visual capabilities.
+
+### 9.1 — Widget Specification
+
+- [ ] Define `WidgetSpec` JSON schema in shared types
+- [ ] Widget types: `button`, `card`, `form`, `chart`, `table` (v1)
+- [ ] Each widget has: `widget_id`, `type`, `props`, optional `position`/`layout`
+- [ ] Widgets can be composed into layouts (row, column, grid)
+- [ ] Widget interactions reported back to agent via `widget_event` messages
+
+### 9.2 — SDK Widget Renderer
+
+- [ ] `<WidgetRenderer>` component in SDK that renders WidgetSpec arrays
+- [ ] Each widget type has a dedicated React component
+- [ ] Widget events bubble up to the SDK's conversation handler
+- [ ] Theme support via CSS custom properties (consistent with chat widget)
+
+### 9.3 — Console Widget Designer
+
+- [ ] New "Widgets" tab in the console
+- [ ] Drag-and-drop widget templates onto a canvas
+- [ ] Configure widget props (label, variant, fields, data source)
+- [ ] Save widget templates → agents reference them by `template_id`
+- [ ] Guide can create and modify widget templates via natural language
+
+### Files to create
+- `packages/sdk/src/components/WidgetRenderer.tsx`
+- `packages/sdk/src/components/widgets/ButtonWidget.tsx`
+- `packages/sdk/src/components/widgets/CardWidget.tsx`
+- `packages/sdk/src/components/widgets/FormWidget.tsx`
+- `packages/sdk/src/components/widgets/ChartWidget.tsx`
+- `packages/sdk/src/components/widgets/TableWidget.tsx`
+- `packages/shared/src/widgets.ts` — WidgetSpec types
+- `management-console/src/components/WidgetDesigner.tsx`
+
+---
+
+## Phase 10: Integration Tiers
+
+> **Goal**: Three integration models from passive embed to agent-centric greenfield apps.
+> **Priority**: P1 — defines the product's market positioning.
+
+### 10.1 — Tier 1: Passive Embed
+
+- [ ] Chat widget + optional simple widgets (buttons, cards)
+- [ ] Agent has read access to limited host state
+- [ ] Integration: `<VibefulChat agentId="..." />` — 1 line
+- [ ] Host app can pass `context` object for agent awareness
+- [ ] Use case: SaaS support bot, knowledge base assistant
+
+### 10.2 — Tier 2: Active Embed
+
+- [ ] Agent drives host app UX via full command protocol
+- [ ] Host registers command handlers: `navigate`, `open-modal`, `update-state`, `scroll-to`, `focus-element`, `set-theme`
+- [ ] Agent can trigger multi-step workflows across the host app
+- [ ] Host can send state snapshots to agent for context
+- [ ] Use case: Analytics dashboard with agent that builds queries and navigates
+
+### 10.3 — Tier 3: Agent-Centric Greenfield
+
+- [ ] `VibefulApp` — full-page React component, agent IS the shell
+- [ ] Widget system composes the entire UI
+- [ ] Console "Pages" tab: define routes → agent behaviors + widget layouts
+- [ ] No host app needed — agent-native applications
+- [ ] Use case: Internal tools, admin panels, agent-native products
+
+### Decision: Tier 3 Scope
+Tier 3 is the biggest scope expansion — it changes the product from "embeddable agent platform" to "agent-native application platform." This competes with Retool/Appsmith but differentiated by agent-first design. Recommend building Tier 1+2 first, then evaluating demand before committing to Tier 3.
+
+### Files to create
+- `packages/sdk/src/VibefulApp.tsx` — full-page agent shell
+- `packages/sdk/src/hooks/useHostCommands.ts` — command registration hook
+- `management-console/src/components/PageDesigner.tsx` — route/widget designer
+- `docs/integration-tiers.md` — developer guide
+
+---
+
+## Phase 11: Platform Hardening
 
 > **Goal**: CI/CD pipeline, comprehensive testing, rate limiting, and database migrations.
 > **Priority**: P0 — the platform is feature-complete but lacks quality gates.
@@ -409,7 +534,7 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 
 ---
 
-## Phase 9: Production Readiness
+## Phase 12: Production Readiness
 
 > **Goal**: Backup/restore, structured logging, SQLite Lucid compatibility.
 > **Priority**: P1 — needed before any real production deployment.
@@ -465,7 +590,7 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 
 ---
 
-## Phase 10: Ecosystem Growth
+## Phase 13: Ecosystem Growth
 
 > **Goal**: MCP server examples, interactive docs, and a developer playground.
 > **Priority**: P2 — strategic differentiators, not blocking.
@@ -523,10 +648,13 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 ## Updated Implementation Order
 
 ```
-Phase 1-7 (done) → Platform feature-complete ✅
-Phase 8 (now)    → CI/CD, tests, rate limiting, DB migrations
-Phase 9           → Backup, logging, SQLite Lucid support
-Phase 10          → MCP examples, interactive docs, E2E expansion
+Phase 1-7 (done)   → Platform feature-complete ✅
+Phase 8  (in progress) → Multi-agent console: dashboard, selector, scoped tabs
+Phase 9               → UI Widget System: widgets rendered via vibeful-command
+Phase 10              → Integration Tiers: passive/active embed → greenfield apps
+Phase 11              → CI/CD, tests, rate limiting, DB migrations
+Phase 12              → Backup, logging, SQLite Lucid support
+Phase 13              → MCP examples, interactive docs, E2E expansion
 ```
 
 ---

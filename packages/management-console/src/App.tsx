@@ -17,9 +17,11 @@ import GlobalMemoryExplorer from './components/GlobalMemoryExplorer';
 import TokenDashboard from './components/TokenDashboard';
 import SetupWizard from './components/SetupWizard';
 import NodeTooltip from './components/NodeTooltip';
+import AgentList from './components/AgentList';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'designer' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens'>('designer');
+  const [activeTab, setActiveTab] = useState<'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens'>('designer');
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const {
     nodes, edges,
     agentName, setAgentName,
@@ -189,7 +191,7 @@ export default function App() {
     };
     const onNavigate = (e: Event) => {
       const tab = (e as CustomEvent).detail as string;
-      const validTabs = ['designer', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens'];
+      const validTabs = ['designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens'];
       if (validTabs.includes(tab)) setActiveTab(tab as typeof activeTab);
     };
     const onConfigureAnalysis = (e: Event) => {
@@ -225,6 +227,12 @@ export default function App() {
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'designer' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Designer
+              </button>
+              <button
+                onClick={() => setActiveTab('agents')}
+                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'agents' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Agents
               </button>
               <button
                 onClick={() => setActiveTab('templates')}
@@ -346,6 +354,10 @@ export default function App() {
         ) : activeTab === 'memories' ? (
           <div className="flex-1 overflow-y-auto">
             <GlobalMemoryExplorer />
+          </div>
+        ) : activeTab === 'agents' ? (
+          <div className="flex-1 overflow-y-auto">
+            <AgentList onSelect={(id) => { setActiveAgentId(id); setActiveTab('designer'); }} />
           </div>
         ) : activeTab === 'tokens' ? (
           <div className="flex-1 overflow-y-auto">
