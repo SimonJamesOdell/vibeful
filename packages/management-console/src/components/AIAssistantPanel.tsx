@@ -62,7 +62,23 @@ export default function AIAssistantPanel() {
             const newEdges = state.edges.filter((_, i) => i !== outgoingIdx);
             newEdges.push({ id: `edge_${afterNodeId}_${newNodeId}`, source: afterNodeId, target: newNodeId });
             newEdges.push({ id: `edge_${newNodeId}_${oldTarget}`, source: newNodeId, target: oldTarget });
-            useFlowStore.setState({ edges: newEdges });
+
+            // Shift all downstream nodes down to make space for the new node
+            const shiftQueue = [oldTarget];
+            const shifted = new Set<string>();
+            const updatedNodes = state.nodes.map((n) => ({ ...n, position: { ...n.position } }));
+            while (shiftQueue.length > 0) {
+              const currentId = shiftQueue.shift()!;
+              if (shifted.has(currentId)) continue;
+              shifted.add(currentId);
+              const node = updatedNodes.find((n) => n.id === currentId);
+              if (node) node.position = { ...node.position, y: node.position.y + 120 };
+              for (const e of newEdges.filter((e) => e.source === currentId)) {
+                if (!shifted.has(e.target)) shiftQueue.push(e.target);
+              }
+            }
+
+            useFlowStore.setState({ edges: newEdges, nodes: updatedNodes });
           } else {
             useFlowStore.setState({ edges: [...state.edges, { id: `edge_${afterNodeId}_${newNodeId}`, source: afterNodeId, target: newNodeId }] });
           }
