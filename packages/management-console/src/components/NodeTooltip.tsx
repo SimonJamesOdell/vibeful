@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 export default function NodeTooltip() {
   const { tourSteps, tourActiveIndex, nextTourStep, prevTourStep, dismissTour, nodes } =
     useFlowStore();
-  const { getZoom } = useReactFlow();
+  const { project } = useReactFlow();
 
   if (tourSteps.length === 0 || tourActiveIndex < 0) return null;
 
@@ -21,12 +21,10 @@ export default function NodeTooltip() {
   const activeNode = nodes.find(
     (n) => n.data.label === step.nodeLabel || n.id === step.nodeLabel
   );
-  const nodePos = activeNode?.position ?? { x: 250, y: 100 };
-  const zoom = getZoom();
+  const flowPos = activeNode?.position ?? { x: 250, y: 100 };
 
-  // Position tooltip to the right of the node, above if near bottom edge
-  const tooltipX = (nodePos.x + 280) * zoom;
-  const tooltipY = (nodePos.y - 20) * zoom;
+  // Convert flow coordinates to pane-local screen coordinates
+  const screenPos = project({ x: flowPos.x + 280, y: flowPos.y - 20 });
 
   const isFirst = tourActiveIndex === 0;
   const isLast = tourActiveIndex === tourSteps.length - 1;
@@ -35,7 +33,7 @@ export default function NodeTooltip() {
   return (
     <div
       className="absolute z-40 w-72"
-      style={{ left: tooltipX, top: tooltipY }}
+      style={{ left: screenPos.x, top: screenPos.y }}
     >
       {/* Arrow pointing left to the node */}
       <div className="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-indigo-700" />
