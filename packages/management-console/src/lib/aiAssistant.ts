@@ -49,7 +49,10 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
   \`\`\`vibeful-command
   {"action":"add_edge","details":{"source":"system_prompt","target":"rag"}}
   \`\`\`
-- remove_node — remove a node by label
+- remove_node — remove a node by its label. Example:
+  \`\`\`vibeful-command
+  {"action":"remove_node","details":{"label":"rag"}}
+  \`\`\`
 - navigate — switch tabs
 - deploy — deploy the agent
 

@@ -89,7 +89,8 @@ export default function AIAssistantPanel() {
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.REMOVE_NODE, (details) => {
-      const label = details.label as string;
+      // Accept multiple field names the LLM might use
+      const label = (details.label || details.node || details.name) as string;
       const node = useFlowStore.getState().nodes.find(
         (n) => n.data.label === label || n.id === label
       );
