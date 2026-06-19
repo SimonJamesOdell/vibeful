@@ -22,6 +22,32 @@ import AgentList from './components/AgentList';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens'>('designer');
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+  const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
+
+  // Fetch agent list for the selector dropdown
+  useEffect(() => {
+    fetch('/v1/agents')
+      .then((r) => r.json())
+      .then((data) => setAgentList(Array.isArray(data) ? data : data.agents || []))
+      .catch(() => {});
+  }, []);
+
+  const switchToAgent = async (agentId: string) => {
+    try {
+      const resp = await fetch(`/v1/agents/${agentId}`);
+      const data = await resp.json();
+      const parsed = parseGraphFromYaml(data);
+      if (parsed) {
+        loadGraph(parsed.nodes as any, parsed.edges);
+        setAgentName(data.name || '');
+      }
+    } catch {
+      // Keep current graph if agent can't be loaded
+    }
+    setActiveAgentId(agentId);
+    setActiveTab('designer');
+  };
+
   const {
     nodes, edges,
     agentName, setAgentName,
@@ -292,6 +318,23 @@ export default function App() {
             </div>
           </div>
 
+          {/* Agent selector dropdown */}
+          <div className="flex-1 flex justify-center">
+            {agentList.length > 1 && (
+              <select
+                value={activeAgentId || ''}
+                onChange={(e) => { const id = e.target.value; if (id === 'new') { setActiveAgentId(null); loadGraph([], []); setAgentName(''); } else if (id) switchToAgent(id); }}
+                className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 max-w-[200px]"
+              >
+                <option value="">Select agent…</option>
+                <option value="new">＋ New Agent</option>
+                {agentList.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name || 'Unnamed'}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <input
               value={agentName}
@@ -306,6 +349,45 @@ export default function App() {
             <button onClick={handleDeploy} className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors">
               <Play size={12} /> Deploy
             </button>
+            {activeAgentId && (
+              <>
+                <div className="w-px h-5 bg-slate-700" />
+                <button
+                  onClick={async () => {
+                    const yaml = generateYaml(nodes, edges, agentName, agentDescription);
+                    const resp = await fetch('/v1/agents', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: `${agentName} (copy)`, description: agentDescription, config_yaml: yaml }),
+                    });
+                    if (resp.ok) {
+                      const data = await resp.json();
+                      setActiveAgentId(data.id);
+                      setAgentList((prev) => [...prev, { id: data.id, name: `${agentName} (copy)` }]);
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors"
+                  title="Clone agent"
+                >
+                  Clone
+                </button>
+                <button
+                  onClick={() => {
+                    if (!confirm(`Delete agent "${agentName}"? This cannot be undone.`)) return;
+                    fetch(`/v1/agents/${activeAgentId}`, { method: 'DELETE' }).then(() => {
+                      setAgentList((prev) => prev.filter((a) => a.id !== activeAgentId));
+                      setActiveAgentId(null);
+                      loadGraph([], []);
+                      setAgentName('');
+                    });
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-red-700 text-slate-200 rounded transition-colors"
+                  title="Delete agent"
+                >
+                  Delete
+                </button>
+              </>
+            )}
           </div>
         </header>
 
