@@ -103,7 +103,8 @@ export async function executeCommands(text: string): Promise<CommandResult[]> {
 /**
  * Strip command blocks from text for clean display.
  */
-export function stripCommands(text: string): string {
+export function stripCommands(text: string | undefined): string {
+  if (!text) return '';
   return text.replace(/```vibeful-command\n[\s\S]*?```/g, '').trim();
 }
 

@@ -182,7 +182,8 @@ function parseAIResponse(content: string): AICommand | null {
 
     const parsed = JSON.parse(json);
     if (!parsed.action || !parsed.details) return null;
-    return parsed as AICommand;
+    // Ensure explanation is never undefined — some callers dereference it directly
+    return { ...parsed, explanation: parsed.explanation || '' } as AICommand;
   } catch {
     return null;
   }
