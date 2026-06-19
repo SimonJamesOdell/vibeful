@@ -314,12 +314,14 @@ export default function AIAssistantPanel() {
           },
         ]);
       }
-    } catch {
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.error('[Vibeful] processAICommand failed:', e);
       setMessages((prev) => [
         ...prev,
         {
           role: 'system',
-          content: "Error reaching the AI engine on port 50052. Check that the agent engine is running (look for 'Vibeful is Ready').",
+          content: `AI engine error: ${errMsg}`,
         },
       ]);
     } finally {
