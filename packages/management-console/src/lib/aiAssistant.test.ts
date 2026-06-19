@@ -78,6 +78,40 @@ describe('SYSTEM_PROMPT invariants', () => {
     expect(SYSTEM_PROMPT).toContain('"template":"minimal"');
     expect(Object.keys(TEMPLATES)).toContain('minimal');
   });
+
+  // ═══════════════════════════════════════════════════════════
+  // Brevity invariants — Guide must not explain unprompted
+  // ═══════════════════════════════════════════════════════════
+
+  it('enforces brevity — forbids unsolicited node explanations', () => {
+    expect(SYSTEM_PROMPT).toContain('NEVER explain nodes');
+  });
+
+  it('enforces response length — max 1-2 lines after commands', () => {
+    expect(SYSTEM_PROMPT).toContain('1-2 lines');
+  });
+
+  it('forbids unsolicited explanations specifically', () => {
+    expect(SYSTEM_PROMPT).toContain('Unsolicited explanations');
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // Template name invariants — LLM must know valid keys
+  // ═══════════════════════════════════════════════════════════
+
+  it('lists available templates section', () => {
+    expect(SYSTEM_PROMPT).toContain('Available templates');
+  });
+
+  it('references all three template keys', () => {
+    expect(SYSTEM_PROMPT).toContain('"minimal"');
+    expect(SYSTEM_PROMPT).toContain('"full"');
+    expect(SYSTEM_PROMPT).toContain('"lucid"');
+  });
+
+  it('instructs LLM to use EXACT template keys', () => {
+    expect(SYSTEM_PROMPT).toContain('EXACT keys');
+  });
 });
 
 describe('processAICommand exports', () => {
