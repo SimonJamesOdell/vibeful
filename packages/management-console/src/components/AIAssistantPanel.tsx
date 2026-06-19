@@ -203,6 +203,7 @@ export default function AIAssistantPanel() {
     setMessages((prev) => [...prev, { role: 'user', content: msg }]);
 
     // --- Local onboarding Q&A: answer common questions without the LLM ---
+    // Works whenever onboarding is true (covers follow-up questions after template loads)
     const lowerMsg = msg.toLowerCase().replace(/[?!.,]+$/, '').trim();
     if (onboarding && ONBOARDING_QA[lowerMsg]) {
       const response = ONBOARDING_QA[lowerMsg];
@@ -227,7 +228,7 @@ export default function AIAssistantPanel() {
       }]);
       window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: 'minimal' }));
       setLoading(false);
-      setOnboarding(false);
+      // Keep onboarding=true so follow-up Q&A still uses local fast path
       return;
     }
 
@@ -238,11 +239,14 @@ export default function AIAssistantPanel() {
       const command = await processAICommand(msg, nodes, edges);
 
       if (command) {
-        // Explain commands: just show the text, no action buttons
+        // Explain commands: parse commands from explanation, show text, no Apply button
         if (command.action === 'explain') {
+          const cmdResults = await executeCommands(command.explanation);
+          const cleanContent = stripCommands(command.explanation);
           setMessages((prev) => [...prev, {
             role: 'assistant',
-            content: command.explanation,
+            content: cleanContent || command.explanation,
+            commandResults: cmdResults.length > 0 ? cmdResults : undefined,
           }]);
         } else {
           // Parse any embedded vibeful-command blocks from explanation
