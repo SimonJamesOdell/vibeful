@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import FlowCanvas from './components/FlowCanvas';
 import NodePalette from './components/NodePalette';
@@ -29,6 +29,21 @@ export default function App() {
     selectedNodeId,
     loadGraph, clearGraph,
   } = useFlowStore();
+
+  // Track previous selection to animate properties panel only on enter/exit
+  const prevSelectedRef = useRef<string | null>(null);
+  const [panelAnimating, setPanelAnimating] = useState(false);
+
+  useEffect(() => {
+    const wasSelected = prevSelectedRef.current !== null;
+    const isSelected = selectedNodeId !== null;
+    if (wasSelected !== isSelected) {
+      setPanelAnimating(true);
+    } else {
+      setPanelAnimating(false);
+    }
+    prevSelectedRef.current = selectedNodeId;
+  }, [selectedNodeId]);
 
   const handleDeploy = async () => {
     const yaml = generateYaml(nodes, edges, agentName, agentDescription);
@@ -294,8 +309,8 @@ export default function App() {
               <FlowCanvas />
             </div>
             <div className={`
-              transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0
-              bg-slate-900 border-l border-slate-700
+              overflow-hidden flex-shrink-0 bg-slate-900 border-l border-slate-700
+              ${panelAnimating ? 'transition-all duration-300 ease-in-out' : ''}
               ${selectedNodeId ? 'w-72 opacity-100' : 'w-0 opacity-0 border-l-0'}
             `}>
               <PropertyPanel />
