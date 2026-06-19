@@ -189,8 +189,17 @@ export default function AIAssistantPanel() {
   // Build Q&A with normalized keys for flexible matching
   const _rawQa: Array<[string, string]> = [
     ['what does this mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what do they mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
     ['what do the nodes mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what are these', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what are those', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['what am i looking at', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['i see them what do they mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['ok i see them what do they mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
     ['i see the nodes what does this mean', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['i see them what are they', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['explain the nodes', NODE_TOUR_INTRO + NODE_TOUR_CMD],
+    ['explain what im looking at', NODE_TOUR_INTRO + NODE_TOUR_CMD],
     ['what is this', "This is the Vibeful agent designer — a visual canvas where you build AI agents by connecting nodes. Each node is a step in your agent's decision process. You design the flow, Vibeful runs it. Think of it like a flowchart that makes AI decisions."],
     ['what is vibeful', "Vibeful is a platform for building, testing, and deploying AI agents. You design an agent's behavior on this canvas, then embed it in your app with a few lines of code. No ML expertise needed — just describe what you want the agent to do."],
     ['how do i build an agent', "You're already doing it! The 4 nodes on your canvas form a working agent. To customize it:\n\n• Add nodes: type 'add a RAG node' or 'add an attack guard'\n• Remove nodes: click a node and press Delete\n• Connect nodes: drag from one node's edge to another\n\nOnce you're happy, click Deploy and you'll get 3 lines of code to embed it in your app."],
