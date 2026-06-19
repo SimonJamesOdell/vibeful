@@ -26,6 +26,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'core',
     color: '#ef4444',
     description: 'Detects prompt injection, jailbreak, XSS, SQLi. Routes to END if blocked.',
+    configSchema: [
+      { key: 'block_mode', label: 'Block Mode', type: 'select', defaultValue: 'block', options: [{ value: 'block', label: 'Block (reject)' }, { value: 'flag', label: 'Flag (log only)' }, { value: 'passthrough', label: 'Passthrough (no filter)' }] },
+    ],
   },
   {
     type: 'builtin.setup',
@@ -40,6 +43,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'core',
     color: '#8b5cf6',
     description: 'Generates execution plan for complex multi-step queries.',
+    configSchema: [
+      { key: 'max_plan_steps', label: 'Max Plan Steps', type: 'number', defaultValue: 5 },
+    ],
   },
   {
     type: 'builtin.buttons',
@@ -54,6 +60,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'core',
     color: '#f59e0b',
     description: 'Builds the system prompt. Defaults to helpful assistant if none configured.',
+    configSchema: [
+      { key: 'system_prompt_text', label: 'System Prompt', type: 'textarea', defaultValue: '' },
+    ],
   },
   {
     type: 'builtin.router',
@@ -101,6 +110,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'processing',
     color: '#14b8a6',
     description: 'Recalls relevant facts about the user from previous conversations.',
+    configSchema: [
+      { key: 'max_facts', label: 'Max Facts', type: 'number', defaultValue: 5 },
+    ],
   },
   {
     type: 'builtin.fact_mining',
@@ -117,6 +129,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'quality',
     color: '#22c55e',
     description: 'Finalizes the response, emits usage stats (tokens, cost).',
+    configSchema: [
+      { key: 'include_usage', label: 'Include Usage Stats', type: 'boolean', defaultValue: true },
+    ],
   },
   {
     type: 'builtin.citation',
@@ -140,6 +155,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'analysis',
     color: '#ec4899',
     description: 'Runs pre-response analysis (11 parallel LLM phases). Conductor overrides temperature.',
+    configSchema: [
+      { key: 'conductor_temperature', label: 'Conductor Temperature', type: 'number', defaultValue: 0.7 },
+    ],
   },
   {
     type: 'builtin.output_router',
@@ -147,6 +165,9 @@ export const VIBEFUL_NODE_TYPES: VibefulNodeType[] = [
     category: 'analysis',
     color: '#d946ef',
     description: 'Post-processes response through DML segment routing (CODE:0.1, STORY:1.5, etc.).',
+    configSchema: [
+      { key: 'enable_dml_routing', label: 'Enable DML Routing', type: 'boolean', defaultValue: true },
+    ],
   },
 ];
 
