@@ -27,17 +27,17 @@ interface PerformanceSummary {
 }
 
 export default function RegressionMonitor({ agentId }: { agentId?: string | null }) {
-  const [agentId, setAgentId] = useState('');
+  const [lookupId, setLookupId] = useState('');
   const [summary, setSummary] = useState<PerformanceSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleCheck = async () => {
-    if (!agentId) return;
+    if (!lookupId) return;
     setLoading(true);
     setError('');
     try {
-      const resp = await fetch(`/v1/agents/${agentId}/performance`);
+      const resp = await fetch(`/v1/agents/${lookupId}/performance`);
       if (resp.ok) {
         const data = await resp.json();
         setSummary(data);
@@ -52,10 +52,10 @@ export default function RegressionMonitor({ agentId }: { agentId?: string | null
   };
 
   const handleEstablishBaseline = async () => {
-    if (!agentId) return;
+    if (!lookupId) return;
     setLoading(true);
     try {
-      await fetch(`/v1/agents/${agentId}/baseline`, { method: 'POST' });
+      await fetch(`/v1/agents/${lookupId}/baseline`, { method: 'POST' });
       await handleCheck();
     } catch {
       setError('Failed to establish baseline.');
@@ -95,8 +95,8 @@ export default function RegressionMonitor({ agentId }: { agentId?: string | null
         </div>
         <div className="flex gap-2">
           <input
-            value={agentId}
-            onChange={(e) => setAgentId(e.target.value)}
+            value={lookupId}
+            onChange={(e) => setLookupId(e.target.value)}
             placeholder="Agent ID…"
             className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 w-40"
           />
