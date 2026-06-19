@@ -61,6 +61,25 @@ The **Agents tab** (in the header bar) shows all your deployed agents. Click any
 
 Create a new agent by clicking **Deploy** with a new name, or clone an existing agent from the Agents dashboard.
 
+### Apply Guardrails to Your Agent
+
+Every agent you deploy needs boundaries. Vibeful provides three layers of guardrails:
+
+**1. System Prompt (behavioral boundary)** — Click the **System Prompt** node in your agent graph, then use the properties panel to write a `system_prompt_text`. This is your agent's constitution — it defines what the agent will and won't do. Example:
+
+```
+You are a support assistant for Acme SaaS. Answer questions about our product, billing, and account management.
+
+If asked about competitors, pricing negotiations, or anything outside Acme's scope, respond:
+"I can only help with Acme product questions. Is there something about your Acme account I can assist with?"
+```
+
+**2. Attack Guard (security boundary)** — Add an **Attack Guard** node at the start of your graph. It detects prompt injection, jailbreak attempts, XSS, and SQLi. Configure `block_mode` in properties: `block` (reject), `flag` (log only), or `passthrough` (no filter).
+
+**3. Token Budget (cost boundary)** — Use the **Supervisor** tab to set per-agent token budgets. Agents stop responding when they hit their limit, preventing runaway costs.
+
+> **Example:** The Vibeful homepage bot uses a system prompt guardrail to limit responses to Vibeful-related questions only. This is the same pattern you use for your own agents.
+
 ## 5. Test Your Agent
 
 ```bash

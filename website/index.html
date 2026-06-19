@@ -256,5 +256,149 @@ bash scripts/setup.sh
   </div>
 </footer>
 
+<!-- ═══════════════════════ VIBEFUL BOT ═══════════════════════ -->
+<!-- Floating chat widget powered by Vibeful — the system it describes -->
+<div id="vibeful-bot">
+  <button id="vibeful-bot-toggle" title="Ask about Vibeful">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+  </button>
+  <div id="vibeful-bot-panel" class="hidden">
+    <div id="vibeful-bot-header">
+      <span>🤖 Vibeful Assistant</span>
+      <button id="vibeful-bot-close">&times;</button>
+    </div>
+    <div id="vibeful-bot-messages"></div>
+    <div id="vibeful-bot-input-area">
+      <input id="vibeful-bot-input" placeholder="Ask about Vibeful…" />
+      <button id="vibeful-bot-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<style>
+#vibeful-bot { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; font-family: system-ui, sans-serif; }
+#vibeful-bot-toggle {
+  width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--accent); color: #fff;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.3); transition: transform 0.2s;
+}
+#vibeful-bot-toggle:hover { transform: scale(1.1); }
+#vibeful-bot-panel {
+  position: absolute; bottom: 70px; right: 0; width: 380px; max-height: 520px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden;
+}
+#vibeful-bot-panel.hidden { display: none; }
+#vibeful-bot-header {
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;
+}
+#vibeful-bot-close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; }
+#vibeful-bot-messages {
+  flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 360px;
+}
+#vibeful-bot-messages .msg {
+  max-width: 85%; padding: 0.5rem 0.75rem; border-radius: 10px; font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap;
+}
+#vibeful-bot-messages .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+#vibeful-bot-messages .msg.bot { align-self: flex-start; background: #334155; color: #e2e8f0; }
+#vibeful-bot-input-area { padding: 0.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; }
+#vibeful-bot-input {
+  flex: 1; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 0.85rem; outline: none;
+}
+#vibeful-bot-send {
+  padding: 0.5rem 0.75rem; border-radius: 8px; border: none; background: var(--accent); color: #fff;
+  font-size: 0.85rem; cursor: pointer; font-weight: 600;
+}
+#vibeful-bot-send:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<script>
+(function() {
+  const toggle = document.getElementById('vibeful-bot-toggle');
+  const panel = document.getElementById('vibeful-bot-panel');
+  const close = document.getElementById('vibeful-bot-close');
+  const messages = document.getElementById('vibeful-bot-messages');
+  const input = document.getElementById('vibeful-bot-input');
+  const sendBtn = document.getElementById('vibeful-bot-send');
+
+  // Guardrail: system prompt constrains the bot to Vibeful topics only
+  const SYSTEM_PROMPT = `You are a Vibeful assistant embedded on the Vibeful homepage. You answer questions about the Vibeful AI agent platform — what it is, what it does, its architecture, features, and how to get started. 
+
+If asked about anything unrelated to Vibeful, politely respond: "I'm here to answer questions about Vibeful — the self-hosted AI agent platform. Is there something about Vibeful I can help with?"
+
+Keep responses concise (2-4 sentences). Be helpful and accurate.`;
+
+  let sessionId = null;
+  let loading = false;
+
+  function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  toggle.addEventListener('click', function() {
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden') && !sessionId) {
+      addMessage('bot', '👋 Hi! I\\'m the Vibeful assistant. Ask me anything about Vibeful — what it does, how it works, or how to get started.');
+    }
+  });
+
+  close.addEventListener('click', function() {
+    panel.classList.add('hidden');
+  });
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text || loading) return;
+    input.value = '';
+    loading = true;
+    sendBtn.disabled = true;
+    addMessage('user', text);
+    addMessage('bot', '…');
+
+    try {
+      // Create session if needed
+      if (!sessionId) {
+        const sessResp = await fetch('/v1/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: 'vibeful-homepage-bot' }),
+        });
+        const sessData = await sessResp.json();
+        sessionId = sessData.session_id || sessData.id;
+      }
+
+      const resp = await fetch('/v1/ai/assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_prompt: SYSTEM_PROMPT, message: text, temperature: 0.4, max_tokens: 400 }),
+      });
+
+      const data = await resp.json();
+      const reply = data.response || data.content || 'Sorry, I couldn\\'t process that.';
+      // Remove the "…" placeholder
+      messages.lastChild.remove();
+      addMessage('bot', reply);
+    } catch (e) {
+      messages.lastChild.remove();
+      addMessage('bot', 'Sorry, the Vibeful backend isn\\'t reachable right now. Try again later, or check the docs linked below!');
+    } finally {
+      loading = false;
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendMessage();
+  });
+})();
+</script>
+
 </body>
 </html>
