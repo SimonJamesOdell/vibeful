@@ -310,6 +310,24 @@ export default function AIAssistantPanel() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Selected nodes context indicator */}
+      {(() => {
+        const selectedLabels = nodes.filter((n) => n.selected).map((n) => n.data.label);
+        if (selectedLabels.length === 0) return null;
+        return (
+          <div className="px-3 pt-2 pb-0">
+            <div className="flex items-center gap-1.5 text-[10px] text-indigo-300/70 bg-indigo-950/40 border border-indigo-800/30 rounded px-2 py-1">
+              <span className="text-indigo-400">⊡</span>
+              <span className="truncate">
+                {selectedLabels.length === 1
+                  ? `${selectedLabels[0]} → included in Guide context`
+                  : `${selectedLabels.join(', ')} → included in Guide context`}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Input */}
       <div className="p-3 border-t border-slate-700 flex gap-2">
         <input

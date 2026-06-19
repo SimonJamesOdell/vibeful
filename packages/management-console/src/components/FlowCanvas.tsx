@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 import { ReactFlow, Background, Controls, MiniMap, type Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useFlowStore, type VibefulNodeData } from '../lib/flowStore';
@@ -13,19 +13,7 @@ export default function FlowCanvas() {
   const {
     nodes, edges,
     onNodesChange, onEdgesChange, onConnect,
-    selectNode,
   } = useFlowStore();
-
-  const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      selectNode(node.id);
-    },
-    [selectNode]
-  );
-
-  const onPaneClick = useCallback(() => {
-    selectNode(null);
-  }, [selectNode]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -51,9 +39,8 @@ export default function FlowCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
+        multiSelectionKeyCode="Shift"
         fitView
         deleteKeyCode={['Delete', 'Backspace']}
         className="bg-slate-900"

@@ -209,4 +209,110 @@ describe('tour state machine', () => {
       expect(wouldRender).toBe(false);
     });
   });
+
+  describe('tour selection tracking (for Guide context indicator)', () => {
+    it('startTour sets selected:true on the active node', () => {
+      const node = makeNode('setup', 50);
+      useFlowStore.setState({ nodes: [node] });
+
+      const steps: TourStep[] = [makeTourStep('setup', '...')];
+      useFlowStore.getState().startTour(steps);
+
+      const activeNode = useFlowStore.getState().nodes.find((n) => n.id === node.id);
+      expect(activeNode?.selected).toBe(true);
+    });
+
+    it('nextTourStep deselects previous node and selects next', () => {
+      const n1 = makeNode('setup', 50);
+      const n2 = makeNode('react_agent', 170);
+      useFlowStore.setState({ nodes: [n1, n2] });
+
+      const steps: TourStep[] = [
+        makeTourStep('setup', 'A'),
+        makeTourStep('react_agent', 'B'),
+      ];
+      const state = useFlowStore.getState();
+      state.startTour(steps);
+
+      // After start, n1 is selected
+      expect(useFlowStore.getState().nodes.find((n) => n.id === n1.id)?.selected).toBe(true);
+
+      state.nextTourStep();
+
+      // After next, n2 is selected, n1 is not
+      const nodes = useFlowStore.getState().nodes;
+      expect(nodes.find((n) => n.id === n1.id)?.selected).toBe(false);
+      expect(nodes.find((n) => n.id === n2.id)?.selected).toBe(true);
+    });
+
+    it('dismissTour deselects all nodes', () => {
+      const node = makeNode('setup', 50);
+      useFlowStore.setState({ nodes: [{ ...node, selected: true }] });
+
+      useFlowStore.getState().dismissTour();
+
+      const nodes = useFlowStore.getState().nodes;
+      expect(nodes.every((n) => !n.selected)).toBe(true);
+    });
+  });
+
+  describe('removeSelectedNodes (multi-select)', () => {
+    it('removes all selected nodes', () => {
+      const n1 = makeNode('setup', 50);
+      const n2 = makeNode('react_agent', 170);
+      const n3 = makeNode('stream_completion', 290);
+      useFlowStore.setState({
+        nodes: [
+          { ...n1, selected: true },
+          { ...n2, selected: false },
+          { ...n3, selected: true },
+        ],
+      });
+
+      useFlowStore.getState().removeSelectedNodes();
+
+      const remaining = useFlowStore.getState().nodes;
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe(n2.id);
+    });
+
+    it('is a no-op when no nodes selected', () => {
+      const node = makeNode('setup', 50);
+      useFlowStore.setState({ nodes: [node] });
+
+      useFlowStore.getState().removeSelectedNodes();
+
+      expect(useFlowStore.getState().nodes).toHaveLength(1);
+    });
+  });
+
+  describe('duplicateSelectedNodes (multi-select)', () => {
+    it('duplicates all selected nodes', () => {
+      const n1 = makeNode('setup', 50);
+      const n2 = makeNode('react_agent', 170);
+      useFlowStore.setState({
+        nodes: [
+          { ...n1, selected: true },
+          { ...n2, selected: true },
+        ],
+      });
+
+      useFlowStore.getState().duplicateSelectedNodes();
+
+      const nodes = useFlowStore.getState().nodes;
+      expect(nodes).toHaveLength(4); // 2 original + 2 dupes
+      // Verify dupes have different ids and offset positions
+      const ids = new Set(nodes.map((n) => n.id));
+      expect(ids.size).toBe(4);
+    });
+
+    it('is a no-op when no nodes selected', () => {
+      const node = makeNode('setup', 50);
+      useFlowStore.setState({ nodes: [node] });
+
+      useFlowStore.getState().duplicateSelectedNodes();
+
+      expect(useFlowStore.getState().nodes).toHaveLength(1);
+    });
+  });
 });

@@ -119,28 +119,34 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   removeSelectedNodes: () => {
-    const { nodes, edges, selectedNodeId } = get();
-    if (!selectedNodeId) return;
+    const { nodes, edges } = get();
+    const selectedIds = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    if (selectedIds.size === 0) return;
     set({
-      nodes: nodes.filter((n) => n.id !== selectedNodeId),
-      edges: edges.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId),
+      nodes: nodes.filter((n) => !selectedIds.has(n.id)),
+      edges: edges.filter((e) => !selectedIds.has(e.source) && !selectedIds.has(e.target)),
       selectedNodeId: null,
     });
   },
 
   duplicateSelectedNodes: () => {
-    const { nodes, selectedNodeId } = get();
-    if (!selectedNodeId) return;
-    const node = nodes.find((n) => n.id === selectedNodeId);
-    if (!node) return;
-    const id = makeId();
-    const dup: Node<VibefulNodeData> = {
-      ...node,
-      id,
-      position: { x: node.position.x + 50, y: node.position.y + 50 },
-      selected: false,
-    };
-    set({ nodes: [...nodes, dup], selectedNodeId: id });
+    const { nodes } = get();
+    const selected = nodes.filter((n) => n.selected);
+    if (selected.length === 0) return;
+    const newNodes = [...nodes];
+    let lastId = '';
+    for (const node of selected) {
+      const id = makeId();
+      lastId = id;
+      const dup: Node<VibefulNodeData> = {
+        ...node,
+        id,
+        position: { x: node.position.x + 50, y: node.position.y + 50 },
+        selected: true,
+      };
+      newNodes.push(dup);
+    }
+    set({ nodes: newNodes, selectedNodeId: lastId || null });
   },
 
   selectNode: (nodeId) => {
@@ -152,22 +158,24 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const first = steps[0];
     const node = nodes.find((n) => n.data.label === first?.nodeLabel || n.id === first?.nodeLabel);
     // Single set() — prevents React batching from rendering intermediate empty state
+    // Set selected:true on the active tour node so the Guide context indicator highlights it
     set({
       tourSteps: steps,
       tourActiveIndex: 0,
       selectedNodeId: node?.id ?? null,
+      nodes: nodes.map((n) => ({ ...n, selected: n.id === node?.id })),
     });
   },
   nextTourStep: () => {
     const { tourSteps, tourActiveIndex, nodes } = get();
     const next = tourActiveIndex + 1;
     if (next >= tourSteps.length) {
-      set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null });
+      set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null, nodes: nodes.map((n) => ({ ...n, selected: false })) });
       return;
     }
     const step = tourSteps[next];
     const node = nodes.find((n) => n.data.label === step?.nodeLabel || n.id === step?.nodeLabel);
-    set({ tourActiveIndex: next, selectedNodeId: node?.id ?? null });
+    set({ tourActiveIndex: next, selectedNodeId: node?.id ?? null, nodes: nodes.map((n) => ({ ...n, selected: n.id === node?.id })) });
   },
   prevTourStep: () => {
     const { tourSteps, tourActiveIndex, nodes } = get();
@@ -175,10 +183,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     if (prev < 0) return;
     const step = tourSteps[prev];
     const node = nodes.find((n) => n.data.label === step?.nodeLabel || n.id === step?.nodeLabel);
-    set({ tourActiveIndex: prev, selectedNodeId: node?.id ?? null });
+    set({ tourActiveIndex: prev, selectedNodeId: node?.id ?? null, nodes: nodes.map((n) => ({ ...n, selected: n.id === node?.id })) });
   },
   dismissTour: () => {
-    set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null });
+    const { nodes } = get();
+    set({ tourSteps: [], tourActiveIndex: -1, selectedNodeId: null, nodes: nodes.map((n) => ({ ...n, selected: false })) });
   },
 
   toggleCodePreview: () => {
