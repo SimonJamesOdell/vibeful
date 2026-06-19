@@ -387,4 +387,91 @@ describe('tour state machine', () => {
       expect([n1.id, n2.id]).toContain(sid);
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // autoAlign — vertically arranges nodes by chain order (BFS).
+  // REGRESSION GUARD: Ctrl+L and auto_align command must produce a
+  // clean vertical layout sorted by edge dependencies.
+  // ═══════════════════════════════════════════════════════════════
+
+  describe('autoAlign', () => {
+    it('arranges a linear chain vertically at x:250', () => {
+      const n1 = { ...makeNode('setup', 400), id: 'n1' };
+      const n2 = { ...makeNode('react_agent', 500), id: 'n2' };
+      const n3 = { ...makeNode('stream', 600), id: 'n3' };
+      useFlowStore.setState({
+        nodes: [n1, n2, n3],
+        edges: [
+          { id: 'e1', source: 'n1', target: 'n2' },
+          { id: 'e2', source: 'n2', target: 'n3' },
+        ],
+      });
+
+      useFlowStore.getState().autoAlign();
+
+      const nodes = useFlowStore.getState().nodes;
+      expect(nodes.find((n) => n.id === 'n1')?.position).toEqual({ x: 250, y: 50 });
+      expect(nodes.find((n) => n.id === 'n2')?.position).toEqual({ x: 250, y: 170 });
+      expect(nodes.find((n) => n.id === 'n3')?.position).toEqual({ x: 250, y: 290 });
+    });
+
+    it('is a no-op on empty graph', () => {
+      useFlowStore.setState({ nodes: [], edges: [] });
+      expect(() => useFlowStore.getState().autoAlign()).not.toThrow();
+    });
+
+    it('places disconnected root nodes at the top with the chain root', () => {
+      const n1 = { ...makeNode('a', 100), id: 'n1' };
+      const n2 = { ...makeNode('b', 200), id: 'n2' };
+      const orphan = { ...makeNode('orphan', 999), id: 'orph' };
+      useFlowStore.setState({
+        nodes: [n1, n2, orphan],
+        edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+      });
+
+      useFlowStore.getState().autoAlign();
+
+      const nodes = useFlowStore.getState().nodes;
+      const orphanNode = nodes.find((n) => n.id === 'orph')!;
+      // Both n1 and orphan are roots (no incoming edges) — they share depth 0
+      expect(orphanNode.position.y).toBe(50);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // addNode — new nodes start unconnected, set lastAddedNodeId.
+  // REGRESSION GUARD: adding a node must not auto-create edges
+  // and must track the last added id for viewport scrolling.
+  // ═══════════════════════════════════════════════════════════════
+
+  describe('addNode', () => {
+    it('sets lastAddedNodeId on the new node', () => {
+      useFlowStore.getState().addNode('builtin.setup', 'Test Node');
+
+      const state = useFlowStore.getState();
+      expect(state.lastAddedNodeId).toBeTruthy();
+      expect(state.selectedNodeId).toBe(state.lastAddedNodeId);
+    });
+
+    it('does not create any edges', () => {
+      const n1 = makeNode('setup', 50);
+      useFlowStore.setState({ nodes: [n1], edges: [] });
+      const edgeCountBefore = useFlowStore.getState().edges.length;
+
+      useFlowStore.getState().addNode('builtin.react_agent', 'ReAct');
+
+      expect(useFlowStore.getState().edges).toHaveLength(edgeCountBefore);
+    });
+
+    it('positions below selected node when selectedNodeId is set', () => {
+      const n1 = { ...makeNode('setup', 50), id: 'sel1' };
+      useFlowStore.setState({ nodes: [n1], selectedNodeId: 'sel1' });
+
+      useFlowStore.getState().addNode('builtin.react_agent', 'ReAct');
+
+      const newNode = useFlowStore.getState().nodes.find((n) => n.data.label === 'ReAct')!;
+      expect(newNode.position.x).toBe(n1.position.x);
+      expect(newNode.position.y).toBe(n1.position.y + 120);
+    });
+  });
 });

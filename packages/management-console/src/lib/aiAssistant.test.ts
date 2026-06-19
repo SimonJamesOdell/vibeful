@@ -112,6 +112,34 @@ describe('SYSTEM_PROMPT invariants', () => {
   it('instructs LLM to use EXACT template keys', () => {
     expect(SYSTEM_PROMPT).toContain('EXACT keys');
   });
+
+  // ═══════════════════════════════════════════════════════════
+  // Command documentation invariants — the LLM must know
+  // about all vibeful-commands it can emit.
+  // ═══════════════════════════════════════════════════════════
+
+  it('documents auto_align command', () => {
+    expect(SYSTEM_PROMPT).toContain('auto_align');
+    expect(SYSTEM_PROMPT).toContain('tidy up');
+  });
+
+  it('documents add_edge command', () => {
+    expect(SYSTEM_PROMPT).toContain('add_edge');
+    expect(SYSTEM_PROMPT).toContain('"source"');
+  });
+
+  it('documents remove_node command with label example', () => {
+    expect(SYSTEM_PROMPT).toContain('"action":"remove_node"');
+    expect(SYSTEM_PROMPT).toContain('"label":"rag"');
+  });
+
+  it('documents add_node with afterNodeId', () => {
+    expect(SYSTEM_PROMPT).toContain('afterNodeId');
+  });
+
+  it('documents selected node context for highlight_node', () => {
+    expect(SYSTEM_PROMPT).toContain('Selected node');
+  });
 });
 
 describe('processAICommand exports', () => {
