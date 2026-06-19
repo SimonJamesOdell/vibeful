@@ -324,6 +324,16 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+# Check if API key is properly configured
+HEALTH_JSON=$(curl -s http://127.0.0.1:50052/v1/health/config 2>/dev/null || true)
+if echo "$HEALTH_JSON" | grep -q '"deepseek_api_key_configured":true'; then
+    echo -e "  ${GREEN}✓${NC} DeepSeek API key configured"
+elif [ $HAS_ENV_KEY -eq 1 ]; then
+    echo -e "  ${YELLOW}⚠${NC} API key set but agent engine didn't detect it — check console output for details"
+else
+    echo -e "  ${YELLOW}○${NC} No API key detected by agent engine — paste it when the console prompts you"
+fi
+
 # Start management console in background
 echo "  → Starting management console (port 5174)..."
 cd "$ROOT/packages/management-console"

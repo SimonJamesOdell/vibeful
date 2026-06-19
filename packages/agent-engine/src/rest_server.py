@@ -41,6 +41,19 @@ app.add_middleware(
 
 
 @app.on_event("startup")
+async def _startup_diag():
+    """Log API key and LLM status on startup for debugging."""
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    masked = api_key[:5] + "..." + api_key[-4:] if len(api_key) > 20 else "(not set)"
+    source = "environment" if os.getenv("DEEPSEEK_API_KEY") else "unknown"
+    if api_key and len(api_key) > 20 and "your-deepseek" not in api_key.lower():
+        print(f"[vibeful] DeepSeek API key loaded: {masked} (source: {source})")
+    elif os.path.exists(".env") or os.path.exists("../.env") or os.path.exists("../../.env"):
+        print(f"[vibeful] WARNING: .env file found but DEEPSEEK_API_KEY not loaded correctly")
+    else:
+        print(f"[vibeful] WARNING: No DEEPSEEK_API_KEY configured. AI features will not work.")
+
+@app.on_event("startup")
 async def _startup_db():
     """Initialize the database for Lucid endpoints.
     Uses PostgreSQL in Docker mode, SQLite in local mode."""
@@ -327,17 +340,31 @@ class AIAssistRequest(BaseModel):
 @app.post("/v1/ai/assist")
 async def ai_assist(req: AIAssistRequest):
     """Process natural language commands for the visual agent designer."""
-    from .llm import get_provider
-    provider = get_provider()
-    response = await provider.chat(
-        messages=[
-            {"role": "system", "content": req.system_prompt},
-            {"role": "user", "content": req.message},
-        ],
-        temperature=req.temperature,
-        max_tokens=req.max_tokens,
-    )
-    return {"response": response.content, "model": getattr(provider, "model", "unknown")}
+    # Check API key before attempting LLM call
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    if not api_key or len(api_key) < 20 or "your-deepseek" in api_key.lower():
+        raise HTTPException(
+            status_code=503,
+            detail="DEEPSEEK_API_KEY not configured. Set it in .env or via the Setup tab."
+        )
+
+    try:
+        from .llm import get_provider
+        provider = get_provider()
+        response = await provider.chat(
+            messages=[
+                {"role": "system", "content": req.system_prompt},
+                {"role": "user", "content": req.message},
+            ],
+            temperature=req.temperature,
+            max_tokens=req.max_tokens,
+        )
+        return {"response": response.content, "model": getattr(provider, "model", "unknown")}
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"LLM call failed: {e}"
+        )
 
 
 # ── Agents CRUD (local mode) ──────────────────────────────

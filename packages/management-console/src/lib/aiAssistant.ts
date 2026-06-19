@@ -105,19 +105,28 @@ export async function processAICommand(
     });
 
     if (!resp.ok) {
-      // Fallback: call agent engine REST directly
-      return await fallbackAI(SYSTEM_PROMPT, userContent);
+      // Try to extract error detail from 503 response
+      let detail = '';
+      try {
+        const err = await resp.json();
+        detail = err.detail || '';
+      } catch {}
+      // Fallback: call agent engine REST directly, passing detail
+      return await fallbackAI(SYSTEM_PROMPT, userContent, detail);
     }
 
     const data = await resp.json();
     const content = data.response || data.content || '';
     return parseAIResponse(content);
-  } catch {
-    return await fallbackAI(SYSTEM_PROMPT, userContent);
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    return await fallbackAI(SYSTEM_PROMPT, userContent, errMsg);
   }
 }
 
-async function fallbackAI(systemPrompt: string, userContent: string): Promise<AICommand | null> {
+async function fallbackAI(systemPrompt: string, userContent: string, _lastError?: string): Promise<AICommand | null> {
+  // Store the last error for the caller to read (module-level)
+  lastAIError = _lastError || lastAIError;
   try {
     const resp = await fetch('http://localhost:50052/converse', {
       method: 'POST',
@@ -137,6 +146,10 @@ async function fallbackAI(systemPrompt: string, userContent: string): Promise<AI
     return null;
   }
 }
+
+/** Exposed so the UI can show the reason an AI call failed. */
+export let lastAIError: string = '';
+export function clearLastAIError() { lastAIError = ''; }
 
 function parseAIResponse(content: string): AICommand | null {
   try {

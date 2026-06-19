@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Loader2, Wand2, Brain, ChevronDown, ChevronRight } from 'lucide-react';
 import { useFlowStore } from '../lib/flowStore';
-import { processAICommand, applyAICommand, type AICommand } from '../lib/aiAssistant';
+import { processAICommand, applyAICommand, type AICommand, lastAIError, clearLastAIError } from '../lib/aiAssistant';
 import { VIBEFUL_GUIDE_SYSTEM_PROMPT } from '../lib/vibefulGuide';
 import {
   parseCommands, executeCommands, stripCommands, registerCommandHandler,
@@ -163,6 +163,7 @@ export default function AIAssistantPanel() {
     }
 
     setLoading(true);
+    clearLastAIError();
 
     try {
       const command = await processAICommand(
@@ -195,11 +196,14 @@ export default function AIAssistantPanel() {
           }
         }
       } else {
+        const hint = lastAIError
+          ? `Reason: ${lastAIError}`
+          : 'Your DeepSeek API key may not be configured yet.';
         setMessages((prev) => [
           ...prev,
           {
             role: 'system',
-            content: "The AI service didn't return a usable response. Your DeepSeek API key may not be configured yet — click the amber banner at the top to set it up.",
+            content: `AI service unavailable. ${hint}`,
           },
         ]);
       }
