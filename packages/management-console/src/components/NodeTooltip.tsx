@@ -3,14 +3,14 @@
  * Positioned next to the currently highlighted node on the canvas.
  */
 import { useMemo } from 'react';
-import { useReactFlow } from '@xyflow/react';
+import { useViewport } from '@xyflow/react';
 import { useFlowStore, type TourStep } from '../lib/flowStore';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export default function NodeTooltip() {
   const { tourSteps, tourActiveIndex, nextTourStep, prevTourStep, dismissTour, nodes } =
     useFlowStore();
-  const { project } = useReactFlow();
+  const { x: vpX, y: vpY, zoom } = useViewport();
 
   if (tourSteps.length === 0 || tourActiveIndex < 0) return null;
 
@@ -23,8 +23,9 @@ export default function NodeTooltip() {
   );
   const flowPos = activeNode?.position ?? { x: 250, y: 100 };
 
-  // Convert flow coordinates to pane-local screen coordinates
-  const screenPos = project({ x: flowPos.x + 280, y: flowPos.y - 20 });
+  // Convert flow coordinates to screen coordinates using viewport transform
+  const screenX = (flowPos.x + 280) * zoom + vpX;
+  const screenY = (flowPos.y - 20) * zoom + vpY;
 
   const isFirst = tourActiveIndex === 0;
   const isLast = tourActiveIndex === tourSteps.length - 1;
@@ -33,7 +34,7 @@ export default function NodeTooltip() {
   return (
     <div
       className="absolute z-40 w-72"
-      style={{ left: screenPos.x, top: screenPos.y }}
+      style={{ left: screenX, top: screenY }}
     >
       {/* Arrow pointing left to the node */}
       <div className="absolute -left-2 top-4 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-indigo-700" />
