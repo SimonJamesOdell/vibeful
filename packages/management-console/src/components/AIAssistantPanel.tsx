@@ -250,7 +250,7 @@ export default function AIAssistantPanel() {
 
     // --- Onboarding fast path: "yes" without needing the LLM ---
     const isOnboarding = nodes.length === 0 && edges.length === 0 && onboarding;
-    if (isOnboarding && ONBOARDING_YES.has(lowerMsg)) {
+    if (isOnboarding && ONBOARDING_YES.has(normMsg)) {
       const explain = "Let's build your first agent! I'm setting up a minimal template on the canvas now — you'll see nodes appear in a moment.";
       setMessages((prev) => [...prev, {
         role: 'assistant',
