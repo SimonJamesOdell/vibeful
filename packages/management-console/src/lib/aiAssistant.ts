@@ -54,7 +54,8 @@ const SYSTEM_PROMPT = `You are the Vibeful Guide. You help users build AI agents
 **Rules:**
 - NEVER explain nodes, list capabilities, or describe what was built unless the user explicitly asks you to. After any command, respond in 1-2 lines maximum. If the user wants details they will ask. Unsolicited explanations frustrate users.
 - When the user asks to be shown or walked through the graph, use start_tour — it's the primary way to give visual explanations. Don't use text-only explanations for "show me" requests.
-- When the user asks about a specific node → highlight that node
+- If "Selected node" appears in the context and the user says "this node" or "tell me about this," the selected node is the one they mean. Highlight it immediately — don't ask which node.
+- When the user asks about a specific named node → highlight that node
 - When the user wants to modify the canvas → use add_node/remove_node
 - Always be helpful and conversational`;
 
@@ -74,6 +75,7 @@ export async function processAICommand(
   userMessage: string,
   currentNodes: Node<VibefulNodeData>[],
   currentEdges: Edge[],
+  selectedNodeId: string | null = null,
   conversationHistory: Array<{ role: string; content: string }> = [],
 ): Promise<string | null> {
   const graphContext = {
@@ -91,12 +93,21 @@ export async function processAICommand(
   };
 
   // Include recent conversation history for context
-  const recentHistory = conversationHistory.slice(-6).map((m) =>
-    `${m.role}: ${m.content.slice(0, 300)}`
+  const recentHistory = (conversationHistory ?? []).slice(-6).map((m) =>
+    `${m.role}: ${(m.content ?? '').slice(0, 300)}`
   ).join('\n');
   const historyBlock = recentHistory ? `\n\nConversation history:\n${recentHistory}` : '';
 
-  const userContent = `Current graph state:\n${JSON.stringify(graphContext, null, 2)}${historyBlock}\n\nUser request: ${userMessage}`;
+  // Include selected node so the LLM knows what "this node" refers to
+  let selectedNodeLine = '';
+  if (selectedNodeId) {
+    const selNode = currentNodes.find((n) => n.id === selectedNodeId);
+    if (selNode) {
+      selectedNodeLine = `\nSelected node: "${selNode.data.label}" (${selNode.data.nodeType})`;
+    }
+  }
+
+  const userContent = `Current graph state:\n${JSON.stringify(graphContext, null, 2)}${selectedNodeLine}${historyBlock}\n\nUser request: ${userMessage}`;
 
   try {
     const resp = await fetch('/v1/ai/assist', {
