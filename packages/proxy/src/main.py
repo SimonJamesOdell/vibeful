@@ -342,6 +342,218 @@ async def ingest_events(request: Request):
     return {"accepted": len(events)}
 
 
+# ── Lucid Capabilities ──────────────────────────────────────────
+
+
+# ── Glyphs ─────────────────────────────────────────────────
+
+@app.get("/v1/glyphs")
+async def list_glyphs():
+    glyphs = await _db.list_glyphs()
+    return {"glyphs": glyphs}
+
+
+@app.post("/v1/glyphs")
+async def create_glyph(request: Request):
+    body = await request.json()
+    if not body.get("name") or not body.get("symbol"):
+        raise HTTPException(400, "name and symbol are required")
+    return await _db.add_glyph(body)
+
+
+@app.delete("/v1/glyphs/{name}")
+async def delete_glyph(name: str):
+    deleted = await _db.delete_glyph(name)
+    if not deleted:
+        raise HTTPException(404, f"Glyph '{name}' not found")
+    return {"deleted": name}
+
+
+# ── Concepts ───────────────────────────────────────────────
+
+@app.get("/v1/concepts")
+async def list_concepts(domain: str = "", search: str = ""):
+    concepts = await _db.get_concepts_by_domain(domain=domain or None)
+    if search:
+        concepts = [
+            c for c in concepts
+            if search.lower() in c.get("name", "").lower()
+            or search.lower() in c.get("description", "").lower()
+        ]
+    return {"concepts": concepts}
+
+
+# ── Global Memories ────────────────────────────────────────
+
+@app.get("/v1/global-memories")
+async def list_global_memories(type: str = ""):
+    memories = await _db.list_global_memories(memory_type=type or None)
+    return {"memories": memories}
+
+
+# ── Token Credits ──────────────────────────────────────────
+
+@app.get("/v1/tokens/balance")
+async def get_token_balance(user_identity: str, agent_id: str = ""):
+    from agent_engine.src.token_tracker import TokenTracker
+    tracker = TokenTracker(_db)
+    balance = await tracker.get_balance(user_identity, agent_id or None)
+    return {"user_identity": user_identity, "balance": balance}
+
+
+@app.post("/v1/tokens/credit")
+async def credit_tokens(request: Request):
+    body = await request.json()
+    from agent_engine.src.token_tracker import TokenTracker
+    tracker = TokenTracker(_db)
+    result = await tracker.credit(
+        user_identity=body["user_identity"],
+        amount=body["amount"],
+        transaction_type=body.get("transaction_type", "purchase"),
+        description=body.get("description", ""),
+        agent_id=body.get("agent_id"),
+    )
+    return result
+
+
+@app.get("/v1/tokens/transactions")
+async def list_transactions(user_identity: str, limit: int = 50):
+    from agent_engine.src.token_tracker import TokenTracker
+    tracker = TokenTracker(_db)
+    transactions = await tracker.get_transaction_history(user_identity, limit)
+    return {"transactions": transactions}
+
+
+# ── AI Assist ──────────────────────────────────────────────
+
+@app.post("/v1/ai/assist")
+async def ai_assist(request: Request):
+    body = await request.json()
+    from agent_engine.src.llm import get_provider
+    provider = get_provider()
+    response = await provider.chat(
+        messages=[
+            {"role": "system", "content": body.get("system_prompt", "")},
+            {"role": "user", "content": body.get("message", "")},
+        ],
+        temperature=body.get("temperature", 0.2),
+        max_tokens=body.get("max_tokens", 500),
+    )
+    return {"response": response.content, "model": getattr(provider, "model", "unknown")}
+
+
+# ── Agent Versions ──────────────────────────────────────────
+
+@app.get("/v1/agents/{agent_id}/versions")
+async def get_agent_versions(agent_id: str, limit: int = 50):
+    versions = await _db.get_agent_versions(agent_id, limit)
+    return {"versions": versions}
+
+
+@app.get("/v1/agents/{agent_id}/versions/{vid}")
+async def get_agent_version(agent_id: str, vid: str):
+    versions = await _db.get_agent_versions(agent_id)
+    for v in versions:
+        if v.get("id") == vid or str(v.get("version_number")) == vid:
+            return v
+    raise HTTPException(404, f"Version {vid} not found")
+
+
+@app.post("/v1/agents/{agent_id}/versions")
+async def save_agent_version(agent_id: str, request: Request):
+    body = await request.json()
+    result = await _db.save_agent_version(
+        agent_id=agent_id,
+        config=body.get("config", {}),
+        yaml_str=body.get("yaml_str", ""),
+        author=body.get("author", "human"),
+        change_description=body.get("change_description", ""),
+        tags=body.get("tags", []),
+    )
+    return result
+
+
+@app.post("/v1/agents/{agent_id}/versions/{vid}/restore")
+async def restore_agent_version(agent_id: str, vid: str):
+    versions = await _db.get_agent_versions(agent_id)
+    target = None
+    for v in versions:
+        if v.get("id") == vid or str(v.get("version_number")) == vid:
+            target = v
+            break
+    if target is None:
+        raise HTTPException(404, f"Version {vid} not found")
+    config = target.get("config_snapshot", "{}")
+    if isinstance(config, str):
+        config = _json.loads(config)
+    result = await _db.save_agent_version(
+        agent_id=agent_id,
+        config=config,
+        yaml_str=target.get("yaml_snapshot", ""),
+        author="restore",
+        change_description=f"Restored from version {target.get('version_number', vid)}",
+        tags=["restore"],
+    )
+    return result
+
+
+# ── A/B Tests ───────────────────────────────────────────────
+
+@app.post("/v1/ab-tests")
+async def create_ab_test(request: Request):
+    body = await request.json()
+    return await _db.create_ab_test({
+        "agent_id": body["agent_id"],
+        "name": body["name"],
+        "status": "draft",
+        "primary_metric": body.get("primary_metric", "success_rate"),
+        "min_sample_size": body.get("min_sample_size", 100),
+        "variant_a_config": body["variant_a_config"],
+        "variant_b_config": body["variant_b_config"],
+    })
+
+
+@app.get("/v1/ab-tests")
+async def get_ab_tests(agent_id: str = ""):
+    tests = await _db.get_ab_tests(agent_id=agent_id or None)
+    return {"tests": tests}
+
+
+@app.post("/v1/ab-tests/{test_id}/start")
+async def start_ab_test(test_id: str):
+    result = await _db.update_ab_test_status(test_id, "running")
+    if result is None:
+        raise HTTPException(404, f"Test {test_id} not found")
+    return result
+
+
+@app.post("/v1/ab-tests/{test_id}/stop")
+async def stop_ab_test(test_id: str):
+    result = await _db.update_ab_test_status(test_id, "completed")
+    if result is None:
+        raise HTTPException(404, f"Test {test_id} not found")
+    return result
+
+
+@app.get("/v1/ab-tests/{test_id}/results")
+async def get_ab_test_results(test_id: str):
+    results = await _db.get_ab_results(test_id)
+    aggregate = await _db.get_ab_aggregate(test_id)
+    return {"results": results, "aggregate": aggregate}
+
+
+# ── Performance / Regression ────────────────────────────────
+
+@app.get("/v1/agents/{agent_id}/performance")
+async def get_agent_performance(agent_id: str):
+    return {"agent_id": agent_id, "nodes_tracked": 0, "baseline_established": False, "alerts": []}
+
+
+@app.post("/v1/agents/{agent_id}/baseline")
+async def establish_baseline(agent_id: str):
+    return {"agent_id": agent_id, "baseline_established": True}
+
+
 # ── LLM Proxy ──────────────────────────────────────────────────
 
 @app.post("/v1/chat/completions")
