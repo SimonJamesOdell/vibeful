@@ -309,9 +309,9 @@ export default function App() {
               <FlowCanvas />
             </div>
             <div className={`
-              overflow-hidden flex-shrink-0 bg-slate-900 border-l border-slate-700
+              overflow-hidden flex-shrink-0 bg-slate-900
               ${panelAnimating ? 'transition-all duration-300 ease-in-out' : ''}
-              ${selectedNodeId ? 'w-72 opacity-100' : 'w-0 opacity-0 border-l-0'}
+              ${selectedNodeId ? 'w-72 opacity-100 border-l border-slate-700' : 'w-0 opacity-0 pointer-events-none'}
             `}>
               <PropertyPanel />
             </div>
