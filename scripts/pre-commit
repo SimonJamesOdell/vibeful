@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Vibeful pre-commit hook — runs lint + typecheck on staged files.
+#
+# Install:
+#   cp scripts/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Skips if tools aren't installed. Non-blocking — warns but doesn't
+# prevent commit. For strict mode, set VIBEFUL_STRICT_PRECOMMIT=1.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+STRICT="${VIBEFUL_STRICT_PRECOMMIT:-0}"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+cd "$ROOT"
+
+HAS_ERRORS=0
+
+# ── Python (ruff) ──────────────────────────────────────────
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+if [ -n "$STAGED_PY" ] && command -v ruff &>/dev/null; then
+    echo "[pre-commit] Running ruff on staged Python files..."
+    if ! echo "$STAGED_PY" | xargs ruff check 2>/dev/null; then
+        echo -e "  ${YELLOW}⚠ ruff found issues${NC}"
+        HAS_ERRORS=1
+    else
+        echo -e "  ${GREEN}✓ ruff clean${NC}"
+    fi
+fi
+
+# ── TypeScript (eslint + tsc) ──────────────────────────────
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.tsx\?$' || true)
+if [ -n "$STAGED_TS" ]; then
+    # eslint
+    if [ -d "packages/management-console/node_modules" ]; then
+        echo "[pre-commit] Running eslint on staged TypeScript files..."
+        cd packages/management-console
+        if ! echo "$STAGED_TS" | xargs npx eslint 2>/dev/null; then
+            echo -e "  ${YELLOW}⚠ eslint found issues${NC}"
+            HAS_ERRORS=1
+        else
+            echo -e "  ${GREEN}✓ eslint clean${NC}"
+        fi
+        cd "$ROOT"
+    fi
+
+    # TypeScript typecheck
+    echo "[pre-commit] Running TypeScript typecheck..."
+    if ! (cd packages/management-console && npx tsc --noEmit 2>/dev/null); then
+        echo -e "  ${YELLOW}⚠ TypeScript typecheck failed${NC}"
+        HAS_ERRORS=1
+    else
+        echo -e "  ${GREEN}✓ TypeScript clean${NC}"
+    fi
+fi
+
+# Python tests (fast subset — only if Python files staged)
+if [ -n "$STAGED_PY" ]; then
+    echo "[pre-commit] Running fast Python tests..."
+    if ! (cd packages/agent-engine && python -m pytest tests/ -q --timeout=30 2>/dev/null); then
+        echo -e "  ${YELLOW}⚠ Some tests failed${NC}"
+        HAS_ERRORS=1
+    else
+        echo -e "  ${GREEN}✓ Tests pass${NC}"
+    fi
+fi
+
+if [ "$HAS_ERRORS" -eq 1 ]; then
+    echo ""
+    if [ "$STRICT" = "1" ]; then
+        echo -e "${RED}Pre-commit checks failed. Fix issues before committing.${NC}"
+        echo "  (Set VIBEFUL_STRICT_PRECOMMIT=0 for non-blocking mode)"
+        exit 1
+    else
+        echo -e "${YELLOW}⚠ Pre-commit checks found issues — committing anyway.${NC}"
+        echo "  Review warnings above. Set VIBEFUL_STRICT_PRECOMMIT=1 to block commits with issues."
+        exit 0
+    fi
+fi
+
+echo -e "${GREEN}✓ All pre-commit checks passed${NC}"
+exit 0

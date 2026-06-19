@@ -1,0 +1,57 @@
+# Vibeful CI — GitLab CI example.
+#
+# This is an EXAMPLE. Copy to .gitlab-ci.yml to use.
+# The same 'make ci' target works across all CI providers.
+#
+# Local alternative (no CI required):
+#   make ci          (Linux/macOS)
+#   ./scripts/ci.ps1 (Windows)
+#   ./scripts/ci.sh  (Any OS)
+
+stages:
+  - setup
+  - lint
+  - typecheck
+  - test
+  - build
+
+variables:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  DATABASE_URL: "postgresql://vibeful:vibeful_dev@postgres:5432/vibeful"
+
+services:
+  - name: pgvector/pgvector:pg16
+    alias: postgres
+
+before_script:
+  - apt-get update && apt-get install -y make
+  - make setup
+
+lint:
+  stage: lint
+  script:
+    - make lint
+
+typecheck:
+  stage: typecheck
+  script:
+    - make typecheck
+
+test:
+  stage: test
+  script:
+    - make test
+  artifacts:
+    reports:
+      junit: packages/agent-engine/report.xml
+    when: always
+
+build:
+  stage: build
+  script:
+    - make build
+  artifacts:
+    paths:
+      - packages/management-console/dist/
+      - packages/sdk/dist/
