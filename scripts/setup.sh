@@ -203,7 +203,12 @@ echo ""
 
 echo "  → Python packages..."
 cd "$ROOT/packages/agent-engine"
-pip3 install -e ".[dev]" --quiet 2>&1 | tail -1 || {
+# Create virtual environment if needed (PEP 668 compliance)
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+fi
+source .venv/bin/activate
+pip install -e ".[dev]" --quiet 2>&1 | tail -1 || {
     echo -e "  ${YELLOW}⚠ Python install had warnings (non-fatal)${NC}"
 }
 cd "$ROOT"
@@ -270,8 +275,13 @@ sleep 1
 # Start agent engine in background
 echo "  → Starting agent engine (port 50052)..."
 cd "$ROOT/packages/agent-engine"
+if [ -f ".venv/bin/python" ]; then
+    VENV_PYTHON=".venv/bin/python"
+else
+    VENV_PYTHON="python3"
+fi
 VIBEFUL_STORAGE=sqlite \
-    python3 -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 \
+    $VENV_PYTHON -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 \
     --log-level warning &
 AGENT_PID=$!
 cd "$ROOT"
