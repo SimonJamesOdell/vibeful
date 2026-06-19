@@ -274,7 +274,15 @@ if [ $HAS_ENV_KEY -eq 0 ]; then
     read -r KEY_INPUT
     if [ -n "$KEY_INPUT" ] && [ ${#KEY_INPUT} -gt 10 ]; then
         export DEEPSEEK_API_KEY="$KEY_INPUT"
-        echo -e "  ${GREEN}✓${NC} Key set for this session"
+        # Persist to .env so future runs don't ask again
+        {
+            if [ -f "$ROOT/.env" ]; then
+                grep -v "^DEEPSEEK_API_KEY=" "$ROOT/.env" 2>/dev/null || true
+            fi
+            echo "DEEPSEEK_API_KEY=$KEY_INPUT"
+        } > "$ROOT/.env.tmp" && mv "$ROOT/.env.tmp" "$ROOT/.env"
+        chmod 600 "$ROOT/.env" 2>/dev/null || true
+        echo -e "  ${GREEN}✓${NC} Key saved to .env for future runs"
     fi
 else
     export DEEPSEEK_API_KEY="$API_KEY"

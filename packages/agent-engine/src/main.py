@@ -11,6 +11,10 @@ from typing import AsyncIterator
 
 import grpc
 from grpc import aio
+from dotenv import load_dotenv, find_dotenv
+
+# Load .env from repo root (searches up from CWD)
+load_dotenv(find_dotenv())
 
 # Generated proto stubs live alongside src/ (at /app/src/agent/v1/)
 sys.path.insert(0, os.path.dirname(__file__))

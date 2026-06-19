@@ -14,7 +14,11 @@ from typing import Any
 
 import asyncio
 
+from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, HTTPException, Request
+
+# Load .env from repo root (searches up from CWD)
+load_dotenv(find_dotenv())
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
