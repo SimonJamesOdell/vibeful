@@ -134,17 +134,30 @@ export async function processAICommand(
     }
 
     // Intent guard: if the user asked a question but the LLM returned a
-    // graph-modification action, override to explain. The LLM sometimes
-    // mistakes "explain these nodes" for "add a node to explain things".
+    // graph-modification action, override to explain AND inject an interactive
+    // tour so the user gets the rich UX tutorial experience they asked for.
     if (result && result.action !== 'explain') {
       const graphActions = new Set(['add_node', 'remove_node', 'add_edge', 'remove_edge', 'modify_node']);
       const questionWords = /\b(what|explain|how|why|who|where|when|which|tell me about|describe|walk me through)\b/i;
       if (graphActions.has(result.action) && questionWords.test(userMessage)) {
-        console.warn('[Vibeful] LLM returned', result.action, 'for question — overriding to explain. Raw:', content.slice(0, 300));
+        console.warn('[Vibeful] LLM returned', result.action, 'for question — overriding to explain with tour. Raw:', content.slice(0, 300));
+
+        // Build a start_tour from the actual nodes on the canvas
+        const tourSteps = currentNodes.map((n) => ({
+          node: n.data.label as string,
+          explanation: n.data.nodeType
+            ? `${n.data.label} (${n.data.nodeType.replace('builtin.', '')})`
+            : n.data.label as string,
+        }));
+        const tourCmd = `\`\`\`vibeful-command\n${JSON.stringify({ action: 'start_tour', details: { steps: tourSteps } })}\n\`\`\``;
+
+        // Combine the LLM's text with an interactive tour
+        const llmText = result.explanation || content.trim();
+        const intro = "Let me walk you through each node on your canvas! Use the arrows below to step through.\n\n";
         result = {
           action: 'explain',
           details: {},
-          explanation: result.explanation || content.trim(),
+          explanation: intro + tourCmd + '\n\n' + llmText,
         };
       }
     }
