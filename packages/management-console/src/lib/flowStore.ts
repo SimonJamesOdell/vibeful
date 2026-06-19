@@ -58,6 +58,7 @@ export interface FlowState {
   // Bulk
   loadGraph: (nodes: Node<VibefulNodeData>[], edges: Edge[]) => void;
   clearGraph: () => void;
+  autoAlign: () => void;
 }
 
 export interface TourStep {
@@ -98,47 +99,28 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   addNode: (nodeType, label, position) => {
-    const { nodes, edges, selectedNodeId } = get();
+    const { nodes, selectedNodeId } = get();
     const id = makeId();
+
+    // Smart default position: below selected node, else below last node, else top
+    let defaultPos = { x: 250, y: 50 };
+    if (selectedNodeId) {
+      const sel = nodes.find((n) => n.id === selectedNodeId);
+      if (sel) defaultPos = { x: sel.position.x, y: sel.position.y + 120 };
+    } else if (nodes.length > 0) {
+      const last = nodes[nodes.length - 1];
+      defaultPos = { x: last.position.x, y: last.position.y + 120 };
+    }
+
     const newNode: Node<VibefulNodeData> = {
       id,
       type: 'vibefulNode',
-      position: position || { x: 250, y: 50 },
+      position: position || defaultPos,
       data: { label, nodeType, config: {} },
     };
 
-    let newEdges = [...edges];
-
-    if (selectedNodeId && nodes.length > 0) {
-      // Insert after selected node: break its outgoing edge, bridge through new node
-      const selectedNode = nodes.find((n) => n.id === selectedNodeId);
-      if (selectedNode) {
-        newNode.position = position || {
-          x: selectedNode.position.x,
-          y: selectedNode.position.y + 120,
-        };
-
-        const outgoingIdx = edges.findIndex((e) => e.source === selectedNodeId);
-        if (outgoingIdx >= 0) {
-          const oldTarget = edges[outgoingIdx].target;
-          newEdges = edges.filter((_, i) => i !== outgoingIdx);
-          newEdges.push({ id: `edge_${selectedNodeId}_${id}`, source: selectedNodeId, target: id });
-          newEdges.push({ id: `edge_${id}_${oldTarget}`, source: id, target: oldTarget });
-        } else {
-          newEdges.push({ id: `edge_${selectedNodeId}_${id}`, source: selectedNodeId, target: id });
-        }
-      }
-    } else if (nodes.length > 0) {
-      // No selection: append after last node (existing behavior)
-      const lastNode = nodes[nodes.length - 1];
-      newNode.position = position || {
-        x: lastNode.position.x,
-        y: lastNode.position.y + 120,
-      };
-      newEdges.push({ id: `edge_${lastNode.id}_${id}`, source: lastNode.id, target: id });
-    }
-
-    set({ nodes: [...nodes, newNode], edges: newEdges, selectedNodeId: id });
+    // New nodes start unconnected — the user manually links them by dragging handles
+    set({ nodes: [...nodes, newNode], selectedNodeId: id });
   },
 
   removeSelectedNodes: () => {
@@ -229,6 +211,39 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         n.id === nodeId ? { ...n, data: { ...n.data, config } } : n
       ),
     });
+  },
+
+  autoAlign: () => {
+    const { nodes, edges } = get();
+    if (nodes.length === 0) return;
+
+    // BFS from roots to assign chain depth, then position vertically
+    const incoming = new Set(edges.map((e) => e.target));
+    const roots = nodes.filter((n) => !incoming.has(n.id));
+
+    const depth = new Map<string, number>();
+    const queue: { id: string; d: number }[] = roots.map((n) => ({ id: n.id, d: 0 }));
+    while (queue.length > 0) {
+      const { id, d } = queue.shift()!;
+      if (depth.has(id)) continue;
+      depth.set(id, d);
+      for (const e of edges.filter((e) => e.source === id)) {
+        if (!depth.has(e.target)) queue.push({ id: e.target, d: d + 1 });
+      }
+    }
+
+    // Any unvisited nodes (disconnected / in cycles) get placed after
+    let nextDepth = depth.size;
+    for (const n of nodes) {
+      if (!depth.has(n.id)) { depth.set(n.id, nextDepth); nextDepth += 1; }
+    }
+
+    const aligned = nodes.map((n) => ({
+      ...n,
+      position: { x: 250, y: (depth.get(n.id) ?? 0) * 120 + 50 },
+    }));
+
+    set({ nodes: aligned });
   },
 
   loadGraph: (nodes, edges) => {

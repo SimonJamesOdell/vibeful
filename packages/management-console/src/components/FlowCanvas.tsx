@@ -26,6 +26,10 @@ export default function FlowCanvas() {
         e.preventDefault();
         store.duplicateSelectedNodes();
       }
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        store.autoAlign();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -48,6 +52,7 @@ export default function FlowCanvas() {
           animated: false,
           deletable: true,
           selectable: true,
+          interactionWidth: 20,
         }}
         connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
         className="bg-slate-900"
