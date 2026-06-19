@@ -73,8 +73,6 @@ export default function AIAssistantPanel() {
         [...TEMPLATES[template]?.edges ?? []]
       );
       store.setAgentName(TEMPLATES[template]?.name ?? '');
-      // Also fire DOM event for App-level listeners
-      window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: template }));
       return { template, nodes: store.nodes.length };
     });
 
@@ -172,7 +170,8 @@ export default function AIAssistantPanel() {
     clearLastAIError();
 
     try {
-      const responseText = await processAICommand(msg, nodes, edges, messages);
+      const selectedNodeId = useFlowStore.getState().selectedNodeId;
+      const responseText = await processAICommand(msg, nodes, edges, selectedNodeId, messages);
 
       if (responseText) {
         // Extract and execute vibeful-command blocks
