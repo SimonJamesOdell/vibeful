@@ -117,7 +117,12 @@ export async function processAICommand(
 
     const data = await resp.json();
     const content = data.response || data.content || '';
-    return parseAIResponse(content);
+    const result = parseAIResponse(content);
+    if (!result && content) {
+      // LLM responded but not in the expected JSON format — capture for diagnostics
+      lastAIError = `LLM responded (truncated): "${content.slice(0, 200)}" — expected JSON command`;
+    }
+    return result;
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : String(e);
     return await fallbackAI(SYSTEM_PROMPT, userContent, errMsg);
