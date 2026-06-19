@@ -111,10 +111,10 @@ export default function AIAssistantPanel() {
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.HIGHLIGHT_NODE, (details) => {
-      const nodeLabel = details.node as string;
+      const nodeLabel = (details.node as string).toLowerCase();
       const explanation = (details.explanation as string) || '';
       const state = useFlowStore.getState();
-      const node = state.nodes.find((n) => n.data.label === nodeLabel || n.id === nodeLabel);
+      const node = state.nodes.find((n) => n.data.label.toLowerCase() === nodeLabel || n.id === nodeLabel);
       if (node) {
         state.startTour([{ nodeLabel: node.data.label, explanation }]);
         return { node: nodeLabel };
@@ -128,7 +128,8 @@ export default function AIAssistantPanel() {
       const state = useFlowStore.getState();
       const tourSteps = steps
         .map((s) => {
-          const node = state.nodes.find((n) => n.data.label === s.node || n.id === s.node);
+          const searchLabel = s.node.toLowerCase();
+          const node = state.nodes.find((n) => n.data.label.toLowerCase() === searchLabel || n.id === s.node);
           return node ? { nodeLabel: node.data.label, explanation: s.explanation } : null;
         })
         .filter(Boolean) as Array<{ nodeLabel: string; explanation: string }>;
@@ -274,6 +275,12 @@ export default function AIAssistantPanel() {
                         <span>{r.success ? '✓' : '✗'}</span>
                         <span>{r.action}</span>
                         {r.error && <span className="text-red-300">— {r.error}</span>}
+                        {(() => {
+                          if (!r.error && r.result && typeof r.result === 'object' && 'error' in r.result) {
+                            return <span className="text-red-300">— {String((r.result as Record<string,unknown>).error)}</span>;
+                          }
+                          return null;
+                        })()}
                       </div>
                     ))}
                   </div>
