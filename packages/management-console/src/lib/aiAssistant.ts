@@ -15,6 +15,21 @@ export interface AICommand {
   explanation: string;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ARCHITECTURE PRINCIPLE — This is the LLM's instruction set.
+//
+// The Vibeful Guide runs on DeepSeek with a massive context window
+// and strong reasoning. It is the semantic brain of the system.
+// The frontend is hands — deterministic tools (start_tour, add_node,
+// navigate) that execute the LLM's intent but never interpret user
+// input themselves.
+//
+// When users ask open-ended questions ("what do these nodes mean?",
+// "how do I add RAG?"), the LLM receives the full graph context,
+// reasons about the user's goal, and responds with explain actions
+// that embed UI-driving commands. No string matching. No guessing.
+// ═══════════════════════════════════════════════════════════════
+
 const SYSTEM_PROMPT = `You are the Vibeful Guide — an AI assistant that helps users build AI agents on a visual canvas. You are friendly, helpful, and concise. You can directly control the canvas UI.
 
 **Available Node Types:**

@@ -177,6 +177,26 @@ export default function AIAssistantPanel() {
   // Normalize text for flexible matching: strip punctuation, collapse whitespace, lowercase
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
 
+  // ═══════════════════════════════════════════════════════════════
+  // ARCHITECTURE PRINCIPLE — LLM drives the UI; tools are hands, not brain.
+  //
+  // The ONBOARDING_QA dictionary below is a LOCAL FALLBACK for factual
+  // questions that don't involve the canvas (e.g. "what is Vibeful?").
+  // It must NOT interpret user intent, pre-guess responses, or attempt
+  // semantic understanding. That is the LLM's job.
+  //
+  // Node-explanation questions ("what do these mean?", "explain the
+  // nodes") MUST fall through to the LLM via processAICommand(). The
+  // LLM receives the full graph context, understands the user's intent
+  // semantically, and responds with start_tour/highlight_node commands
+  // that drive the UI through the deterministic command protocol.
+  //
+  // If you find yourself adding a string-match entry to handle what the
+  // user "probably means" — stop. That's the LLM's job. Add it to the
+  // SYSTEM_PROMPT in aiAssistant.ts instead, so the LLM learns to
+  // handle that intent dynamically for any canvas state.
+  // ═══════════════════════════════════════════════════════════════
+
   // Local answers for common onboarding questions (no LLM needed)
   const NODE_TOUR_INTRO = "Let me walk you through each node on your canvas! I've highlighted the first one — use the arrows below to step through.\n\n";
   const NODE_TOUR_CMD = '```vibeful-command\n{"action":"start_tour","details":{"steps":[' +
