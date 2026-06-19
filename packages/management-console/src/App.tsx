@@ -362,7 +362,7 @@ export default function App() {
               ].map((tpl) => (
                 <button
                   key={tpl.key}
-                  onClick={() => loadTemplateFromYaml(tpl.name)}
+                  onClick={() => { loadTemplateFromYaml(tpl.name); setActiveTab('designer'); }}
                   className="p-4 bg-slate-900 border border-slate-700 rounded-lg hover:border-indigo-500 transition-colors text-left"
                 >
                   <div className="text-sm font-medium text-slate-200">{tpl.name}</div>
