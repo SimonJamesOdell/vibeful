@@ -1,26 +1,37 @@
-import { X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { FileCode } from 'lucide-react';
 import { useFlowStore } from '../lib/flowStore';
 import { VIBEFUL_NODE_TYPES, type ConfigField } from '../const';
+import { generateYaml } from '../lib/yamlGenerator';
 
 export default function PropertyPanel() {
-  const { nodes, selectedNodeId, updateNodeConfig, selectNode, propertiesVisible, toggleProperties } = useFlowStore();
+  const { nodes, selectedNodeId, updateNodeConfig, selectNode, edges, agentName, agentDescription } = useFlowStore();
+  const [yamlDialogOpen, setYamlDialogOpen] = useState(false);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const nodeTypeInfo = VIBEFUL_NODE_TYPES.find((nt) => nt.type === selectedNode?.data?.nodeType);
 
-  if (!propertiesVisible) return null;
+  const yaml = useMemo(
+    () => generateYaml(nodes, edges, agentName, agentDescription),
+    [nodes, edges, agentName, agentDescription]
+  );
 
   return (
-    <div className="w-72 bg-slate-900 border-l border-slate-700 overflow-y-auto flex-shrink-0">
-      <div className="flex items-center justify-between p-3 border-b border-slate-700">
+    <div className="h-full flex flex-col bg-slate-900 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-700 flex-shrink-0">
         <h2 className="text-sm font-semibold text-slate-200">Properties</h2>
         <button
-          onClick={toggleProperties}
-          className="text-slate-500 hover:text-slate-300 transition-colors"
+          onClick={() => setYamlDialogOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+          title="View YAML"
         >
-          <X size={14} />
+          <FileCode size={12} /> YAML
         </button>
       </div>
+
+      {/* Node properties */}
+      <div className="flex-1 overflow-y-auto">
 
       {!selectedNode ? (
         <div className="p-4 text-xs text-slate-500 text-center">
@@ -60,6 +71,40 @@ export default function PropertyPanel() {
               No configurable properties for this node type
             </div>
           )}
+        </div>
+      )}
+      </div>
+
+      {/* YAML Preview Dialog */}
+      {yamlDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b border-slate-700 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileCode size={14} className="text-indigo-400" />
+                <h2 className="text-sm font-semibold text-slate-200">YAML Preview</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(yaml);
+                  }}
+                  className="text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setYamlDialogOpen(false)}
+                  className="text-slate-500 hover:text-slate-300 text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap">{yaml}</pre>
+            </div>
+          </div>
         </div>
       )}
     </div>

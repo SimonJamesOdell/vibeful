@@ -6,7 +6,7 @@ import PropertyPanel from './components/PropertyPanel';
 import CodePreview from './components/CodePreview';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, PanelLeft, PanelRight, Download, Bot } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import VersionHistory from './components/VersionHistory';
 import ABTestDashboard from './components/ABTestDashboard';
@@ -274,20 +274,6 @@ export default function App() {
               placeholder="Agent name…"
               className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 w-40 focus:outline-none focus:border-indigo-500"
             />
-            <button
-              onClick={toggleProperties}
-              className={`p-1.5 rounded transition-colors ${propertiesVisible ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300'}`}
-              title="Toggle properties"
-            >
-              <PanelRight size={14} />
-            </button>
-            <button
-              onClick={toggleCodePreview}
-              className={`p-1.5 rounded transition-colors ${codePreviewVisible ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300'}`}
-              title="Toggle YAML preview"
-            >
-              <PanelLeft size={14} />
-            </button>
             <div className="w-px h-5 bg-slate-700" />
             <button onClick={handleSave} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
               <Download size={12} /> Save
@@ -302,10 +288,11 @@ export default function App() {
         {activeTab === 'designer' ? (
           <div className="flex-1 flex overflow-hidden">
             <NodePalette />
-            <div className="flex-1 flex flex-col min-w-0 relative">
+            <div className="flex-1 min-w-0 relative">
               <FlowCanvas />
-              {propertiesVisible && <PropertyPanel />}
-              {codePreviewVisible && <CodePreview />}
+            </div>
+            <div className="w-72 bg-slate-900 border-l border-slate-700 flex-shrink-0">
+              <PropertyPanel />
             </div>
             <div className="w-[340px] bg-slate-900 border-l border-slate-700 flex-shrink-0">
               <AIAssistantPanel />
