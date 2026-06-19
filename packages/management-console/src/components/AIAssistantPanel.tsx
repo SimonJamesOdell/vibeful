@@ -91,12 +91,16 @@ export default function AIAssistantPanel() {
     registerCommandHandler(CONSOLE_COMMANDS.REMOVE_NODE, (details) => {
       // Accept multiple field names the LLM might use
       const label = (details.label || details.node || details.name) as string;
-      const node = useFlowStore.getState().nodes.find(
+      const state = useFlowStore.getState();
+      const node = state.nodes.find(
         (n) => n.data.label === label || n.id === label
       );
       if (node) {
-        useFlowStore.getState().selectNode(node.id);
-        useFlowStore.getState().removeSelectedNodes();
+        // Remove the node and any edges connected to it
+        useFlowStore.setState({
+          nodes: state.nodes.filter((n) => n.id !== node.id),
+          edges: state.edges.filter((e) => e.source !== node.id && e.target !== node.id),
+        });
         return { label };
       }
       throw new Error(`Node '${label}' not found`);
