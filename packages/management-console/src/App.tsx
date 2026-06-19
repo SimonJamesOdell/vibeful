@@ -3,7 +3,6 @@ import { ReactFlowProvider } from '@xyflow/react';
 import FlowCanvas from './components/FlowCanvas';
 import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
-import CodePreview from './components/CodePreview';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
 import { Play, Save, FolderOpen, FilePlus, Download } from 'lucide-react';

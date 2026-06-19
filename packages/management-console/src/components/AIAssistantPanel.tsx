@@ -264,7 +264,7 @@ export default function AIAssistantPanel() {
     clearLastAIError();
 
     try {
-      const command = await processAICommand(msg, nodes, edges);
+      const command = await processAICommand(msg, nodes, edges, messages);
 
       if (command) {
         // Explain commands: parse commands from explanation, show text, no Apply button

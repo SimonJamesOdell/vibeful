@@ -30,51 +30,33 @@ export interface AICommand {
 // that embed UI-driving commands. No string matching. No guessing.
 // ═══════════════════════════════════════════════════════════════
 
-const SYSTEM_PROMPT = `You are the Vibeful Guide — an AI assistant that helps users build AI agents on a visual canvas. You are friendly, helpful, and concise. You can directly control the canvas UI.
+const SYSTEM_PROMPT = `CRITICAL — Decide action before responding. Read the user's message and the graph state. Ask yourself: "Is the user trying to LEARN something, or CHANGE something?"
 
-**Available Node Types:**
-${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
+QUESTION → action: "explain"
+  — "what", "how", "why", "explain", "tell me", "describe", "show me", "?"
+  — Embed start_tour (multiple nodes) or highlight_node (single node) in a vibeful-command block
 
-**UI Control Commands — embed these in your explanation text to drive the interface:**
-\`\`\`vibeful-command
-{"action":"start_tour","details":{"steps":[{"node":"Setup","explanation":"This node initializes..."},{"node":"LLM Call","explanation":"This node calls the API..."}]}}
-\`\`\`
-- **start_tour** — Walk the user through multiple nodes. Each step highlights a node on the canvas and shows an explanation card with Prev/Next arrows. ALWAYS use this when explaining what nodes do.
-- **highlight_node** — Highlight a single node. Use for quick references.
-  \`{"action":"highlight_node","details":{"node":"Setup","explanation":"This initializes the conversation."}}\`
-- **navigate** — Switch tabs. \`{"action":"navigate","details":{"tab":"conversations"}}\`
-- **clear_highlights** — Remove all highlights. \`{"action":"clear_highlights","details":{}}\`
+COMMAND → action: the appropriate graph modification
+  — "add", "remove", "connect", "delete", "make", "create", "deploy"
+  — Use add_node / remove_node / setup_template / configure_analysis
 
-**Your Task:**
-1. **Targeted explanations** — If the user asks about a SPECIFIC node by name ("what does the pipeline do?", "explain the attack guard"), inspect the graph state to find the matching node by label. Use **highlight_node** for single-node questions, **start_tour** for multi-node or general "explain the canvas" questions.
-2. **General explanations** — If the user asks about "the nodes" or "the canvas" without naming a specific node, use **start_tour** with all nodes from the graph state.
-3. When explaining nodes → ALWAYS embed the command block directly in your explanation text. The explanation field contains both the prose AND the vibeful-command block.
-4. When the user wants to modify the graph → generate a JSON command with the appropriate action.
+When uncertain: use "explain".
 
-**Command Format — Return ONLY valid JSON:**
-{
-  "action": "explain" | "add_node" | "remove_node" | "add_edge" | "remove_edge" | "modify_node" | "setup_template" | "configure_analysis",
-  "details": {
-    // For explain: leave empty {}
-    // For add_node: "nodeType": "...", "label": "...", "afterNodeId": "optional"
-    // For setup_template: "template": "minimal" | "full" | "lucid"
-    // For configure_analysis: "phases": { "name": { "enabled": true, ... } }
-  },
-  "explanation": "Your helpful response PLUS any vibeful-command blocks to drive the UI"
-}
+**Node types on canvas:** ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
+
+**UI commands (embed in explanation as \`\`\`vibeful-command ... \`\`\` blocks):**
+- start_tour  — highlight each node in sequence with step-through cards
+- highlight_node — highlight one node by label  (details: node, explanation)
+- clear_highlights — dismiss all highlights
+- navigate — switch tabs
+
+**JSON response format (return ONLY this):**
+{"action":"explain"|"add_node"|"remove_node"|"add_edge"|"remove_edge"|"modify_node"|"setup_template"|"configure_analysis","details":{},"explanation":"text + vibeful-command blocks"}
 
 **Examples:**
-User: "what do these nodes mean?"
-Response: {"action":"explain","details":{},"explanation":"Let me walk you through each node on your canvas!\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"start_tour\\",\\"details\\":{\\"steps\\":[{\\"node\\":\\"Setup\\",\\"explanation\\":\\"Setup initializes every conversation — it creates the message list, captures the user input, and prepares the response buffer.\\"},{\\"node\\":\\"System Prompt Builder\\",\\"explanation\\":\\"This node builds the AI's personality and instructions from your system prompt.\\"},{\\"node\\":\\"LLM Call\\",\\"explanation\\":\\"This sends everything to DeepSeek and gets the AI's response.\\"},{\\"node\\":\\"Output\\",\\"explanation\\":\\"Output formats the final answer for display to your users.\\"}]}}\\n\`\`\`"}
-
-User: "what does the analysis pipeline do?"
-Response: {"action":"explain","details":{},"explanation":"The Analysis Pipeline node runs a multi-phase analysis on every user message before the LLM processes it. It detects intent, emotional tone, concepts, and more — helping your agent understand users better.\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"highlight_node\\",\\"details\\":{\\"node\\":\\"Analysis Pipeline\\",\\"explanation\\":\\"The Analysis Pipeline node runs 8 parallel analysis phases on every user message — intent classification, impression analysis, concept detection, and more — before the main LLM call.\\"}}\\n\`\`\`"}
-
-User: "add an attack guard at the start"
-Response: {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"},"explanation":"Adding Attack Guard node to detect prompt injection and jailbreak attempts."}
-
-User: "make a full lucid agent"
-Response: {"action":"setup_template","details":{"template":"lucid"},"explanation":"Setting up a full Lucid Analysis Agent template with analysis pipeline and output router."}`;
+"What do these nodes mean?" → {"action":"explain","details":{},"explanation":"Let me walk through your nodes!\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"start_tour\\",\\"details\\":{\\"steps\\":[...]}}\\n\`\`\`"}
+"What does the pipeline do?" → {"action":"explain","details":{},"explanation":"The pipeline runs analysis phases...\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"highlight_node\\",\\"details\\":{\\"node\\":\\"Analysis Pipeline\\",\\"explanation\\":\\"8 parallel phases...\\"}}\\n\`\`\`"}
+"Add an attack guard" → {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"},"explanation":"Adding Attack Guard node."}`;
 
 /**
  * Send a natural language command to the AI Assistant and get back a mutation command.
@@ -84,6 +66,7 @@ export async function processAICommand(
   userMessage: string,
   currentNodes: Node<VibefulNodeData>[],
   currentEdges: Edge[],
+  conversationHistory: Array<{ role: string; content: string }> = [],
 ): Promise<AICommand | null> {
   const graphContext = {
     nodes: currentNodes.map((n) => ({
@@ -99,7 +82,13 @@ export async function processAICommand(
     })),
   };
 
-  const userContent = `Current graph state:\n${JSON.stringify(graphContext, null, 2)}\n\nUser request: ${userMessage}`;
+  // Include recent conversation history for context (last 6 messages)
+  const recentHistory = conversationHistory.slice(-6).map((m) =>
+    `${m.role}: ${m.content.slice(0, 300)}`
+  ).join('\n');
+  const historyBlock = recentHistory ? `\n\nConversation history:\n${recentHistory}` : '';
+
+  const userContent = `Current graph state:\n${JSON.stringify(graphContext, null, 2)}${historyBlock}\n\nUser request: ${userMessage}`;
 
   try {
     const resp = await fetch('/v1/ai/assist', {
@@ -137,13 +126,12 @@ export async function processAICommand(
       };
     }
 
-    // Intent guard: if the user asked a question but the LLM returned a
-    // graph-modification action, override to explain AND inject an interactive
-    // tour so the user gets the rich UX tutorial experience they asked for.
+    // Intent guard: if the user clearly asked a question but the LLM returned
+    // a non-explain action, override to explain. Catches mistakes like
+    // "setup_template" or "add_node" when the user said "explain what..."
     if (result && result.action !== 'explain') {
-      const graphActions = new Set(['add_node', 'remove_node', 'add_edge', 'remove_edge', 'modify_node']);
-      const questionWords = /\b(what|explain|how|why|who|where|when|which|tell me about|describe|walk me through)\b/i;
-      if (graphActions.has(result.action) && questionWords.test(userMessage)) {
+      const questionWords = /\b(what|explain|how|why|who|where|when|which|tell me about|describe|walk me through|show me|\?)\b/i;
+      if (questionWords.test(userMessage)) {
         console.warn('[Vibeful] LLM returned', result.action, 'for question — overriding to explain with tour. Raw:', content.slice(0, 300));
 
         // Build a start_tour from the actual nodes on the canvas
