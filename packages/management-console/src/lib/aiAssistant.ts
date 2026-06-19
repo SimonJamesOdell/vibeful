@@ -132,7 +132,7 @@ export async function processAICommand(
     if (result && result.action !== 'explain') {
       const questionWords = /\b(what|explain|how|why|who|where|when|which|tell me about|describe|walk me through|show me|\?)\b/i;
       if (questionWords.test(userMessage)) {
-        console.warn('[Vibeful] LLM returned', result.action, 'for question — overriding to explain with tour. Raw:', content.slice(0, 300));
+        console.warn('[Vibeful] INTENT GUARD FIRED — LLM returned', result.action, 'but user message contains question words. Overriding to explain.');
 
         // Build a start_tour from the actual nodes on the canvas
         const tourSteps = currentNodes.map((n) => ({
@@ -145,11 +145,10 @@ export async function processAICommand(
 
         // Combine the LLM's text with an interactive tour
         const llmText = result.explanation || content.trim();
-        const intro = "Let me walk you through each node on your canvas! Use the arrows below to step through.\n\n";
         result = {
           action: 'explain',
           details: {},
-          explanation: intro + tourCmd + '\n\n' + llmText,
+          explanation: `⚡ INTENT GUARD ACTIVATED ⚡ The LLM returned "${result.action}" but your message was clearly a question.\n\nLet me walk you through each node on your canvas! Use the arrows below to step through.\n\n${tourCmd}\n\n${llmText}`,
         };
       }
     }
