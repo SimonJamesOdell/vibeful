@@ -48,7 +48,18 @@ This is a visual agent design tool where you can drag-and-drop agent graph nodes
 5. Click **Deploy** to push the config to the agent engine
 6. Copy the **Agent ID** that appears
 
-> **Tip:** Use the **AI Assistant** (wand button, bottom-right) to build agents with natural language: "Add an attack guard at the start" or "Enable impressions analysis."
+> **Tip:** Use the **AI Assistant** (bottom-right panel) to build agents with natural language: "Add an attack guard at the start" or "add a rag node after the system prompt."
+
+### Manage Multiple Agents
+
+The **Agents tab** (in the header bar) shows all your deployed agents. Click any agent to load its graph into the Designer. Each agent has its own:
+
+- Agent graph (nodes + edges)
+- Knowledge contexts and MCP tool connections
+- Version history and A/B tests
+- Performance monitoring
+
+Create a new agent by clicking **Deploy** with a new name, or clone an existing agent from the Agents dashboard.
 
 ## 5. Test Your Agent
 

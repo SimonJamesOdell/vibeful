@@ -1,6 +1,6 @@
 # Vibeful
 
-Vibeful — a multi-tenant AI agent platform that lets companies embed conversational agents into their SaaS products.
+Vibeful — a self-hosted AI agent platform. Build, deploy, and manage multiple conversational agents from a visual console. Embed them into any web app with 3 lines of code. "WordPress for AI agents."
 
 **Stack:** Python 3.12 (LangGraph agent), Node.js/TypeScript (API + SDK + MCP), PostgreSQL + pgvector, Redis, DeepSeek API.
 
@@ -76,8 +76,11 @@ pnpm test
 - ✅ REST API + Prometheus metrics + Lucid endpoints
 - ✅ Helm chart + Docker Compose
 - ✅ Analysis Pipeline (Lucid Sensai parity — 78/78 tests)
-- ✅ Management Console (React Flow visual designer — 10 tabs) 
+- ✅ Management Console (React Flow visual designer — 11 tabs including multi-agent dashboard)
+- ✅ Multi-agent support — manage multiple agents from one console
+- ✅ AI-powered Vibeful Guide — natural language agent configuration
 - ✅ Lucid capabilities (Glyphs, Concepts, Global Memories, Token Credits)
+- ✅ Embeddable SDK with command protocol for agent-driven UI
 
 ## Getting Started
 
