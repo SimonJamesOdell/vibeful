@@ -88,11 +88,17 @@ Write-Host ""
 
 Write-Host "  → Python packages..."
 Push-Location "$ROOT\packages\agent-engine"
-try {
-    pip install -e ".[dev]" --quiet 2>&1 | Out-Null
-    Write-Host "  ✓ Python dependencies installed" -ForegroundColor Green
-} catch {
-    Write-Host "  ⚠ Python install had warnings (non-fatal)" -ForegroundColor Yellow
+$alreadyInstalled = Test-Path "src\vibeful_agent_engine.egg-info\PKG-INFO"
+if ($alreadyInstalled) {
+    Write-Host "  ✓ Python packages already installed (skipping pip install)" -ForegroundColor Green
+} else {
+    Write-Host "    (first run — installing, this may take a moment...)"
+    try {
+        pip install -e ".[dev]" --quiet 2>&1 | Out-Null
+        Write-Host "  ✓ Python dependencies installed" -ForegroundColor Green
+    } catch {
+        Write-Host "  ⚠ Python install had warnings (non-fatal)" -ForegroundColor Yellow
+    }
 }
 Pop-Location
 

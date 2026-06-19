@@ -208,14 +208,19 @@ if [ ! -d ".venv" ]; then
     python3 -m venv .venv
 fi
 source .venv/bin/activate
-pip install -e ".[dev]" 2>&1 | tail -5
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    echo -e "  ${RED}✗ Python install failed${NC}"
-    echo "  Try manually: cd packages/agent-engine && source .venv/bin/activate && pip install -e \".[dev]\""
-    exit 1
+if [ -f "src/vibeful_agent_engine.egg-info/PKG-INFO" ]; then
+    echo -e "  ${GREEN}✓${NC} Python packages already installed (skipping pip install)"
+else
+    echo "    (first run — installing, this may take a moment...)"
+    pip install -e ".[dev]" 2>&1 | tail -5
+    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+        echo -e "  ${RED}✗ Python install failed${NC}"
+        echo "  Try manually: cd packages/agent-engine && source .venv/bin/activate && pip install -e \".[dev]\""
+        exit 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Python dependencies installed"
 fi
 cd "$ROOT"
-echo -e "  ${GREEN}✓${NC} Python dependencies installed"
 
 echo "  → Node.js packages..."
 cd "$ROOT"
