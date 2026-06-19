@@ -218,12 +218,29 @@ cd "$ROOT"
 echo -e "  ${GREEN}✓${NC} Python dependencies installed"
 
 echo "  → Node.js packages..."
-cd "$ROOT/packages/management-console"
-pnpm install --silent 2>&1 | tail -1 || {
-    echo -e "  ${YELLOW}⚠ pnpm install had warnings (non-fatal)${NC}"
-}
 cd "$ROOT"
-echo -e "  ${GREEN}✓${NC} Node.js dependencies installed"
+if ! pnpm install 2>&1 | tail -20; then
+    INSTALL_EXIT=${PIPESTATUS[0]}
+    echo ""
+    # If lockfile fails supply-chain policy (packages too new), clean and retry once
+    if pnpm install 2>&1 | grep -q "ERR_PNPM_MINIMUM_RELEASE_AGE\|supply-chain policy"; then
+        echo -e "  ${YELLOW}⚠ Lockfile verification failed (packages published too recently). Rebuilding lockfile...${NC}"
+        pnpm clean --lockfile 2>/dev/null || true
+        if pnpm install 2>&1 | tail -20; then
+            echo -e "  ${GREEN}✓${NC} Node.js dependencies installed (lockfile rebuilt)"
+        else
+            echo -e "  ${RED}✗ pnpm install failed after lockfile rebuild${NC}"
+            echo "  Try manually: pnpm clean --lockfile && pnpm install"
+            exit 1
+        fi
+    else
+        echo -e "  ${RED}✗ pnpm install failed (exit code $INSTALL_EXIT)${NC}"
+        echo "  Try manually: pnpm install"
+        exit 1
+    fi
+else
+    echo -e "  ${GREEN}✓${NC} Node.js dependencies installed"
+fi
 echo ""
 
 # ── 6. Check API key ───────────────────────────────────────────
