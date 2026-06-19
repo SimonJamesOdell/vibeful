@@ -219,27 +219,27 @@ echo -e "  ${GREEN}✓${NC} Python dependencies installed"
 
 echo "  → Node.js packages..."
 cd "$ROOT"
-if ! pnpm install 2>&1 | tail -20; then
-    INSTALL_EXIT=${PIPESTATUS[0]}
-    echo ""
-    # If lockfile fails supply-chain policy (packages too new), clean and retry once
-    if pnpm install 2>&1 | grep -q "ERR_PNPM_MINIMUM_RELEASE_AGE\|supply-chain policy"; then
-        echo -e "  ${YELLOW}⚠ Lockfile verification failed (packages published too recently). Rebuilding lockfile...${NC}"
-        pnpm clean --lockfile 2>/dev/null || true
-        if pnpm install 2>&1 | tail -20; then
-            echo -e "  ${GREEN}✓${NC} Node.js dependencies installed (lockfile rebuilt)"
-        else
-            echo -e "  ${RED}✗ pnpm install failed after lockfile rebuild${NC}"
-            echo "  Try manually: pnpm clean --lockfile && pnpm install"
-            exit 1
-        fi
+INSTALL_OUTPUT=$(pnpm install 2>&1) && INSTALL_OK=1 || INSTALL_OK=0
+if [ "$INSTALL_OK" -eq 1 ]; then
+    echo -e "  ${GREEN}✓${NC} Node.js dependencies installed"
+elif echo "$INSTALL_OUTPUT" | grep -q "ERR_PNPM_MINIMUM_RELEASE_AGE\|supply-chain policy"; then
+    echo -e "  ${YELLOW}⚠ Lockfile verification failed (packages published too recently). Rebuilding lockfile...${NC}"
+    pnpm clean --lockfile 2>/dev/null || true
+    REBUILD_OUTPUT=$(pnpm install 2>&1) && REBUILD_OK=1 || REBUILD_OK=0
+    if [ "$REBUILD_OK" -eq 1 ]; then
+        echo -e "  ${GREEN}✓${NC} Node.js dependencies installed (lockfile rebuilt)"
+    elif echo "$REBUILD_OUTPUT" | grep -q "ERR_PNPM_IGNORED_BUILDS"; then
+        echo -e "  ${GREEN}✓${NC} Node.js dependencies installed (lockfile rebuilt, build scripts skipped — run 'pnpm approve-builds' if needed)"
     else
-        echo -e "  ${RED}✗ pnpm install failed (exit code $INSTALL_EXIT)${NC}"
-        echo "  Try manually: pnpm install"
+        echo "$REBUILD_OUTPUT" | tail -20
+        echo -e "  ${RED}✗ pnpm install failed after lockfile rebuild${NC}"
+        echo "  Try manually: pnpm clean --lockfile && pnpm install"
         exit 1
     fi
 else
-    echo -e "  ${GREEN}✓${NC} Node.js dependencies installed"
+    echo "$INSTALL_OUTPUT" | tail -20
+    echo -e "  ${RED}✗ pnpm install failed${NC}"
+    exit 1
 fi
 echo ""
 
