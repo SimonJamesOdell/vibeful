@@ -53,3 +53,8 @@ yarn.lock
 
 # ── Data volumes ────────────────────────────────────────────────
 pgdata/
+
+# ── SQLite dev database ─────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
