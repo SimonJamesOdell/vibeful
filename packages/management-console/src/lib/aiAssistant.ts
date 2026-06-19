@@ -123,6 +123,7 @@ export async function processAICommand(
     const data = await resp.json();
     const content = data.response || data.content || '';
     let result = parseAIResponse(content);
+
     // If the LLM responded conversationally (not JSON), wrap it as an explain command
     if (!result && content.trim()) {
       result = {
@@ -131,6 +132,23 @@ export async function processAICommand(
         explanation: content.trim(),
       };
     }
+
+    // Intent guard: if the user asked a question but the LLM returned a
+    // graph-modification action, override to explain. The LLM sometimes
+    // mistakes "explain these nodes" for "add a node to explain things".
+    if (result && result.action !== 'explain') {
+      const graphActions = new Set(['add_node', 'remove_node', 'add_edge', 'remove_edge', 'modify_node']);
+      const questionWords = /\b(what|explain|how|why|who|where|when|which|tell me about|describe|walk me through)\b/i;
+      if (graphActions.has(result.action) && questionWords.test(userMessage)) {
+        console.warn('[Vibeful] LLM returned', result.action, 'for question — overriding to explain. Raw:', content.slice(0, 300));
+        result = {
+          action: 'explain',
+          details: {},
+          explanation: result.explanation || content.trim(),
+        };
+      }
+    }
+
     return result;
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : String(e);
