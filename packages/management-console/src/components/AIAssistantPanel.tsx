@@ -152,15 +152,9 @@ export default function AIAssistantPanel() {
     const isOnboarding = nodes.length === 0 && edges.length === 0 && onboarding;
     if (isOnboarding && ONBOARDING_YES.has(msg.toLowerCase())) {
       const explain = "Let's build your first agent! I'm setting up a minimal template on the canvas now — you'll see nodes appear in a moment.";
-      const cmd: AICommand = {
-        action: 'setup_template',
-        details: { template: 'minimal' },
-        explanation: explain,
-      };
       setMessages((prev) => [...prev, {
         role: 'assistant',
         content: explain,
-        command: cmd,
       }]);
       window.dispatchEvent(new CustomEvent('vibeful:load-template', { detail: 'minimal' }));
       setLoading(false);
