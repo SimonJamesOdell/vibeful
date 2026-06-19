@@ -6,6 +6,8 @@ interface UseAgentOptions {
   agentId: string;
   contextIds?: string[];
   mcpUrls?: string[];
+  /** Optional host app context — sent to the agent for awareness */
+  context?: Record<string, unknown>;
 }
 
 export interface Citation {

@@ -3,6 +3,7 @@
 
 // Components
 export { VibefulChat } from './components/VibefulChat';
+export { VibefulApp } from './components/VibefulApp';
 export { ShadowWrapper } from './components/ShadowWrapper';
 export { WidgetRenderer } from './components/WidgetRenderer';
 export { AgentManager } from './components/AgentManager';
@@ -13,6 +14,7 @@ export { VoiceOutput } from './components/VoiceOutput';
 export { WidgetStudio } from './components/WidgetStudio';
 export { ObservabilityDashboard } from './components/ObservabilityDashboard';
 export { useVibefulAgent } from './hooks/useVibefulAgent';
+export { useHostCommands, dispatchHostCommand, HOST_COMMANDS } from './hooks/useHostCommands';
 
 // Client (use Transport interface for new integrations)
 export { client, VibefulClient } from './client';

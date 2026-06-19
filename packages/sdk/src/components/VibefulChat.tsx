@@ -8,6 +8,8 @@ interface VibefulChatProps {
   agentId: string;
   contextIds?: string[];
   mcpUrls?: string[];
+  /** Optional host app context for agent awareness (Tier 1 integration) */
+  context?: Record<string, unknown>;
   placeholder?: string;
   theme?: Record<string, string>;
   onSend?: (content: string) => Promise<void>;
