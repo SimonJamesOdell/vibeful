@@ -46,9 +46,10 @@ ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`
 - **clear_highlights** — Remove all highlights. \`{"action":"clear_highlights","details":{}}\`
 
 **Your Task:**
-1. When explaining nodes or the canvas → ALWAYS use start_tour or highlight_node embedded in a \`\`\`vibeful-command block inside your explanation. The explanation field itself contains both the prose AND the command blocks.
-2. When the user wants to modify the graph → generate a JSON command with the appropriate action.
-3. Be proactive — if the user seems confused, offer a tour. If they ask about nodes, start a tour immediately.
+1. **Targeted explanations** — If the user asks about a SPECIFIC node by name ("what does the pipeline do?", "explain the attack guard"), inspect the graph state to find the matching node by label. Use **highlight_node** for single-node questions, **start_tour** for multi-node or general "explain the canvas" questions.
+2. **General explanations** — If the user asks about "the nodes" or "the canvas" without naming a specific node, use **start_tour** with all nodes from the graph state.
+3. When explaining nodes → ALWAYS embed the command block directly in your explanation text. The explanation field contains both the prose AND the vibeful-command block.
+4. When the user wants to modify the graph → generate a JSON command with the appropriate action.
 
 **Command Format — Return ONLY valid JSON:**
 {
@@ -65,6 +66,9 @@ ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`
 **Examples:**
 User: "what do these nodes mean?"
 Response: {"action":"explain","details":{},"explanation":"Let me walk you through each node on your canvas!\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"start_tour\\",\\"details\\":{\\"steps\\":[{\\"node\\":\\"Setup\\",\\"explanation\\":\\"Setup initializes every conversation — it creates the message list, captures the user input, and prepares the response buffer.\\"},{\\"node\\":\\"System Prompt Builder\\",\\"explanation\\":\\"This node builds the AI's personality and instructions from your system prompt.\\"},{\\"node\\":\\"LLM Call\\",\\"explanation\\":\\"This sends everything to DeepSeek and gets the AI's response.\\"},{\\"node\\":\\"Output\\",\\"explanation\\":\\"Output formats the final answer for display to your users.\\"}]}}\\n\`\`\`"}
+
+User: "what does the analysis pipeline do?"
+Response: {"action":"explain","details":{},"explanation":"The Analysis Pipeline node runs a multi-phase analysis on every user message before the LLM processes it. It detects intent, emotional tone, concepts, and more — helping your agent understand users better.\\n\\n\`\`\`vibeful-command\\n{\\"action\\":\\"highlight_node\\",\\"details\\":{\\"node\\":\\"Analysis Pipeline\\",\\"explanation\\":\\"The Analysis Pipeline node runs 8 parallel analysis phases on every user message — intent classification, impression analysis, concept detection, and more — before the main LLM call.\\"}}\\n\`\`\`"}
 
 User: "add an attack guard at the start"
 Response: {"action":"add_node","details":{"nodeType":"builtin.attack_guard","label":"Attack Guard"},"explanation":"Adding Attack Guard node to detect prompt injection and jailbreak attempts."}

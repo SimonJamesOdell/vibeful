@@ -269,7 +269,20 @@ export default function AIAssistantPanel() {
       if (command) {
         // Explain commands: parse commands from explanation, show text, no Apply button
         if (command.action === 'explain') {
-          const cmdResults = await executeCommands(command.explanation);
+          let cmdResults = await executeCommands(command.explanation);
+          // If the LLM decided to explain but didn't embed commands, and nodes exist, append a tour
+          if (cmdResults.length === 0 && nodes.length > 0) {
+            const tourSteps = nodes.map((n) => ({
+              node: n.data.label as string,
+              explanation: n.data.nodeType
+                ? `${n.data.label} (${n.data.nodeType.replace('builtin.', '')})`
+                : n.data.label as string,
+            }));
+            const tourCmd = `\`\`\`vibeful-command\n${JSON.stringify({ action: 'start_tour', details: { steps: tourSteps } })}\n\`\`\``;
+            const augmentedExplanation = command.explanation + '\n\n' + tourCmd;
+            cmdResults = await executeCommands(augmentedExplanation);
+            command.explanation = augmentedExplanation;
+          }
           const cleanContent = stripCommands(command.explanation);
           setMessages((prev) => [...prev, {
             role: 'assistant',

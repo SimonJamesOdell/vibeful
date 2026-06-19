@@ -350,10 +350,38 @@ async def ai_assist(req: AIAssistRequest):
 
     try:
         from .llm import get_provider
+        from .analysis_pipeline import phase_intent
+
         provider = get_provider()
+
+        # Two-pass: classify intent first, then generate response with intent context
+        intent = await phase_intent(provider, req.message, temperature=0.4)
+        intent_primary = intent.get("primary", "other")
+        intent_topic = intent.get("topic", "")
+        intent_confidence = intent.get("confidence", 0.5)
+
+        # Build an enriched system prompt that includes intent analysis
+        enriched_prompt = req.system_prompt
+        if intent_primary == "question":
+            enriched_prompt = (
+                f"INTENT ANALYSIS: The user is asking a QUESTION (confidence: {intent_confidence:.0%}). "
+                + (f"Topic: {intent_topic}. " if intent_topic else "")
+                + "You MUST use action 'explain'. "
+                + "If a specific node is named, use highlight_node on that node. "
+                + "For general questions, use start_tour with all nodes from the graph state.\n\n"
+                + req.system_prompt
+            )
+        elif intent_primary == "command":
+            enriched_prompt = (
+                f"INTENT ANALYSIS: The user is giving a COMMAND (confidence: {intent_confidence:.0%}). "
+                + (f"Topic: {intent_topic}. " if intent_topic else "")
+                + "Use the appropriate graph modification action.\n\n"
+                + req.system_prompt
+            )
+
         response = await provider.chat(
             messages=[
-                {"role": "system", "content": req.system_prompt},
+                {"role": "system", "content": enriched_prompt},
                 {"role": "user", "content": req.message},
             ],
             temperature=req.temperature,
