@@ -42,7 +42,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
             <AssetCard
               key={bot.id}
               name={bot.name}
-              subtitle={bot.description || bot.system_prompt?.slice(0, 80) || 'No description'}
+              subtitle={bot.description || bot.system_prompt?.slice(0, 80) || ''}
               onEdit={() => onNavigate('designer')}
               onTest={onTest}
               onDelete={() => onDelete(bot.id)}
@@ -65,7 +65,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
             <AssetCard
               key={agent.id}
               name={agent.name}
-              subtitle={agent.description || agent.system_prompt?.slice(0, 80) || 'No description'}
+              subtitle={agent.description || agent.system_prompt?.slice(0, 80) || ''}
               onEdit={() => onNavigate('designer')}
               onTest={onTest}
               onDelete={() => onDelete(agent.id)}
@@ -198,7 +198,7 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete }: {
     <div className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group">
       <div className="min-w-0 flex-1">
         <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
-        <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>
+        {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-3">
         <button onClick={onEdit} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
