@@ -25,14 +25,23 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
+  const [contextList, setContextList] = useState<Array<{ id: string; name: string }>>([]);
 
-  // Fetch agent list for the selector dropdown
-  useEffect(() => {
+  const fetchAgents = () => {
     fetch('/v1/agents')
       .then((r) => r.json())
       .then((data) => setAgentList(Array.isArray(data) ? data : data.agents || []))
       .catch(() => {});
-  }, []);
+  };
+  const fetchContexts = () => {
+    fetch('/v1/contexts')
+      .then((r) => r.json())
+      .then((data) => setContextList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
+
+  // Fetch agent and context lists
+  useEffect(() => { fetchAgents(); fetchContexts(); }, []);
 
   const switchToAgent = async (agentId: string) => {
     try {
@@ -406,7 +415,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* Body */}
+        {/* Body + persistent AI Guide sidebar */}
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
         {activeTab === 'dashboard' ? (
           <Dashboard onNavigate={setActiveTab} />
         ) : activeTab === 'designer' ? (
@@ -421,9 +432,6 @@ export default function App() {
               ${selectedNodeId ? 'w-72 opacity-100 border-l border-slate-700' : 'w-0 opacity-0 pointer-events-none'}
             `}>
               <PropertyPanel />
-            </div>
-            <div className="w-[340px] bg-slate-900 border-l border-slate-700 flex-shrink-0">
-              <AIAssistantPanel />
             </div>
           </div>
         ) : activeTab === 'versions' ? (
@@ -487,6 +495,16 @@ export default function App() {
             </div>
           </div>
         )}
+          </div>
+          <AIAssistantPanel
+            agents={agentList}
+            contexts={contextList}
+            activeTab={activeTab}
+            onNavigate={setActiveTab}
+            onAgentsChanged={fetchAgents}
+            onContextsChanged={fetchContexts}
+          />
+        </div>
       </div>
     </ReactFlowProvider>
   );

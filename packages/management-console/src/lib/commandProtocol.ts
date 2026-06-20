@@ -124,6 +124,12 @@ export const CONSOLE_COMMANDS = {
   START_TOUR: 'start_tour',
   CLEAR_HIGHLIGHTS: 'clear_highlights',
   AUTO_ALIGN: 'auto_align',
+  CREATE_AGENT: 'create_agent',
+  DELETE_AGENT: 'delete_agent',
+  SELECT_AGENT: 'select_agent',
+  CREATE_CONTEXT: 'create_context',
+  INGEST_CONTEXT: 'ingest_context',
+  DELETE_CONTEXT: 'delete_context',
 } as const;
 
 /**
