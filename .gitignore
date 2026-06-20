@@ -58,3 +58,6 @@ pgdata/
 *.db
 *.db-shm
 *.db-wal
+
+# ── Website generated docs (copied from repo root docs/) ────────
+website/docs/*.md

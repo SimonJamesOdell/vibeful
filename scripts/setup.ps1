@@ -141,7 +141,16 @@ if (-not $API_KEY -or $API_KEY.Length -le 20) {
     Write-Host ""
 }
 
-# ── 5. Start Vibeful ───────────────────────────────────────────
+# ── 5. Copy docs for website ─────────────────────────────────────
+
+Write-Host "  → Copying documentation for website..."
+New-Item -ItemType Directory -Path "$ROOT\website\docs" -Force -ErrorAction SilentlyContinue | Out-Null
+Copy-Item "$ROOT\docs\*.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
+Copy-Item "$ROOT\CONTRIBUTING.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
+Copy-Item "$ROOT\ROADMAP.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
+Write-Host ""
+
+# ── 6. Start Vibeful ───────────────────────────────────────────
 
 Write-Host "Starting Vibeful..." -ForegroundColor White
 Write-Host ""

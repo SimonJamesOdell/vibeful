@@ -295,7 +295,16 @@ fi
 
 echo ""
 
-# ── 7. Start Vibeful ───────────────────────────────────────────
+# ── 7. Copy docs for website ─────────────────────────────────────
+
+echo "  → Copying documentation for website..."
+mkdir -p "$ROOT/website/docs"
+cp "$ROOT/docs/"*.md "$ROOT/website/docs/" 2>/dev/null || true
+cp "$ROOT/CONTRIBUTING.md" "$ROOT/website/docs/" 2>/dev/null || true
+cp "$ROOT/ROADMAP.md" "$ROOT/website/docs/" 2>/dev/null || true
+echo ""
+
+# ── 8. Start Vibeful ───────────────────────────────────────────
 
 echo -e "${BOLD}Starting Vibeful...${NC}"
 echo ""
