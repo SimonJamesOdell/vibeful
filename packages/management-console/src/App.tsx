@@ -233,14 +233,18 @@ export default function App() {
     // Quick-start flow: navigate to designer, load template, show toast, trigger AI
     const onQuickStart = (e: Event) => {
       const { template, message } = (e as CustomEvent).detail as { template: string; message: string };
+      const currentNodes = useFlowStore.getState().nodes;
       setActiveTab('designer');
+
+      // If there's already a chatbot on the canvas, just navigate — don't rebuild
+      if (currentNodes.length > 0) return;
+
       setQuickStartToast(`Building your ${template === 'minimal' ? 'chatbot' : 'agent'}…`);
       setTimeout(() => {
         loadTemplateFromYaml(template);
         setQuickStartToast(null);
-        // Trigger the AI Guide to confirm
         window.dispatchEvent(new CustomEvent('vibeful:quick-start-done', { detail: { template, message } }));
-      }, 1800); // Long enough to read the toast
+      }, 1800);
     };
 
     const onNavigate = (e: Event) => {
