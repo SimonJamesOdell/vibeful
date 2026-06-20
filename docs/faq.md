@@ -93,6 +93,19 @@ Lucid capability stores:
 
 These are managed through both the Management Console UI and REST API.
 
+## What is the API gateway on port 3000, and do I need it?
+
+The API gateway is the **production front door** in the Docker setup. It's an Express server that handles agent CRUD, session management, and proxies API calls through the proxy (`:8000`) to the agent engine. It's the single entry point when running the full Docker stack.
+
+In **local dev mode** (no Docker), you don't need it. The website talks directly to the agent engine REST server on port 50052. The two deployment tiers are:
+
+| Tier | Frontend serves from | API goes to |
+|------|---------------------|-------------|
+| Static HTML (local dev) | Static server `:3001` | Agent engine `:50052` directly |
+| Docker (production) | API gateway `:3000` | Proxy `:8000` → agent engine |
+
+If you're just running the website from a static server and the agent engine with `python -m uvicorn`, you can ignore port 3000 entirely.
+
 ## What are Token Credits?
 
 A per-user budget system for tracking and limiting LLM usage. Users have token balances; each conversation turn debits tokens. Admins can credit users, view transaction history, and set per-agent limits.
