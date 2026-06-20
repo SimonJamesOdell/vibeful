@@ -217,6 +217,51 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     });
   }, [onNavigate, onAgentsChanged, onContextsChanged, setAgentName, agentName]);
 
+  // Quick-start auto-trigger: Dashboard "Create Chatbot" fires this event
+  useEffect(() => {
+    const onQuickStartDone = (e: Event) => {
+      const { template, message } = (e as CustomEvent).detail as { template: string; message: string };
+      setMessages((prev) => [...prev, { role: 'user', content: message }]);
+      // Auto-trigger send to get the AI's confirmation
+      setLoading(true);
+      clearLastAIError();
+      const ctx: ConsoleContext = {
+        nodes,
+        edges,
+        selectedNodeId: useFlowStore.getState().selectedNodeId,
+        activeTab: 'designer',
+        agents: agents.slice(0, 20),
+        contexts: contexts.slice(0, 20),
+      };
+      processAICommand(message, ctx, messages).then((responseText) => {
+        if (responseText) {
+          executeCommands(responseText).then((cmdResults) => {
+            const cleanContent = stripCommands(responseText!);
+            setMessages((prev) => [...prev, {
+              role: 'assistant',
+              content: cleanContent || responseText!,
+              commandResults: cmdResults.length > 0 ? cmdResults : undefined,
+            }]);
+          });
+        } else {
+          setMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: `✅ Your ${template === 'minimal' ? 'chatbot' : 'agent'} is ready! The minimal template has been loaded with 4 nodes: Setup → System Prompt → ReAct Agent → Stream Completion.\n\nWant me to help you deploy it or customize the configuration?`,
+          }]);
+        }
+        setLoading(false);
+      }).catch(() => {
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: `✅ Your ${template === 'minimal' ? 'chatbot' : 'agent'} is built and ready on the canvas. Want me to help you deploy it?`,
+        }]);
+        setLoading(false);
+      });
+    };
+    window.addEventListener('vibeful:quick-start-done', onQuickStartDone);
+    return () => window.removeEventListener('vibeful:quick-start-done', onQuickStartDone);
+  }, [agents, contexts, nodes, edges, messages]);
+
   // First-run welcome
   useEffect(() => {
     if (onboarding && messages.length === 0) {

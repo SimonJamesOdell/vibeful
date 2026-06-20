@@ -5,7 +5,7 @@ import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, Download } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2 } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import VersionHistory from './components/VersionHistory';
 import ABTestDashboard from './components/ABTestDashboard';
@@ -217,15 +217,29 @@ export default function App() {
     setAgentName(template.name);
   };
 
-  // ── Vibeful Guide event handlers ────────────────────────────
-  // The Guide agent emits custom DOM events to control the console.
-  // This demonstrates the same command protocol end users' agents will use.
+  // ── Quick-start toast state ──────────────────────────────────
+  const [quickStartToast, setQuickStartToast] = useState<string | null>(null);
 
+  // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
     const onDeploy = () => { handleDeploy(); };
     const onLoadTemplate = (e: Event) => {
       loadTemplateFromYaml((e as CustomEvent).detail);
     };
+
+    // Quick-start flow: navigate to designer, load template, show toast, trigger AI
+    const onQuickStart = (e: Event) => {
+      const { template, message } = (e as CustomEvent).detail as { template: string; message: string };
+      setActiveTab('designer');
+      setQuickStartToast(`Building your ${template === 'minimal' ? 'chatbot' : 'agent'}…`);
+      setTimeout(() => {
+        loadTemplateFromYaml(template);
+        setQuickStartToast(null);
+        // Trigger the AI Guide to confirm
+        window.dispatchEvent(new CustomEvent('vibeful:quick-start-done', { detail: { template, message } }));
+      }, 1800); // Long enough to read the toast
+    };
+
     const onNavigate = (e: Event) => {
       const tab = (e as CustomEvent).detail as string;
       const validTabs = ['dashboard', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts'];
@@ -240,12 +254,14 @@ export default function App() {
     window.addEventListener('vibeful:load-template', onLoadTemplate);
     window.addEventListener('vibeful:navigate', onNavigate);
     window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
+    window.addEventListener('vibeful:quick-start', onQuickStart);
 
     return () => {
       window.removeEventListener('vibeful:deploy', onDeploy);
       window.removeEventListener('vibeful:load-template', onLoadTemplate);
       window.removeEventListener('vibeful:navigate', onNavigate);
       window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
+      window.removeEventListener('vibeful:quick-start', onQuickStart);
     };
   }, []);
 
@@ -425,6 +441,12 @@ export default function App() {
             <NodePalette />
             <div className="flex-1 min-w-0 relative">
               <FlowCanvas />
+              {quickStartToast && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-indigo-600/95 text-white rounded-xl shadow-2xl animate-pulse flex items-center gap-3 text-sm font-medium">
+                  <Loader2 size={16} className="animate-spin" />
+                  {quickStartToast}
+                </div>
+              )}
             </div>
             <div className={`
               overflow-hidden flex-shrink-0 bg-slate-900

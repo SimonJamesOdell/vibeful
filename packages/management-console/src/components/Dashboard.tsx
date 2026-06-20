@@ -129,7 +129,7 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: any) => vo
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (i === 0) onNavigate('designer');
+                    if (i === 0) window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }));
                     else if (i === 1) onNavigate('contexts');
                     else onNavigate('designer');
                   }}
@@ -148,7 +148,7 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: any) => vo
           Quick Actions
         </h2>
         <div className="grid grid-cols-4 gap-3 mb-10">
-          <button onClick={() => onNavigate('designer')} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
+          <button onClick={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
             <Bot size={16} className="text-indigo-400 mb-2" />
             <div className="text-xs font-medium text-slate-200">New Agent</div>
             <div className="text-[10px] text-slate-500 mt-1">Design an agent on the canvas</div>
