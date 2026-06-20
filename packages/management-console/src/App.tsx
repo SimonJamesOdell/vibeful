@@ -19,9 +19,10 @@ import SetupWizard from './components/SetupWizard';
 import NodeTooltip from './components/NodeTooltip';
 import AgentList from './components/AgentList';
 import ContextManager from './components/ContextManager';
+import Dashboard from './components/Dashboard';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('designer');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
 
@@ -218,7 +219,7 @@ export default function App() {
     };
     const onNavigate = (e: Event) => {
       const tab = (e as CustomEvent).detail as string;
-      const validTabs = ['designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts'];
+      const validTabs = ['dashboard', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts'];
       if (validTabs.includes(tab)) setActiveTab(tab as typeof activeTab);
     };
     const onConfigureAnalysis = (e: Event) => {
@@ -249,6 +250,13 @@ export default function App() {
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-semibold text-slate-200">Vibeful Console</h1>
             <div className="flex gap-1">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Dashboard
+              </button>
+              <div className="w-px h-4 bg-slate-700 self-center" />
               <button
                 onClick={() => setActiveTab('designer')}
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'designer' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -399,7 +407,9 @@ export default function App() {
         </header>
 
         {/* Body */}
-        {activeTab === 'designer' ? (
+        {activeTab === 'dashboard' ? (
+          <Dashboard onNavigate={setActiveTab} />
+        ) : activeTab === 'designer' ? (
           <div className="flex-1 flex overflow-hidden">
             <NodePalette />
             <div className="flex-1 min-w-0 relative">
