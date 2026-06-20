@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bot, Brain, FileText, Edit3, Trash2, TestTube, Plus, Zap, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { Brain, FileText, Edit3, Trash2, TestTube, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface Agent {
   id: string; name: string; description?: string; system_prompt?: string;

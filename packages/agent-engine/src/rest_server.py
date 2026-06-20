@@ -537,6 +537,15 @@ async def get_agent(agent_id: str):
     return agent
 
 
+@app.delete("/v1/agents/{agent_id}")
+async def delete_agent(agent_id: str):
+    db = _require_db()
+    deleted = await db.delete_agent(agent_id)
+    if not deleted:
+        raise HTTPException(404, "agent not found")
+    return {"deleted": True}
+
+
 # ── Setup (local mode) ────────────────────────────────────
 
 @app.post("/v1/setup/api-key")

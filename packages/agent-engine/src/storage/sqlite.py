@@ -292,6 +292,15 @@ class SqliteBackend:
             row = await cursor.fetchone()
         return dict(row) if row else None
 
+    async def delete_agent(self, agent_id: str) -> bool:
+        conn = await self._get_conn()
+        # Clean up related data
+        await conn.execute("DELETE FROM agent_versions WHERE agent_id = ?", (agent_id,))
+        await conn.execute("DELETE FROM ab_tests WHERE agent_id = ?", (agent_id,))
+        async with conn.execute("DELETE FROM agents WHERE id = ?", (agent_id,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
     # ── Glyphs (local mode) ─────────────────────────────
 
     async def list_glyphs(self) -> list[dict[str, Any]]:
