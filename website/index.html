@@ -7,103 +7,382 @@
 <meta name="description" content="Drop AI agents into any web app in minutes. Self-hosted, MIT licensed. Visual designer, RAG knowledge base, analysis pipeline, embeddable SDK.">
 <style>
   :root {
-    --bg: #0f172a; --bg-alt: #0a0f1c; --bg-card: #1e293b;
-    --border: #334155; --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
-    --accent: #6366f1; --accent-hover: #818cf8; --green: #22c55e;
-    --radius: 12px;
+    --bg: #060b18; --bg-alt: #080d1a; --bg-card: #0f1a2e;
+    --border: #1e3a5f; --border-bright: #2d5a8f;
+    --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #4a6080;
+    --accent: #6366f1; --accent-hover: #818cf8; --accent-glow: rgba(99,102,241,0.35);
+    --purple: #a78bfa; --cyan: #22d3ee; --green: #22c55e; --pink: #f472b6;
+    --radius: 14px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text); line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
   }
   a { color: var(--accent-hover); text-decoration: none; }
   a:hover { text-decoration: underline; }
-
-  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
-  .section { padding: 5rem 0; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem; }
+  .section { padding: 6rem 0; }
   .section-alt { background: var(--bg-alt); }
 
-  h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
-  h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
-  .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 600px; margin-bottom: 2.5rem; }
+  h2 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+  h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 600px; margin-bottom: 2.5rem; line-height: 1.65; }
+  .label {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent-hover); margin-bottom: 1rem;
+  }
+  .label::before { content: ''; display: block; width: 18px; height: 2px; background: var(--accent); border-radius: 2px; }
 
-  /* ── Hero ──────────────────────────────────────────────────── */
-  .hero {
-    padding: 6rem 0 4rem; text-align: center;
-    background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 60%);
-    border-bottom: 1px solid var(--border);
+  /* ── NAV ──────────────────────────────────────────────────── */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 0.9rem 0;
+    background: rgba(6,11,24,0.75); backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(30,58,95,0.5);
+    transition: all 0.3s;
   }
-  .hero h1 {
-    font-size: 3.5rem; font-weight: 800; letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 50%, #a78bfa 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  .nav .container { display: flex; align-items: center; justify-content: space-between; }
+  .nav-logo { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .nav-logo span { color: var(--accent-hover); }
+  .nav-links { display: flex; gap: 1.75rem; align-items: center; }
+  .nav-links a { color: var(--text-muted); font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .nav-cta {
+    padding: 0.45rem 1.1rem; border-radius: 8px; background: var(--accent);
+    color: #fff !important; font-weight: 600; font-size: 0.85rem;
   }
-  .hero .tagline { font-size: 1.25rem; color: var(--text-muted); max-width: 650px; margin: 1rem auto 2rem; }
-  .badges { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 0.35rem;
-    padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 500;
-    background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25);
-  }
-  .badge-green { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.25); color: var(--green); }
+  .nav-cta:hover { background: var(--accent-hover); text-decoration: none !important; }
+
+  /* ── BUTTONS ──────────────────────────────────────────────── */
   .btn {
     display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.75rem 1.75rem; border-radius: 8px;
-    font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none;
+    padding: 0.8rem 1.8rem; border-radius: 10px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.22s; border: none;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(99,102,241,0.2); text-decoration: none; }
-  .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
-  .btn-secondary:hover { background: #273548; text-decoration: none; }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover); transform: translateY(-2px);
+    box-shadow: 0 6px 30px var(--accent-glow); text-decoration: none;
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.05); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.09); text-decoration: none; border-color: var(--border-bright); }
   .btn-group { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
 
-  /* ── Features ──────────────────────────────────────────────── */
-  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+  /* ── BADGES ──────────────────────────────────────────────── */
+  .badges { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.35rem 0.85rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+    background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.22); color: var(--accent-hover);
+    transition: all 0.2s;
+  }
+  .badge:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
+  .badge-green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.25); color: var(--green); }
+  .badge-cyan { background: rgba(34,211,238,0.08); border-color: rgba(34,211,238,0.25); color: var(--cyan); }
+
+  /* ── HERO ──────────────────────────────────────────────────── */
+  .hero {
+    padding: 10rem 0 5rem; text-align: center; position: relative; overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(167,139,250,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 80% 70%, rgba(34,211,238,0.06) 0%, transparent 60%);
+  }
+  /* CSS grid background */
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+  }
+  /* Floating orbs */
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(80px); z-index: 0; animation: orb-float 8s ease-in-out infinite;
+  }
+  .orb-1 { width: 400px; height: 400px; background: rgba(99,102,241,0.12); top: -100px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 300px; height: 300px; background: rgba(167,139,250,0.1); top: 50px; right: -80px; animation-delay: -3s; }
+  .orb-3 { width: 200px; height: 200px; background: rgba(34,211,238,0.08); bottom: 0; left: 40%; animation-delay: -5s; }
+  @keyframes orb-float {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+  .hero .container { position: relative; z-index: 1; }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.35rem 1rem; border-radius: 999px; margin-bottom: 1.5rem;
+    background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3);
+    font-size: 0.8rem; font-weight: 600; color: var(--accent-hover);
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+  @keyframes pulse-dot { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.6; transform:scale(0.8); } }
+  .hero h1 {
+    font-size: 4.2rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, #f1f5f9 0%, #c7d2fe 40%, #a78bfa 70%, #818cf8 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero .tagline { font-size: 1.2rem; color: var(--text-muted); max-width: 620px; margin: 0 auto 2rem; line-height: 1.7; }
+  .hero-meta { margin-top: 1.5rem; display: flex; gap: 0.65rem; justify-content: center; flex-wrap: wrap; }
+
+  /* ── PRODUCT SCREENSHOT ──────────────────────────────────── */
+  .screenshot-wrap {
+    margin-top: 5rem; position: relative; z-index: 1;
+  }
+  .screenshot-glow {
+    position: absolute; inset: -30px; border-radius: 28px;
+    background: radial-gradient(ellipse at 50% 100%, rgba(99,102,241,0.25) 0%, transparent 70%);
+    filter: blur(20px); z-index: -1;
+  }
+  .screenshot-frame {
+    background: #0c1628; border: 1px solid rgba(99,102,241,0.25); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+    max-width: 900px; margin: 0 auto;
+  }
+  .frame-bar {
+    background: #0a1220; border-bottom: 1px solid rgba(99,102,241,0.15);
+    padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+  .frame-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .frame-dot-r { background: #ff5f57; }
+  .frame-dot-y { background: #ffbd2e; }
+  .frame-dot-g { background: #28c840; }
+  .frame-url {
+    flex: 1; margin: 0 1rem; background: rgba(255,255,255,0.05); border-radius: 6px;
+    padding: 0.3rem 0.75rem; font-size: 0.72rem; color: var(--text-dim); font-family: monospace;
+    text-align: center;
+  }
+  /* SVG Dashboard mockup */
+  .mock-ui {
+    display: grid; grid-template-columns: 220px 1fr; min-height: 420px;
+  }
+  .mock-sidebar {
+    background: #080f1e; border-right: 1px solid rgba(99,102,241,0.12); padding: 1.25rem 0.75rem;
+  }
+  .mock-sidebar-item {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 8px;
+    font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.2rem; cursor: default;
+    transition: all 0.15s;
+  }
+  .mock-sidebar-item.active { background: rgba(99,102,241,0.15); color: var(--accent-hover); }
+  .mock-sidebar-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+  .mock-sidebar-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 0.75rem 0.25rem; }
+  .mock-main { padding: 1.5rem; background: #0c1628; display: flex; flex-direction: column; gap: 1rem; }
+  .mock-header { display: flex; align-items: center; justify-content: space-between; }
+  .mock-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .mock-pill { padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .mock-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+  .mock-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(99,102,241,0.12); border-radius: 10px; padding: 0.85rem; }
+  .mock-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--text); }
+  .mock-stat-label { font-size: 0.65rem; color: var(--text-dim); margin-top: 0.15rem; }
+  .mock-stat-trend { font-size: 0.65rem; color: var(--green); margin-top: 0.3rem; }
+  /* Flow diagram in mock */
+  .mock-flow { background: rgba(255,255,255,0.02); border: 1px solid rgba(99,102,241,0.1); border-radius: 10px; padding: 1rem; flex: 1; }
+  .mock-flow-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.85rem; }
+  .mock-nodes { display: flex; align-items: center; gap: 0; }
+  .mock-node {
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  }
+  .mock-node-box {
+    padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.68rem; font-weight: 600;
+    text-align: center; min-width: 80px; white-space: nowrap;
+  }
+  .mn-input { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); color: var(--cyan); }
+  .mn-guard { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.3); color: var(--pink); }
+  .mn-mem { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); color: var(--purple); }
+  .mn-rag { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+  .mn-llm { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.4); color: var(--accent-hover); }
+  .mn-out { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+  .mock-node-label { font-size: 0.58rem; color: var(--text-dim); }
+  .mock-arrow { flex: 1; height: 2px; background: linear-gradient(90deg, rgba(99,102,241,0.4), rgba(99,102,241,0.1)); position: relative; min-width: 20px; }
+  .mock-arrow::after { content: '▶'; position: absolute; right: -4px; top: 50%; transform: translateY(-50%); font-size: 0.5rem; color: rgba(99,102,241,0.5); }
+
+  /* ── STATS ──────────────────────────────────────────────────── */
+  .stats-bar {
+    background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    padding: 2.5rem 0;
+  }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
+  .stat-num {
+    font-size: 2.5rem; font-weight: 900; letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent-hover) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .stat-label { font-size: 0.85rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+  /* ── FEATURES ──────────────────────────────────────────────── */
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
   .card {
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 1.75rem;
-    transition: border-color 0.2s, transform 0.2s;
+    transition: all 0.25s; position: relative; overflow: hidden;
   }
-  .card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-2px); }
-  .card-icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
-  .card p { color: var(--text-muted); font-size: 0.9rem; }
+  .card::before {
+    content: ''; position: absolute; inset: 0; opacity: 0;
+    background: radial-gradient(circle at 0% 0%, rgba(99,102,241,0.08) 0%, transparent 60%);
+    transition: opacity 0.3s;
+  }
+  .card:hover { border-color: rgba(99,102,241,0.35); transform: translateY(-3px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+  .card:hover::before { opacity: 1; }
+  .card-icon {
+    width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; margin-bottom: 1rem;
+    background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
+  }
+  .card h3 { color: var(--text); }
+  .card p { color: var(--text-muted); font-size: 0.875rem; line-height: 1.65; }
+  .card-tag {
+    display: inline-block; margin-top: 0.85rem;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent-hover); opacity: 0.7;
+  }
 
-  /* ── Code ──────────────────────────────────────────────────── */
+  /* ── HOW IT WORKS ──────────────────────────────────────────── */
+  .pipeline {
+    display: flex; align-items: flex-start; gap: 0; justify-content: center; flex-wrap: nowrap;
+    overflow-x: auto; padding-bottom: 0.5rem;
+  }
+  .pipeline-step { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; flex: 1; min-width: 100px; max-width: 140px; }
+  .pipeline-icon {
+    width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; border: 1px solid; position: relative; z-index: 1;
+    background: var(--bg-card);
+  }
+  .pipeline-icon-1 { border-color: rgba(34,211,238,0.4); box-shadow: 0 0 20px rgba(34,211,238,0.1); }
+  .pipeline-icon-2 { border-color: rgba(244,114,182,0.4); box-shadow: 0 0 20px rgba(244,114,182,0.1); }
+  .pipeline-icon-3 { border-color: rgba(167,139,250,0.4); box-shadow: 0 0 20px rgba(167,139,250,0.1); }
+  .pipeline-icon-4 { border-color: rgba(251,191,36,0.4); box-shadow: 0 0 20px rgba(251,191,36,0.1); }
+  .pipeline-icon-5 { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 24px rgba(99,102,241,0.2); }
+  .pipeline-icon-6 { border-color: rgba(34,197,94,0.4); box-shadow: 0 0 20px rgba(34,197,94,0.1); }
+  .pipeline-name { font-size: 0.78rem; font-weight: 700; color: var(--text); text-align: center; }
+  .pipeline-desc { font-size: 0.68rem; color: var(--text-dim); text-align: center; line-height: 1.4; }
+  .pipeline-connector {
+    flex-shrink: 0; width: 40px; display: flex; align-items: center; justify-content: center;
+    padding-top: 18px;
+  }
+  .pipeline-connector svg { opacity: 0.3; }
+
+  /* ── CODE BLOCK ──────────────────────────────────────────────── */
+  .code-wrap { position: relative; max-width: 640px; margin: 0 auto; }
   .code-block {
-    background: #0a0f1c; border: 1px solid var(--border); border-radius: 8px;
-    padding: 1.25rem; overflow-x: auto;
-    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.6;
+    background: #070d1a; border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
   }
-  .code-block .c { color: #64748b; }
-  .code-block .k { color: #f472b6; }
-  .code-block .s { color: #a5d6ff; }
+  .code-top {
+    display: flex; align-items: center; padding: 0.65rem 1rem; gap: 0.5rem;
+    background: #080f1e; border-bottom: 1px solid var(--border);
+  }
+  .code-top-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .code-top-label { margin-left: auto; font-size: 0.7rem; color: var(--text-dim); font-family: monospace; }
+  .code-body { padding: 1.5rem; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.84rem; line-height: 1.8; }
+  .c { color: var(--text-dim); }
+  .k { color: var(--pink); }
+  .s { color: #7dd3fc; }
+  .p { color: var(--purple); }
+  .fn { color: var(--cyan); }
+  .n { color: var(--text-muted); }
 
-  /* ── Footer ────────────────────────────────────────────────── */
+  /* ── INTEGRATION TIERS ──────────────────────────────────────── */
+  .tier-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.25rem; }
+  .tier-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 2rem; position: relative; overflow: hidden; transition: all 0.25s;
+  }
+  .tier-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+  .tier-num {
+    position: absolute; top: 1.25rem; right: 1.25rem;
+    font-size: 2.5rem; font-weight: 900; color: rgba(99,102,241,0.06); line-height: 1;
+  }
+  .tier-icon { font-size: 1.75rem; margin-bottom: 1rem; }
+  .tier-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .tier-card p { font-size: 0.875rem; color: var(--text-muted); line-height: 1.65; }
+  .tier-card ul { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+  .tier-card ul li { font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 0.5rem; }
+  .tier-card ul li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+  /* ── FOOTER ──────────────────────────────────────────────────── */
   .footer {
-    border-top: 1px solid var(--border); padding: 2.5rem 0;
+    border-top: 1px solid var(--border); padding: 3rem 0;
     text-align: center; color: var(--text-dim); font-size: 0.85rem;
   }
-  .footer a { color: var(--text-muted); }
-  .footer .links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .footer-logo { font-size: 1.25rem; font-weight: 800; color: var(--text); margin-bottom: 0.5rem; }
+  .footer-logo span { color: var(--accent-hover); }
+  .footer-tagline { color: var(--text-dim); font-size: 0.82rem; margin-bottom: 1.75rem; }
+  .footer a { color: var(--text-muted); transition: color 0.2s; }
+  .footer a:hover { color: var(--text); text-decoration: none; }
+  .footer .links { display: flex; gap: 2rem; justify-content: center; margin-bottom: 1.75rem; flex-wrap: wrap; }
 
-  @media (max-width: 768px) {
-    .hero h1 { font-size: 2.2rem; }
-    h2 { font-size: 1.5rem; }
-    .section { padding: 3rem 0; }
+  /* ── FADE-IN ANIMATIONS ──────────────────────────────────────── */
+  .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── MOBILE ──────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .mock-ui { grid-template-columns: 1fr; }
+    .mock-sidebar { display: none; }
+    .mock-stats { grid-template-columns: repeat(2,1fr); }
+    .tier-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .nav-links { display: none; }
+    .pipeline { gap: 0; }
+    .pipeline-connector { width: 20px; }
+  }
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 2.6rem; }
+    h2 { font-size: 1.6rem; }
+    .section { padding: 4rem 0; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .mock-nodes { flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+    .mock-arrow { display: none; }
+    .pipeline { flex-wrap: wrap; justify-content: center; gap: 1.5rem; }
+    .pipeline-connector { display: none; }
   }
 </style>
 </head>
 <body>
 
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav">
+  <div class="container">
+    <div class="nav-logo">Vibe<span>ful</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#get-started">Get started</a>
+      <a href="#embed">Embed</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful" class="nav-cta">GitHub →</a>
+    </div>
+  </div>
+</nav>
+
 <!-- ═══════════════════════ HERO ═══════════════════════ -->
 <section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
   <div class="container">
-    <h1>Vibeful</h1>
+    <div class="hero-eyebrow">
+      <span class="dot"></span>
+      MIT Licensed · Self-Hosted · Open Source
+    </div>
+    <h1>AI Agents.<br>Your Infrastructure.</h1>
     <p class="tagline">
-      Open-source AI agent platform. Build and manage multiple AI agents from a visual console. Embed them in any web app with widgets, navigation, and full UI control — self-hosted, MIT licensed.
+      Build and manage multiple AI agents from a visual console. Embed them in any web app with widgets, navigation, and full UI control — self-hosted, no SaaS lock-in.
     </p>
     <div class="badges">
       <span class="badge">🐍 Python</span>
@@ -114,132 +393,355 @@
       <span class="badge">🤖 DeepSeek</span>
     </div>
     <div class="btn-group">
-      <a href="https://github.com/vibeful/vibeful" class="btn btn-primary">📦 View on GitHub</a>
-      <a href="https://github.com/vibeful/vibeful#quick-start" class="btn btn-secondary">📖 Quick Start</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful" class="btn btn-primary">⭐ Star on GitHub</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful#quick-start" class="btn btn-secondary">📖 Quick Start</a>
       <a href="https://discord.gg/jW8jAJ9ZGT" class="btn btn-secondary" target="_blank" rel="noopener">💬 Discord</a>
     </div>
-    <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: center;">
-      <span class="badge badge-green">MIT Licensed</span>
-      <span class="badge">Self-Hosted</span>
-      <span class="badge">Docker Compose</span>
+    <div class="hero-meta">
+      <span class="badge badge-green">✓ MIT License</span>
+      <span class="badge badge-cyan">🐳 Docker Compose</span>
+      <span class="badge">162 tests</span>
+      <span class="badge">16 node types</span>
+    </div>
+
+    <!-- Product screenshot mockup -->
+    <div class="screenshot-wrap fade-up">
+      <div class="screenshot-glow"></div>
+      <div class="screenshot-frame">
+        <div class="frame-bar">
+          <div class="frame-dot frame-dot-r"></div>
+          <div class="frame-dot frame-dot-y"></div>
+          <div class="frame-dot frame-dot-g"></div>
+          <div class="frame-url">localhost:3000 — Vibeful Console</div>
+        </div>
+        <div class="mock-ui">
+          <div class="mock-sidebar">
+            <div class="mock-sidebar-label">Agents</div>
+            <div class="mock-sidebar-item active"><span class="icon">🤖</span> Support Bot</div>
+            <div class="mock-sidebar-item"><span class="icon">🔬</span> Research Agent</div>
+            <div class="mock-sidebar-item"><span class="icon">📊</span> Analytics Bot</div>
+            <div class="mock-sidebar-label">Console</div>
+            <div class="mock-sidebar-item"><span class="icon">🎨</span> Visual Designer</div>
+            <div class="mock-sidebar-item"><span class="icon">📚</span> Knowledge Base</div>
+            <div class="mock-sidebar-item"><span class="icon">📈</span> Analytics</div>
+            <div class="mock-sidebar-item"><span class="icon">⚗️</span> A/B Testing</div>
+            <div class="mock-sidebar-item"><span class="icon">⚙️</span> Settings</div>
+          </div>
+          <div class="mock-main">
+            <div class="mock-header">
+              <div class="mock-title">🤖 Support Bot — Overview</div>
+              <div class="mock-pill">● Live</div>
+            </div>
+            <div class="mock-stats">
+              <div class="mock-stat">
+                <div class="mock-stat-val">12.4k</div>
+                <div class="mock-stat-label">Messages</div>
+                <div class="mock-stat-trend">↑ 18% this week</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-val">94%</div>
+                <div class="mock-stat-label">Resolution rate</div>
+                <div class="mock-stat-trend">↑ 3.2%</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-val">1.8s</div>
+                <div class="mock-stat-label">Avg response</div>
+                <div class="mock-stat-trend">↓ 0.4s</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-val">98</div>
+                <div class="mock-stat-label">Knowledge docs</div>
+                <div class="mock-stat-trend">+12 this week</div>
+              </div>
+            </div>
+            <div class="mock-flow">
+              <div class="mock-flow-title">AGENT GRAPH — Active pipeline</div>
+              <div class="mock-nodes">
+                <div class="mock-node">
+                  <div class="mock-node-box mn-input">📥 Input</div>
+                  <div class="mock-node-label">Message in</div>
+                </div>
+                <div class="mock-arrow"></div>
+                <div class="mock-node">
+                  <div class="mock-node-box mn-guard">🛡️ Guard</div>
+                  <div class="mock-node-label">Attack guard</div>
+                </div>
+                <div class="mock-arrow"></div>
+                <div class="mock-node">
+                  <div class="mock-node-box mn-mem">🧠 Memory</div>
+                  <div class="mock-node-label">Fact recall</div>
+                </div>
+                <div class="mock-arrow"></div>
+                <div class="mock-node">
+                  <div class="mock-node-box mn-rag">📚 RAG</div>
+                  <div class="mock-node-label">Knowledge</div>
+                </div>
+                <div class="mock-arrow"></div>
+                <div class="mock-node">
+                  <div class="mock-node-box mn-llm">✨ LLM</div>
+                  <div class="mock-node-label">DeepSeek</div>
+                </div>
+                <div class="mock-arrow"></div>
+                <div class="mock-node">
+                  <div class="mock-node-box mn-out">📤 Output</div>
+                  <div class="mock-node-label">Stream out</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════ FEATURES ═══════════════════════ -->
-<section class="section">
+<!-- ═══════════════════════ STATS ═══════════════════════ -->
+<div class="stats-bar">
   <div class="container">
-      <h2>Everything you need to ship AI agents</h2>
+    <div class="stats-grid">
+      <div>
+        <div class="stat-num" data-target="16">16</div>
+        <div class="stat-label">Agent node types</div>
+      </div>
+      <div>
+        <div class="stat-num" data-target="162">162</div>
+        <div class="stat-label">Automated tests</div>
+      </div>
+      <div>
+        <div class="stat-num" data-target="11">11</div>
+        <div class="stat-label">Parallel LLM phases</div>
+      </div>
+      <div>
+        <div class="stat-num">3</div>
+        <div class="stat-label">Lines to embed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ FEATURES ═══════════════════════ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="fade-up">
+      <div class="label">Platform features</div>
+      <h2>Everything to ship AI agents</h2>
       <p class="subtitle">A complete platform — not just an API wrapper. Multi-agent management, visual designer, UI widgets, knowledge base, and embeddable SDK in one package.</p>
-    <div class="grid-3">
+    </div>
+    <div class="grid-3 fade-up">
       <div class="card">
         <div class="card-icon">🧠</div>
         <h3>AI Agent Engine</h3>
-        <p>LangGraph-powered agents with 16 node types. Attack guard, RAG knowledge retrieval, MCP tool calling, fact memory, and streaming responses. 162 tests, battle-tested.</p>
+        <p>LangGraph-powered agents with 16 node types. Attack guard, RAG knowledge retrieval, MCP tool calling, fact memory, and streaming responses.</p>
+        <span class="card-tag">LangGraph · DeepSeek</span>
       </div>
       <div class="card">
         <div class="card-icon">🎨</div>
         <h3>Visual Designer</h3>
-        <p>Drag-and-drop agent graph builder. 16 node types on a React Flow canvas. Real-time YAML preview, AI-assisted natural language commands, and one-click deploy.</p>
+        <p>Drag-and-drop agent graph builder. 16 node types on a React Flow canvas. Real-time YAML preview, AI-assisted commands, and one-click deploy.</p>
+        <span class="card-tag">React Flow · YAML</span>
       </div>
       <div class="card">
         <div class="card-icon">🔬</div>
         <h3>Analysis Pipeline</h3>
-        <p>11 parallel LLM phases analyze every message before response — extracting memories, impressions, and intent, then dynamically adjusting response tone and precision.</p>
+        <p>11 parallel LLM phases analyze every message before response — extracting memories, impressions, and intent, then dynamically adjusting tone.</p>
+        <span class="card-tag">11 parallel phases</span>
       </div>
       <div class="card">
         <div class="card-icon">📚</div>
         <h3>Knowledge Base (RAG)</h3>
-        <p>Upload documents, FAQs, and policies. Vibeful chunks, embeds, and indexes them with pgvector. Agents automatically search your knowledge for accurate, grounded answers.</p>
+        <p>Upload documents, FAQs, and policies. Vibeful chunks, embeds, and indexes them with pgvector. Agents automatically search for grounded answers.</p>
+        <span class="card-tag">pgvector · Embeddings</span>
       </div>
       <div class="card">
         <div class="card-icon">💬</div>
         <h3>Multi-Agent Console</h3>
-        <p>Manage multiple agents from one dashboard. Each agent gets its own graph, MCP tools, knowledge contexts, and configuration. Switch between agents with a dropdown.</p>
+        <p>Manage multiple agents from one dashboard. Each agent gets its own graph, MCP tools, knowledge contexts, and configuration.</p>
+        <span class="card-tag">Multi-tenant</span>
       </div>
       <div class="card">
-        <div class="card-icon">📊</div>
-        <h3>Embeddable SDK + Widgets</h3>
-        <p>Drop agents into any web app in 3 lines of code. Agents can render widgets — buttons, cards, forms, charts — and drive host app UX via the command protocol.</p>
+        <div class="card-icon">📦</div>
+        <h3>Embeddable SDK</h3>
+        <p>Drop agents into any web app in 3 lines of code. Agents render widgets — buttons, cards, forms, charts — and drive host app UX via commands.</p>
+        <span class="card-tag">React · Script Tag · REST</span>
       </div>
       <div class="card">
         <div class="card-icon">📊</div>
         <h3>Built-in Operations</h3>
-        <p>Version history with diff viewer. A/B testing with statistics. Per-node performance monitoring. Token credit budgeting. All managed from a single console.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ FOR WHOM ═══════════════════════ -->
-<section class="section section-alt">
-  <div class="container">
-    <h2>Who it's for</h2>
-      <p class="subtitle">Three integration tiers, one platform.</p>
-      <div class="grid-3">
-        <div class="card">
-          <div class="card-icon">💬</div>
-          <h3>Passive Embed</h3>
-          <p>Drop a chat widget into your SaaS. Agents answer questions from your docs via RAG. 3 lines of code. Perfect for support bots and knowledge assistants.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🎯</div>
-          <h3>Active Embed</h3>
-          <p>Agents drive your app UX — navigating views, opening modals, updating state. Your app registers command handlers; agents orchestrate workflows.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🏗️</div>
-          <h3>Agent-Native Apps</h3>
-          <p>Build entire applications where the agent IS the shell. Compose widgets, routes, and behaviors visually. No host app needed — the agent is the platform.</p>
-        </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ START ═══════════════════════ -->
-<section class="section">
-  <div class="container">
-    <h2>Get started</h2>
-    <p class="subtitle">One command. No sysadmin knowledge needed.</p>
-
-    <div class="code-block" style="text-align:left; max-width:600px; margin:0 auto;">
-git clone https://github.com/SimonJamesOdell/vibeful.git
-<span class="k">cd</span> vibeful
-bash scripts/setup.sh
-    </div>
-
-    <p style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted);">
-      The setup script detects your system, installs missing packages,<br>
-      and starts everything. <strong>No Docker required.</strong>
-    </p>
-
-    <p style="text-align:center;margin-top:1.5rem;font-size:0.85rem;color:var(--text-dim);">
-      Full docs: <a href="docs.html">Documentation</a> · <a href="https://github.com/SimonJamesOdell/vibeful">GitHub</a>
-    </p>
-  </div>
-</section>
-
-<!-- ═══════════════════════ INTEGRATION ═══════════════════════ -->
-<section class="section section-alt">
-  <div class="container">
-    <h2>Embed anywhere</h2>
-    <p class="subtitle">Three integration options — pick the one that fits your stack.</p>
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-icon">🏷️</div>
-        <h3>HTML Script Tag</h3>
-        <p>Drop into any website. No build step. Customizable with CSS variables.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">⚛️</div>
-        <h3>React Component</h3>
-        <p>First-class React support with hooks, TypeScript types, and command protocol for UI control.</p>
+        <p>Version history with diff viewer. A/B testing with statistics. Per-node performance monitoring. Token credit budgeting. All in one console.</p>
+        <span class="card-tag">A/B Testing · Analytics</span>
       </div>
       <div class="card">
         <div class="card-icon">🔗</div>
-        <h3>REST API</h3>
-        <p>Full control from any backend. Create sessions, send messages, receive streaming responses.</p>
+        <h3>MCP Tool Calling</h3>
+        <p>Agents call external tools via the Model Context Protocol. Connect agents to APIs, databases, or services — natively, without glue code.</p>
+        <span class="card-tag">MCP Protocol</span>
       </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>Attack Guard</h3>
+        <p>Built-in prompt injection detection and guardrail nodes block adversarial inputs before they reach the LLM — production-ready safety out of the box.</p>
+        <span class="card-tag">Security · Guardrails</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ HOW IT WORKS ═══════════════════════ -->
+<section class="section section-alt" id="how-it-works">
+  <div class="container">
+    <div class="fade-up">
+      <div class="label">How it works</div>
+      <h2>Every message through the pipeline</h2>
+      <p class="subtitle">Each incoming message is processed through a graph of nodes — in sequence or parallel — before a response streams back.</p>
+    </div>
+    <div class="pipeline fade-up">
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-1">📥</div>
+        <div class="pipeline-name">Input</div>
+        <div class="pipeline-desc">Message received, session resolved</div>
+      </div>
+      <div class="pipeline-connector">
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M0 8h20M16 4l8 4-8 4" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-2">🛡️</div>
+        <div class="pipeline-name">Guard</div>
+        <div class="pipeline-desc">Injection detection &amp; guardrails</div>
+      </div>
+      <div class="pipeline-connector">
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M0 8h20M16 4l8 4-8 4" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-3">🧠</div>
+        <div class="pipeline-name">Memory</div>
+        <div class="pipeline-desc">Recall user facts &amp; context</div>
+      </div>
+      <div class="pipeline-connector">
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M0 8h20M16 4l8 4-8 4" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-4">📚</div>
+        <div class="pipeline-name">RAG</div>
+        <div class="pipeline-desc">Vector search your knowledge base</div>
+      </div>
+      <div class="pipeline-connector">
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M0 8h20M16 4l8 4-8 4" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-5">✨</div>
+        <div class="pipeline-name">LLM</div>
+        <div class="pipeline-desc">Generate with DeepSeek / any model</div>
+      </div>
+      <div class="pipeline-connector">
+        <svg width="24" height="16" viewBox="0 0 24 16"><path d="M0 8h20M16 4l8 4-8 4" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-icon pipeline-icon-6">📤</div>
+        <div class="pipeline-name">Output</div>
+        <div class="pipeline-desc">Stream widgets &amp; commands to your app</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ WHO IT'S FOR ═══════════════════════ -->
+<section class="section" id="embed">
+  <div class="container">
+    <div class="fade-up">
+      <div class="label">Integration tiers</div>
+      <h2>Who it's for</h2>
+      <p class="subtitle">Three integration tiers, one platform. Pick the depth that fits your product.</p>
+    </div>
+    <div class="tier-grid fade-up">
+      <div class="tier-card">
+        <div class="tier-num">01</div>
+        <div class="tier-icon">💬</div>
+        <h3>Passive Embed</h3>
+        <p>Drop a chat widget into your SaaS. Agents answer questions from your docs via RAG. Perfect for support bots and knowledge assistants.</p>
+        <ul>
+          <li>3 lines of code</li>
+          <li>RAG over your docs</li>
+          <li>Customizable UI</li>
+          <li>No backend changes</li>
+        </ul>
+      </div>
+      <div class="tier-card">
+        <div class="tier-num">02</div>
+        <div class="tier-icon">🎯</div>
+        <h3>Active Embed</h3>
+        <p>Agents drive your app UX — navigating views, opening modals, updating state. Your app registers command handlers; agents orchestrate.</p>
+        <ul>
+          <li>Command protocol</li>
+          <li>Navigate views &amp; modals</li>
+          <li>Bidirectional state sync</li>
+          <li>TypeScript types included</li>
+        </ul>
+      </div>
+      <div class="tier-card">
+        <div class="tier-num">03</div>
+        <div class="tier-icon">🏗️</div>
+        <h3>Agent-Native Apps</h3>
+        <p>Build entire applications where the agent IS the shell. Compose widgets, routes, and behaviors visually. No host app needed.</p>
+        <ul>
+          <li>Full widget system</li>
+          <li>Visual route composer</li>
+          <li>Agent-first architecture</li>
+          <li>Self-contained deployment</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ GET STARTED ═══════════════════════ -->
+<section class="section section-alt" id="get-started">
+  <div class="container" style="text-align: center;">
+    <div class="fade-up">
+      <div class="label" style="justify-content: center;">Get started</div>
+      <h2>One command. No sysadmin needed.</h2>
+      <p class="subtitle" style="margin: 0.75rem auto 2rem;">The setup script detects your system, installs missing packages, and starts everything — no Docker required.</p>
+    </div>
+    <div class="code-wrap fade-up">
+      <div class="code-block">
+        <div class="code-top">
+          <div class="code-top-dot frame-dot-r"></div>
+          <div class="code-top-dot frame-dot-y"></div>
+          <div class="code-top-dot frame-dot-g"></div>
+          <div class="code-top-label">bash</div>
+        </div>
+        <div class="code-body">
+<span class="c"># Clone the repo</span>
+<span class="k">git</span> <span class="n">clone</span> <span class="s">https://github.com/SimonJamesOdell/vibeful.git</span>
+
+<span class="k">cd</span> vibeful
+
+<span class="c"># Run the setup script — detects your system automatically</span>
+<span class="fn">bash</span> scripts/setup.sh
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 3rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; max-width: 800px; margin-left: auto; margin-right: auto; margin-top: 2.5rem;" class="fade-up">
+      <div class="card" style="text-align:left;">
+        <div class="card-icon">⚛️</div>
+        <h3>React Component</h3>
+        <p style="font-size:0.8rem;">First-class React support with hooks, TypeScript types, and the command protocol for full UI control.</p>
+      </div>
+      <div class="card" style="text-align:left;">
+        <div class="card-icon">🏷️</div>
+        <h3>HTML Script Tag</h3>
+        <p style="font-size:0.8rem;">Drop into any website. No build step required. Customizable with CSS variables and theme options.</p>
+      </div>
+      <div class="card" style="text-align:left;">
+        <div class="card-icon">🔗</div>
+        <h3>REST API</h3>
+        <p style="font-size:0.8rem;">Full control from any backend. Create sessions, send messages, receive streaming responses.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 2.5rem;">
+      <a href="https://github.com/SimonJamesOdell/vibeful" class="btn btn-primary" style="margin-right:0.75rem;">📦 View on GitHub</a>
+      <a href="docs.html" class="btn btn-secondary">📖 Documentation</a>
     </div>
   </div>
 </section>
@@ -247,25 +749,26 @@ bash scripts/setup.sh
 <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
 <footer class="footer">
   <div class="container">
+    <div class="footer-logo">Vibe<span>ful</span></div>
+    <div class="footer-tagline">Self-hosted AI agent platform · Open source · MIT Licensed</div>
     <div class="links">
-      <a href="https://github.com/vibeful/vibeful">GitHub</a>
-      <a href="https://github.com/vibeful/vibeful/blob/master/docs/getting-started.md">Docs</a>
-      <a href="https://github.com/vibeful/vibeful/blob/master/CONTRIBUTING.md">Contribute</a>
-      <a href="https://github.com/vibeful/vibeful/blob/master/LICENSE">MIT License</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful">GitHub</a>
+      <a href="docs.html">Documentation</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful/blob/master/CONTRIBUTING.md">Contribute</a>
+      <a href="https://github.com/SimonJamesOdell/vibeful/blob/master/LICENSE">MIT License</a>
     </div>
-    <p>Vibeful · Self-hosted AI agent platform</p>
+    <p>Built with ❤️ · Vibeful · © 2025</p>
   </div>
 </footer>
 
 <!-- ═══════════════════════ VIBEFUL BOT ═══════════════════════ -->
-<!-- Floating chat widget powered by Vibeful — the system it describes -->
 <div id="vibeful-bot">
   <button id="vibeful-bot-toggle" title="Ask about Vibeful">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
   </button>
   <div id="vibeful-bot-panel" class="hidden">
     <div id="vibeful-bot-header">
-      <span>🤖 Vibeful Assistant</span>
+      <span>✨ Vibeful Assistant</span>
       <button id="vibeful-bot-close">&times;</button>
     </div>
     <div id="vibeful-bot-messages"></div>
@@ -279,43 +782,70 @@ bash scripts/setup.sh
 <style>
 #vibeful-bot { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; font-family: system-ui, sans-serif; }
 #vibeful-bot-toggle {
-  width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--accent); color: #fff;
+  width: 54px; height: 54px; border-radius: 50%; border: none;
+  background: linear-gradient(135deg, var(--accent), var(--purple)); color: #fff;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(99,102,241,0.3); transition: transform 0.2s;
+  box-shadow: 0 4px 24px rgba(99,102,241,0.4); transition: transform 0.2s, box-shadow 0.2s;
 }
-#vibeful-bot-toggle:hover { transform: scale(1.1); }
+#vibeful-bot-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(99,102,241,0.55); }
 #vibeful-bot-panel {
-  position: absolute; bottom: 70px; right: 0; width: 380px; max-height: 520px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden;
+  position: absolute; bottom: 70px; right: 0; width: 360px; max-height: 500px;
+  background: #0c1628; border: 1px solid rgba(99,102,241,0.25); border-radius: 14px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden;
 }
 #vibeful-bot-panel.hidden { display: none; }
 #vibeful-bot-header {
-  padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;
+  padding: 0.8rem 1rem; border-bottom: 1px solid rgba(99,102,241,0.15);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.875rem; font-weight: 700; color: var(--text);
+  background: linear-gradient(90deg, rgba(99,102,241,0.08), transparent);
 }
-#vibeful-bot-close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; }
+#vibeful-bot-close { background: none; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; line-height: 1; }
 #vibeful-bot-messages {
-  flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 360px;
+  flex: 1; overflow-y: auto; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 340px;
 }
 #vibeful-bot-messages .msg {
-  max-width: 85%; padding: 0.5rem 0.75rem; border-radius: 10px; font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap;
+  max-width: 87%; padding: 0.55rem 0.8rem; border-radius: 10px; font-size: 0.83rem; line-height: 1.45; white-space: pre-wrap;
 }
-#vibeful-bot-messages .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
-#vibeful-bot-messages .msg.bot { align-self: flex-start; background: #334155; color: #e2e8f0; }
-#vibeful-bot-input-area { padding: 0.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; }
+#vibeful-bot-messages .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 10px 10px 3px 10px; }
+#vibeful-bot-messages .msg.bot { align-self: flex-start; background: #1a2840; color: var(--text-muted); border: 1px solid var(--border); border-radius: 10px 10px 10px 3px; }
+#vibeful-bot-input-area { padding: 0.6rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; }
 #vibeful-bot-input {
-  flex: 1; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--text); font-size: 0.85rem; outline: none;
+  flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);
+  background: #0a1220; color: var(--text); font-size: 0.83rem; outline: none;
+  transition: border-color 0.2s;
 }
+#vibeful-bot-input:focus { border-color: rgba(99,102,241,0.5); }
 #vibeful-bot-send {
-  padding: 0.5rem 0.75rem; border-radius: 8px; border: none; background: var(--accent); color: #fff;
-  font-size: 0.85rem; cursor: pointer; font-weight: 600;
+  padding: 0.5rem 0.85rem; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff;
+  font-size: 0.83rem; cursor: pointer; font-weight: 600; transition: background 0.2s;
 }
-#vibeful-bot-send:disabled { opacity: 0.5; cursor: not-allowed; }
+#vibeful-bot-send:hover { background: var(--accent-hover); }
+#vibeful-bot-send:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>
 
 <script>
+// ── Intersection observer for fade-up animations ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-up').forEach((el) => {
+  observer.observe(el);
+});
+
+// Immediately show screenshot (it's visible on load)
+setTimeout(() => {
+  document.querySelector('.screenshot-wrap').classList.add('visible');
+}, 100);
+
+// ── Bot widget ──
 (function() {
   const toggle = document.getElementById('vibeful-bot-toggle');
   const panel = document.getElementById('vibeful-bot-panel');
@@ -324,16 +854,8 @@ bash scripts/setup.sh
   const input = document.getElementById('vibeful-bot-input');
   const sendBtn = document.getElementById('vibeful-bot-send');
 
-  // API base URL — where the Vibeful agent engine is running.
-  // Defaults to local dev. Override by setting window.VIBEFUL_API_URL before this script.
   const API_BASE = window.VIBEFUL_API_URL || 'http://localhost:50052';
-
-  // Guardrail: system prompt constrains the bot to Vibeful topics only
-  const SYSTEM_PROMPT = `You are a Vibeful assistant embedded on the Vibeful homepage. You answer questions about the Vibeful AI agent platform — what it is, what it does, its architecture, features, and how to get started. 
-
-If asked about anything unrelated to Vibeful, politely respond: "I'm here to answer questions about Vibeful — the self-hosted AI agent platform. Is there something about Vibeful I can help with?"
-
-Keep responses concise (2-4 sentences). Be helpful and accurate.`;
+  const SYSTEM_PROMPT = `You are a Vibeful assistant embedded on the Vibeful homepage. You answer questions about the Vibeful AI agent platform — what it is, what it does, its architecture, features, and how to get started.\n\nIf asked about anything unrelated to Vibeful, politely respond: "I'm here to answer questions about Vibeful — the self-hosted AI agent platform. Is there something about Vibeful I can help with?"\n\nKeep responses concise (2-4 sentences). Be helpful and accurate.`;
 
   let sessionId = null;
   let loading = false;
@@ -353,9 +875,7 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
     }
   });
 
-  close.addEventListener('click', function() {
-    panel.classList.add('hidden');
-  });
+  close.addEventListener('click', function() { panel.classList.add('hidden'); });
 
   async function sendMessage() {
     const text = input.value.trim();
@@ -367,31 +887,25 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
     addMessage('bot', '…');
 
     try {
-      // Create session if needed
       if (!sessionId) {
         const sessResp = await fetch(`${API_BASE}/v1/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_id: 'vibeful-homepage-bot' }),
         });
         const sessData = await sessResp.json();
         sessionId = sessData.session_id || sessData.id;
       }
-
       const resp = await fetch(`${API_BASE}/v1/ai/assist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: SYSTEM_PROMPT, message: text, temperature: 0.4, max_tokens: 400 }),
       });
-
       const data = await resp.json();
       const reply = data.response || data.content || "Sorry, I couldn't process that.";
-      // Remove the "…" placeholder
       messages.lastChild.remove();
       addMessage('bot', reply);
     } catch (e) {
       messages.lastChild.remove();
-      addMessage('bot', "Sorry, the Vibeful backend isn't reachable right now. Try again later, or check the docs linked below!");
+      addMessage('bot', "The Vibeful backend isn't reachable right now. Check the docs linked on the page!");
     } finally {
       loading = false;
       sendBtn.disabled = false;
@@ -399,11 +913,8 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
   }
 
   sendBtn.addEventListener('click', sendMessage);
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') sendMessage();
-  });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMessage(); });
 })();
 </script>
-
 </body>
 </html>
