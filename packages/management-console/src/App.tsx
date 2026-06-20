@@ -5,8 +5,10 @@ import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2 } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
+import ToastContainer, { showToast } from './components/Toast';
+import TestChatModal from './components/TestChatModal';
 import VersionHistory from './components/VersionHistory';
 import ABTestDashboard from './components/ABTestDashboard';
 import RegressionMonitor from './components/RegressionMonitor';
@@ -94,12 +96,12 @@ export default function App() {
       });
       const data = await resp.json();
       if (resp.ok) {
-        alert(`Agent deployed! ID: ${data.id}`);
+        showToast(`Agent "${agentName}" deployed — ID: ${data.id.slice(0, 8)}…`, 'success');
       } else {
-        alert(`Deploy failed: ${data.error}`);
+        showToast(`Deploy failed: ${data.error}`, 'error');
       }
     } catch (err: any) {
-      alert(`Deploy error: ${err.message}`);
+      showToast(`Deploy error: ${err.message}`, 'error');
     }
   };
 
@@ -219,6 +221,7 @@ export default function App() {
 
   // ── Quick-start toast state ──────────────────────────────────
   const [quickStartToast, setQuickStartToast] = useState<string | null>(null);
+  const [testModalOpen, setTestModalOpen] = useState(false);
 
   // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
@@ -255,6 +258,7 @@ export default function App() {
     window.addEventListener('vibeful:navigate', onNavigate);
     window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
     window.addEventListener('vibeful:quick-start', onQuickStart);
+    window.addEventListener('vibeful:test-agent', () => setTestModalOpen(true));
 
     return () => {
       window.removeEventListener('vibeful:deploy', onDeploy);
@@ -262,6 +266,7 @@ export default function App() {
       window.removeEventListener('vibeful:navigate', onNavigate);
       window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
       window.removeEventListener('vibeful:quick-start', onQuickStart);
+      window.removeEventListener('vibeful:test-agent', () => setTestModalOpen(true));
     };
   }, []);
 
@@ -272,90 +277,54 @@ export default function App() {
       <div className="h-screen flex flex-col bg-slate-950">
         {/* Header */}
         <header className="h-12 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-semibold text-slate-200">Vibeful Console</h1>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Dashboard
+          <div className="flex items-center gap-1">
+            <h1 className="text-sm font-semibold text-slate-200 mr-2">Vibeful</h1>
+
+            {/* Main */}
+            {[
+              { tab: 'dashboard' as const, label: 'Dashboard' },
+              { tab: 'designer' as const, label: 'Designer' },
+            ].map((t) => (
+              <button key={t.tab} onClick={() => setActiveTab(t.tab)}
+                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === t.tab ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                {t.label}
               </button>
-              <div className="w-px h-4 bg-slate-700 self-center" />
-              <button
-                onClick={() => setActiveTab('designer')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'designer' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Designer
-              </button>
-              <button
-                onClick={() => setActiveTab('agents')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'agents' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Agents
-              </button>
-              <button
-                onClick={() => setActiveTab('templates')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'templates' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Templates
-              </button>
-              <button
-                onClick={() => setActiveTab('versions')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'versions' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Versions
-              </button>
-              <button
-                onClick={() => setActiveTab('proposals')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'proposals' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Proposals
-              </button>
-              <button
-                onClick={() => setActiveTab('abtest')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'abtest' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                A/B Tests
-              </button>
-              <button
-                onClick={() => setActiveTab('monitor')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'monitor' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Monitor
-              </button>
-              <div className="w-px h-4 bg-slate-700" />
-              <button
-                onClick={() => setActiveTab('glyphs')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'glyphs' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Glyphs
-              </button>
-              <button
-                onClick={() => setActiveTab('concepts')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'concepts' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Concepts
-              </button>
-              <button
-                onClick={() => setActiveTab('memories')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'memories' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Memories
-              </button>
-              <button
-                onClick={() => setActiveTab('tokens')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'tokens' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Tokens
-              </button>
-              <button
-                onClick={() => setActiveTab('contexts')}
-                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'contexts' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Knowledge
-              </button>
-            </div>
+            ))}
+            <div className="w-px h-4 bg-slate-700 self-center" />
+
+            {/* Dropdown groups */}
+            {[
+              { label: 'Manage', items: [
+                { tab: 'agents' as const, label: 'Agents' },
+                { tab: 'templates' as const, label: 'Templates' },
+                { tab: 'contexts' as const, label: 'Knowledge' },
+              ]},
+              { label: 'Quality', items: [
+                { tab: 'versions' as const, label: 'Versions' },
+                { tab: 'abtest' as const, label: 'A/B Tests' },
+                { tab: 'monitor' as const, label: 'Monitor' },
+              ]},
+              { label: 'Lucid', items: [
+                { tab: 'glyphs' as const, label: 'Glyphs' },
+                { tab: 'concepts' as const, label: 'Concepts' },
+                { tab: 'memories' as const, label: 'Memories' },
+                { tab: 'tokens' as const, label: 'Tokens' },
+              ]},
+            ].map((group) => (
+              <div key={group.label} className="relative group">
+                <button className="px-3 py-1 text-xs rounded text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1">
+                  {group.label} <ChevronDown size={10} />
+                </button>
+                <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px] py-1">
+                  {group.items.map((item) => (
+                    <button key={item.tab} onClick={() => setActiveTab(item.tab)}
+                      className={`block w-full text-left px-3 py-1.5 text-xs ${activeTab === item.tab ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Agent selector dropdown */}
@@ -388,6 +357,9 @@ export default function App() {
             </button>
             <button onClick={handleDeploy} className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors">
               <Play size={12} /> Deploy
+            </button>
+            <button onClick={() => setTestModalOpen(true)} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
+              <TestTube size={12} /> Test
             </button>
             {activeAgentId && (
               <>
@@ -528,6 +500,8 @@ export default function App() {
           />
         </div>
       </div>
+      <ToastContainer />
+      {testModalOpen && <TestChatModal agentName={agentName || 'My Agent'} onClose={() => setTestModalOpen(false)} />}
     </ReactFlowProvider>
   );
 }
