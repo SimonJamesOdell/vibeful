@@ -19,47 +19,21 @@ interface Props {
 export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTest }: Props) {
   const [tiersOpen, setTiersOpen] = useState(false);
 
-  const bots = agents; // currently bots = agents (simplest tier)
   const pages: any[] = []; // placeholder for future Page builder
-
-  const stats = { bots: bots.length, agents: agents.length, pages: pages.length };
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
-        {/* ── Bots ──────────────────────────────────────── */}
-        <Section
-          icon={<Bot size={16} className="text-cyan-400" />}
-          title="Bots"
-          subtitle="Simple chatbots you embed in existing websites with a snippet of code."
-          count={bots.length}
-          actionLabel="New Bot"
-          onAction={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))}
-          emptyTitle="No bots yet"
-          emptyDesc="Create your first chatbot — it takes seconds. You'll get a ready-to-embed script for any website."
-        >
-          {bots.map((bot) => (
-            <AssetCard
-              key={bot.id}
-              name={bot.name}
-              subtitle={bot.description || bot.system_prompt?.slice(0, 80) || ''}
-              onEdit={() => onNavigate('designer')}
-              onTest={onTest}
-              onDelete={() => onDelete(bot.id)}
-            />
-          ))}
-        </Section>
-
         {/* ── Agents ────────────────────────────────────── */}
         <Section
           icon={<Brain size={16} className="text-purple-400" />}
           title="Agents"
-          subtitle="Advanced agents with RAG, MCP tools, and command protocol — drive UX in your app."
+          subtitle="Build once, embed anywhere. Simple chatbot on a static site, or an interactive agent driving your app — same platform."
           count={agents.length}
           actionLabel="New Agent"
-          onAction={() => onNavigate('designer')}
+          onAction={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))}
           emptyTitle="No agents yet"
-          emptyDesc="Agents can navigate your app, highlight elements, and run guided tours. Build one from the Designer."
+          emptyDesc="Create your first agent — it takes seconds. You'll get a ready-to-embed script for any website."
         >
           {agents.map((agent) => (
             <AssetCard
