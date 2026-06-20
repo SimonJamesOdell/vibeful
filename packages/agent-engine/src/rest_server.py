@@ -328,6 +328,19 @@ async def list_transactions(user_identity: str, limit: int = 50):
     return {"transactions": transactions}
 
 
+# ── Sessions ────────────────────────────────────────────────
+
+class SessionCreateRequest(BaseModel):
+    agent_id: str = ""
+
+
+@app.post("/v1/sessions")
+async def create_session(req: SessionCreateRequest):
+    """Create a stub session — used by the website chatbot and SDK."""
+    session_id = str(uuid.uuid4())
+    return {"session_id": session_id, "agent_id": req.agent_id}
+
+
 # ── AI Assist ──────────────────────────────────────────────
 
 class AIAssistRequest(BaseModel):
