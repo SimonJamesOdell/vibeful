@@ -23,7 +23,7 @@ info() { echo -e "${BLUE}[i]${NC} $1"; }
 echo ""
 echo "========================================="
 echo "  Vibeful — One-Command Quickstart"
-echo "  WordPress for AI Agents"
+echo "  A CMS for AI Agents"
 echo "========================================="
 echo ""
 

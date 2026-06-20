@@ -71,7 +71,7 @@ export default function Dashboard({ onNavigate }: { onNavigate: (tab: any) => vo
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-100">Vibeful Console</h1>
-              <p className="text-sm text-slate-400">WordPress for AI Agents — build, manage, embed</p>
+              <p className="text-sm text-slate-400">Self-hosted AI Agent Platform — build, manage, embed</p>
             </div>
           </div>
 

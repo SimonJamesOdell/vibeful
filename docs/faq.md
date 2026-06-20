@@ -2,7 +2,7 @@
 
 ## What is Vibeful?
 
-Vibeful is an open-source platform for building and deploying AI agents. It's like WordPress for AI agents — you configure agents through a web admin panel, add knowledge, connect tools, and embed them in your app with a few lines of code.
+Vibeful is an open-source platform for building and deploying AI agents. It's like a CMS for AI agents — you configure agents through a web admin panel, add knowledge, connect tools, and embed them in your app with a few lines of code.
 
 ## How is this different from just using the DeepSeek API directly?
 

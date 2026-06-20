@@ -18,7 +18,7 @@ function Write-Info { Write-Host "[i] $args" -ForegroundColor Blue }
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  Vibeful — One-Command Quickstart" -ForegroundColor Cyan
-Write-Host "  WordPress for AI Agents" -ForegroundColor Cyan
+Write-Host "  A CMS for AI Agents" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 

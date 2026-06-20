@@ -1,6 +1,6 @@
 # Vibeful
 
-Vibeful — a self-hosted AI agent platform. Build, deploy, and manage multiple conversational agents from a visual console. Embed them into any web app with 3 lines of code. "WordPress for AI agents."
+Vibeful — a self-hosted AI agent platform. Build, deploy, and manage multiple conversational agents from a visual console. Embed them into any web app with 3 lines of code. "A CMS for AI agents."
 
 **Stack:** Python 3.12 (LangGraph agent), Node.js/TypeScript (API + SDK + MCP), PostgreSQL + pgvector, Redis, DeepSeek API.
 

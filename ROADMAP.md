@@ -362,7 +362,7 @@ Phases 6 and 7 are independent and can be built concurrently with any phase.
 ## Phase 9: UI Widget System
 
 > **Goal**: Agents can render widgets (buttons, cards, forms, charts, tables) in the host application on demand via the vibeful-command protocol.
-> **Priority**: P1 — unlocks "WordPress for agents" visual capabilities.
+> **Priority**: P1 — unlocks CMS-style visual capabilities for agents.
 
 ### 9.1 — Widget Specification
 
