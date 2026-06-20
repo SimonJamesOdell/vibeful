@@ -341,6 +341,126 @@ async def create_session(req: SessionCreateRequest):
     return {"session_id": session_id, "agent_id": req.agent_id}
 
 
+# ── Contexts (Knowledge Base) ─────────────────────────────
+
+class ContextCreateRequest(BaseModel):
+    name: str
+    agent_id: str = ""
+
+
+@app.post("/v1/contexts")
+async def create_context(req: ContextCreateRequest):
+    """Create a knowledge context for RAG."""
+    db = _require_db()
+    ctx = await db.create_context({"name": req.name, "agent_id": req.agent_id or None})
+    return ctx
+
+
+@app.get("/v1/contexts")
+async def list_contexts():
+    """List all knowledge contexts."""
+    db = _require_db()
+    return await db.list_contexts()
+
+
+@app.get("/v1/contexts/{context_id}")
+async def get_context(context_id: str):
+    """Get a single context by ID."""
+    db = _require_db()
+    ctx = await db.get_context(context_id)
+    if not ctx:
+        raise HTTPException(404, "context not found")
+    return ctx
+
+
+@app.delete("/v1/contexts/{context_id}")
+async def delete_context(context_id: str):
+    """Delete a context and all its files."""
+    db = _require_db()
+    deleted = await db.delete_context(context_id)
+    if not deleted:
+        raise HTTPException(404, "context not found")
+    return {"deleted": True}
+
+
+class ContextIngestRequest(BaseModel):
+    text: str
+    filename: str = "upload.txt"
+    content_type: str = "text/plain"
+
+
+@app.post("/v1/contexts/{context_id}/ingest")
+async def ingest_text(context_id: str, req: ContextIngestRequest):
+    """Ingest text content into a knowledge context."""
+    if not req.text.strip():
+        raise HTTPException(400, "text is required")
+    db = _require_db()
+    ctx = await db.get_context(context_id)
+    if not ctx:
+        raise HTTPException(404, "context not found")
+    result = await db.ingest_file(
+        context_id=context_id,
+        filename=req.filename,
+        content=req.text,
+        content_type=req.content_type,
+    )
+    return result
+
+
+@app.get("/v1/contexts/{context_id}/files")
+async def list_context_files(context_id: str):
+    """List all ingested files in a context."""
+    db = _require_db()
+    return await db.list_context_files(context_id)
+
+
+# ── Multimodal Analysis ───────────────────────────────────
+
+class MultimodalAnalyzeRequest(BaseModel):
+    image_base64: str  # base64-encoded image (PNG/JPEG)
+    prompt: str = "Describe this image in detail. Extract any visible text."
+    temperature: float = 0.2
+    max_tokens: int = 500
+
+
+@app.post("/v1/analyze-image")
+async def analyze_image(req: MultimodalAnalyzeRequest):
+    """Analyze an image using DeepSeek's vision capabilities.
+    Returns a text description that can be ingested into a knowledge context."""
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    if not api_key or len(api_key) < 20 or "your-deepseek" in api_key.lower():
+        raise HTTPException(503, "DEEPSEEK_API_KEY not configured")
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{req.image_base64}"}},
+                            {"type": "text", "text": req.prompt},
+                        ],
+                    }],
+                    "temperature": req.temperature,
+                    "max_tokens": req.max_tokens,
+                },
+            )
+            data = resp.json()
+            if "choices" in data:
+                return {"analysis": data["choices"][0]["message"]["content"]}
+            raise HTTPException(500, f"Vision API error: {data}")
+    except Exception as e:
+        raise HTTPException(500, f"Vision analysis failed: {e}")
+
+
 # ── AI Assist ──────────────────────────────────────────────
 
 class AIAssistRequest(BaseModel):

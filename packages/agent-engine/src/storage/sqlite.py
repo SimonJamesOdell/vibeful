@@ -62,6 +62,22 @@ class SqliteBackend:
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS contexts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                agent_id TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS context_files (
+                id TEXT PRIMARY KEY,
+                context_id TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                content_type TEXT DEFAULT 'text/plain',
+                content TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS embeddings (
                 chunk_id TEXT PRIMARY KEY,
                 context_id TEXT NOT NULL,
@@ -73,6 +89,7 @@ class SqliteBackend:
 
             CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
             CREATE INDEX IF NOT EXISTS idx_embeddings_context ON embeddings(context_id);
+            CREATE INDEX IF NOT EXISTS idx_context_files_context ON context_files(context_id);
 
             -- Lucid tables (local dev mode — no pgvector, embedding stored as JSON)
             CREATE TABLE IF NOT EXISTS agents (
@@ -186,6 +203,66 @@ class SqliteBackend:
         if self._conn:
             await self._conn.close()
             self._conn = None
+
+    # ── Contexts (knowledge base) ────────────────────────
+
+    async def create_context(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        cid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO contexts (id, name, agent_id) VALUES (?, ?, ?)""",
+            (cid, data["name"], data.get("agent_id")),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM contexts WHERE id = ?", (cid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def list_contexts(self) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM contexts ORDER BY created_at DESC") as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_context(self, context_id: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM contexts WHERE id = ?", (context_id,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def delete_context(self, context_id: str) -> bool:
+        conn = await self._get_conn()
+        # Delete context files first
+        await conn.execute("DELETE FROM context_files WHERE context_id = ?", (context_id,))
+        await conn.execute("DELETE FROM embeddings WHERE context_id = ?", (context_id,))
+        async with conn.execute("DELETE FROM contexts WHERE id = ?", (context_id,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def ingest_file(self, context_id: str, filename: str, content: str,
+                          content_type: str = "text/plain") -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        fid = str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO context_files (id, context_id, filename, content_type, content)
+               VALUES (?, ?, ?, ?, ?)""",
+            (fid, context_id, filename, content_type, content),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM context_files WHERE id = ?", (fid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def list_context_files(self, context_id: str) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "SELECT * FROM context_files WHERE context_id = ? ORDER BY created_at DESC",
+            (context_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
 
     # ── Agents (local mode) ─────────────────────────────
 

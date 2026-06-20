@@ -18,9 +18,10 @@ import TokenDashboard from './components/TokenDashboard';
 import SetupWizard from './components/SetupWizard';
 import NodeTooltip from './components/NodeTooltip';
 import AgentList from './components/AgentList';
+import ContextManager from './components/ContextManager';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens'>('designer');
+  const [activeTab, setActiveTab] = useState<'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('designer');
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
 
@@ -217,7 +218,7 @@ export default function App() {
     };
     const onNavigate = (e: Event) => {
       const tab = (e as CustomEvent).detail as string;
-      const validTabs = ['designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens'];
+      const validTabs = ['designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts'];
       if (validTabs.includes(tab)) setActiveTab(tab as typeof activeTab);
     };
     const onConfigureAnalysis = (e: Event) => {
@@ -314,6 +315,12 @@ export default function App() {
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'tokens' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Tokens
+              </button>
+              <button
+                onClick={() => setActiveTab('contexts')}
+                className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'contexts' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Knowledge
               </button>
             </div>
           </div>
@@ -444,6 +451,10 @@ export default function App() {
         ) : activeTab === 'tokens' ? (
           <div className="flex-1 overflow-y-auto">
             <TokenDashboard />
+          </div>
+        ) : activeTab === 'contexts' ? (
+          <div className="flex-1 overflow-y-auto">
+            <ContextManager />
           </div>
         ) : (
           <div className="flex-1 p-6 overflow-y-auto">
