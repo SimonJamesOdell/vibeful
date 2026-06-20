@@ -3,33 +3,17 @@
 
 import express from 'express';
 import type { Request, Response } from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb' }));
 
-// CORS — allow the management console and SDK to call the API
-app.use((_req: Request, res: Response, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (_req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// The agent-engine REST server handles all API calls in local dev mode.
-// In Docker production, set PROXY_URL=http://proxy:8000 via environment.
-const PROXY_URL = process.env.PROXY_URL || 'http://localhost:50052';
-
-// Serve the Vibeful website as static files (after CORS, before API routes)
-app.use(express.static(path.join(__dirname, '..', '..', '..', 'website')));
+// DB module — Python database.py via child process
+// In production, this would share the same PostgreSQL connection pool.
+// The Python agent-engine owns the DB schema; the gateway
+// calls it via HTTP to the proxy, which routes to the agent engine.
+const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || 'agent-engine:50051';
+const PROXY_URL = process.env.PROXY_URL || 'http://proxy:8000';
 
 // ── Health ─────────────────────────────────────────────────────
 

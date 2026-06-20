@@ -323,6 +323,10 @@ bash scripts/setup.sh
   const input = document.getElementById('vibeful-bot-input');
   const sendBtn = document.getElementById('vibeful-bot-send');
 
+  // API base URL — where the Vibeful agent engine is running.
+  // Defaults to local dev. Override by setting window.VIBEFUL_API_URL before this script.
+  const API_BASE = window.VIBEFUL_API_URL || 'http://localhost:50052';
+
   // Guardrail: system prompt constrains the bot to Vibeful topics only
   const SYSTEM_PROMPT = `You are a Vibeful assistant embedded on the Vibeful homepage. You answer questions about the Vibeful AI agent platform — what it is, what it does, its architecture, features, and how to get started. 
 
@@ -364,7 +368,7 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
     try {
       // Create session if needed
       if (!sessionId) {
-        const sessResp = await fetch('/v1/sessions', {
+        const sessResp = await fetch(`${API_BASE}/v1/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_id: 'vibeful-homepage-bot' }),
@@ -373,7 +377,7 @@ Keep responses concise (2-4 sentences). Be helpful and accurate.`;
         sessionId = sessData.session_id || sessData.id;
       }
 
-      const resp = await fetch('/v1/ai/assist', {
+      const resp = await fetch(`${API_BASE}/v1/ai/assist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: SYSTEM_PROMPT, message: text, temperature: 0.4, max_tokens: 400 }),
