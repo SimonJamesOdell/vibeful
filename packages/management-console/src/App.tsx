@@ -411,7 +411,13 @@ export default function App() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
         {activeTab === 'dashboard' ? (
-          <Dashboard onNavigate={setActiveTab} />
+          <Dashboard
+            onNavigate={setActiveTab}
+            agents={agentList}
+            contexts={contextList}
+            onDelete={async (id) => { await fetch(`/v1/agents/${id}`, { method: 'DELETE' }); fetchAgents(); }}
+            onTest={() => setTestModalOpen(true)}
+          />
         ) : activeTab === 'designer' ? (
           <div className="flex-1 flex overflow-hidden">
             <NodePalette />

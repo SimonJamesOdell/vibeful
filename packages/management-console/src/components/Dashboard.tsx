@@ -1,174 +1,244 @@
 import { useState, useEffect } from 'react';
-import { Bot, BookOpen, Puzzle, Rocket, Code, Wand2, Zap, ArrowRight } from 'lucide-react';
+import { Bot, Brain, FileText, Edit3, Trash2, TestTube, Plus, Zap, ChevronDown, ChevronRight } from 'lucide-react';
 
-interface DashboardStats {
-  agentCount: number;
-  contextCount: number;
+interface Agent {
+  id: string; name: string; description?: string; system_prompt?: string;
+}
+interface Context {
+  id: string; name: string;
 }
 
-const TIERS = [
-  {
-    title: 'Simple Chatbot',
-    icon: Bot,
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10',
-    border: 'border-cyan-500/20',
-    desc: 'Define a chatbot, embed it in any website with a few lines of HTML. Perfect for FAQs, support, and static sites.',
-    code: '<script src="vibeful.js"></script>\n<script>Vibeful.init({ agent: "your-id" })</script>',
-    cta: 'Create Chatbot',
-  },
-  {
-    title: 'Interactive Widget',
-    icon: Wand2,
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/20',
-    desc: 'Agent can navigate your app, highlight elements, start guided tours, and control the page — all through Vibeful commands.',
-    code: 'fetch("/v1/ai/assist", {\n  body: JSON.stringify({...})\n})\n// Agent returns vibeful-command blocks\n// → navigate, highlight, tour, modal...',
-    cta: 'Build Widget',
-  },
-  {
-    title: 'Agent-Driven App',
-    icon: Rocket,
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/20',
-    desc: 'Build entire applications where AI agents drive the user experience. Multi-agent orchestration, custom widgets, RAG knowledge bases.',
-    code: '// Multi-agent, custom widgets,\n// deep RAG integration,\n// full vibeful-command protocol\n// Your AI is the application.',
-    cta: 'Go Pro',
-  },
-];
+interface Props {
+  onNavigate: (tab: any) => void;
+  agents: Agent[];
+  contexts: Context[];
+  onDelete: (id: string) => void;
+  onTest: () => void;
+}
 
-export default function Dashboard({ onNavigate }: { onNavigate: (tab: any) => void }) {
-  const [stats, setStats] = useState<DashboardStats>({ agentCount: 0, contextCount: 0 });
-  const [showSnippet, setShowSnippet] = useState<number | null>(null);
+export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTest }: Props) {
+  const [tiersOpen, setTiersOpen] = useState(false);
 
-  useEffect(() => {
-    fetch('/v1/agents')
-      .then(r => r.json())
-      .then(data => setStats(prev => ({
-        ...prev,
-        agentCount: Array.isArray(data) ? data.length : 0,
-      })))
-      .catch(() => {});
-    fetch('/v1/contexts')
-      .then(r => r.json())
-      .then(data => setStats(prev => ({
-        ...prev,
-        contextCount: Array.isArray(data) ? data.length : 0,
-      })))
-      .catch(() => {});
-  }, []);
+  const bots = agents; // currently bots = agents (simplest tier)
+  const pages: any[] = []; // placeholder for future Page builder
+
+  const stats = { bots: bots.length, agents: agents.length, pages: pages.length };
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
-      {/* Hero header */}
+      {/* Header */}
       <div className="border-b border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950">
-        <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <Zap size={22} className="text-white" />
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
+              <Zap size={18} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">Vibeful Console</h1>
-              <p className="text-sm text-slate-400">Self-hosted AI Agent Platform — build, manage, embed</p>
+              <h1 className="text-xl font-bold text-slate-100">Vibeful Console</h1>
+              <p className="text-xs text-slate-500">Self-hosted AI Agent Platform</p>
             </div>
           </div>
-
-          {/* Stats bar */}
-          <div className="flex gap-6 mt-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                <Bot size={14} className="text-indigo-400" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-slate-200">{stats.agentCount}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wide">Agents</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <BookOpen size={14} className="text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-slate-200">{stats.contextCount}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wide">Knowledge Bases</div>
-              </div>
-            </div>
+          <div className="flex gap-6 text-sm">
+            <span className="text-slate-400">{stats.bots} bot{stats.bots !== 1 ? 's' : ''}</span>
+            <span className="text-slate-600">·</span>
+            <span className="text-slate-400">{stats.agents} agent{stats.agents !== 1 ? 's' : ''}</span>
+            <span className="text-slate-600">·</span>
+            <span className="text-slate-400">{stats.pages} page{stats.pages !== 1 ? 's' : ''}</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Integration tiers */}
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Puzzle size={14} className="text-indigo-400" />
-          Integration Tiers — choose your depth
-        </h2>
-        <div className="grid grid-cols-3 gap-4 mb-10">
-          {TIERS.map((tier, i) => {
-            const Icon = tier.icon;
-            return (
-              <div
-                key={i}
-                className={`rounded-xl border p-5 ${tier.bg} ${tier.border} hover:border-opacity-60 transition-all cursor-pointer`}
-                onClick={() => setShowSnippet(showSnippet === i ? null : i)}
-              >
-                <div className={`w-10 h-10 rounded-lg ${tier.bg} flex items-center justify-center mb-3`}>
-                  <Icon size={20} className={tier.color} />
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {/* ── Bots ──────────────────────────────────────── */}
+        <Section
+          icon={<Bot size={16} className="text-cyan-400" />}
+          title="Bots"
+          subtitle="Simple chatbots you embed in existing websites with a snippet of code."
+          count={bots.length}
+          actionLabel="New Bot"
+          onAction={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))}
+          emptyTitle="No bots yet"
+          emptyDesc="Create your first chatbot — it takes seconds. You'll get a ready-to-embed script for any website."
+        >
+          {bots.map((bot) => (
+            <AssetCard
+              key={bot.id}
+              name={bot.name}
+              subtitle={bot.description || bot.system_prompt?.slice(0, 80) || 'No description'}
+              onEdit={() => onNavigate('designer')}
+              onTest={onTest}
+              onDelete={() => onDelete(bot.id)}
+            />
+          ))}
+        </Section>
+
+        {/* ── Agents ────────────────────────────────────── */}
+        <Section
+          icon={<Brain size={16} className="text-purple-400" />}
+          title="Agents"
+          subtitle="Advanced agents with RAG, MCP tools, and command protocol — drive UX in your app."
+          count={agents.length}
+          actionLabel="New Agent"
+          onAction={() => onNavigate('designer')}
+          emptyTitle="No agents yet"
+          emptyDesc="Agents can navigate your app, highlight elements, and run guided tours. Build one from the Designer."
+        >
+          {agents.map((agent) => (
+            <AssetCard
+              key={agent.id}
+              name={agent.name}
+              subtitle={agent.description || agent.system_prompt?.slice(0, 80) || 'No description'}
+              onEdit={() => onNavigate('designer')}
+              onTest={onTest}
+              onDelete={() => onDelete(agent.id)}
+            />
+          ))}
+        </Section>
+
+        {/* ── Pages ─────────────────────────────────────── */}
+        <Section
+          icon={<FileText size={16} className="text-amber-400" />}
+          title="Pages"
+          subtitle="Full pages built and served by Vibeful — agent-driven web experiences."
+          count={pages.length}
+          actionLabel="New Page"
+          onAction={() => onNavigate('designer')}
+          emptyTitle="No pages yet"
+          emptyDesc="Use Vibeful as your full application stack. Build pages that are driven by AI agents."
+        >
+          {pages.length === 0 ? null : <p className="text-xs text-slate-500">Pages coming soon.</p>}
+        </Section>
+
+        {/* ── Knowledge ─────────────────────────────────── */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <FileText size={14} className="text-emerald-400" /> Knowledge Bases
+            </h2>
+            <button onClick={() => onNavigate('contexts')} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              <Plus size={10} /> New
+            </button>
+          </div>
+          {contexts.length === 0 ? (
+            <div className="text-center py-6 border border-dashed border-slate-700 rounded-xl">
+              <p className="text-xs text-slate-500 mb-2">No knowledge bases yet</p>
+              <p className="text-[11px] text-slate-600 mb-3">Add documents and FAQs for your agents to reference</p>
+              <button onClick={() => onNavigate('contexts')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs">
+                Set up Knowledge Base
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {contexts.map((ctx) => (
+                <div key={ctx.id} onClick={() => onNavigate('contexts')} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 cursor-pointer transition-colors">
+                  <span className="text-sm text-slate-300">{ctx.name}</span>
+                  <span className="text-[10px] text-slate-600">{ctx.id.slice(0, 8)}…</span>
                 </div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-2">{tier.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-3">{tier.desc}</p>
-
-                {showSnippet === i && (
-                  <pre className="text-[10px] bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-300 font-mono leading-relaxed mb-3 overflow-x-auto">
-                    {tier.code}
-                  </pre>
-                )}
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (i === 0) window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }));
-                    else if (i === 1) onNavigate('contexts');
-                    else onNavigate('designer');
-                  }}
-                  className={`text-xs font-medium flex items-center gap-1 ${tier.color} hover:underline`}
-                >
-                  {tier.cta} <ArrowRight size={10} />
-                </button>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Quick actions */}
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Zap size={14} className="text-indigo-400" />
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-4 gap-3 mb-10">
-          <button onClick={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
-            <Bot size={16} className="text-indigo-400 mb-2" />
-            <div className="text-xs font-medium text-slate-200">New Agent</div>
-            <div className="text-[10px] text-slate-500 mt-1">Design an agent on the canvas</div>
+        {/* ── Integration Tiers (collapsed) ─────────────── */}
+        <div className="border-t border-slate-800 pt-4">
+          <button onClick={() => setTiersOpen(!tiersOpen)} className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-400 transition-colors w-full text-left">
+            {tiersOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            Integration Tiers — how deep can you go?
           </button>
-          <button onClick={() => onNavigate('contexts')} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
-            <BookOpen size={16} className="text-emerald-400 mb-2" />
-            <div className="text-xs font-medium text-slate-200">Knowledge Base</div>
-            <div className="text-[10px] text-slate-500 mt-1">Manage RAG document contexts</div>
-          </button>
-          <button onClick={() => onNavigate('templates')} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
-            <Rocket size={16} className="text-amber-400 mb-2" />
-            <div className="text-xs font-medium text-slate-200">Templates</div>
-            <div className="text-[10px] text-slate-500 mt-1">Start from a pre-built agent</div>
-          </button>
-          <button onClick={() => window.open('docs.html', '_blank')} className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all text-left">
-            <Code size={16} className="text-purple-400 mb-2" />
-            <div className="text-xs font-medium text-slate-200">Documentation</div>
-            <div className="text-[10px] text-slate-500 mt-1">API reference and guides</div>
+          {tiersOpen && (
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              {[
+                { title: 'Simple Chatbot', color: 'text-cyan-400', desc: 'Embed a chatbot in any site with a script tag. Perfect for FAQs and support.' },
+                { title: 'Interactive Widget', color: 'text-purple-400', desc: 'Agent navigates your app, highlights elements, runs guided tours.' },
+                { title: 'Agent-Driven App', color: 'text-amber-400', desc: 'Full application built around AI agents. Multi-agent, RAG, custom widgets.' },
+              ].map((tier) => (
+                <div key={tier.title} className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                  <h4 className={`text-xs font-semibold ${tier.color} mb-1`}>{tier.title}</h4>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">{tier.desc}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Section wrapper ──────────────────────────────────── */
+
+function Section({ icon, title, subtitle, count, actionLabel, onAction, emptyTitle, emptyDesc, children }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  count: number;
+  actionLabel: string;
+  onAction: () => void;
+  emptyTitle: string;
+  emptyDesc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            {icon} {title}
+          </h2>
+          <p className="text-[10px] text-slate-600 mt-0.5">{subtitle}</p>
+        </div>
+        <button onClick={onAction} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+          <Plus size={10} /> {actionLabel}
+        </button>
+      </div>
+      {count === 0 ? (
+        <div className="text-center py-8 border border-dashed border-slate-700 rounded-xl">
+          <p className="text-sm text-slate-400 mb-1">{emptyTitle}</p>
+          <p className="text-xs text-slate-600 mb-4">{emptyDesc}</p>
+          <button onClick={onAction} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">
+            {actionLabel}
           </button>
         </div>
+      ) : (
+        <div className="space-y-2">{children}</div>
+      )}
+    </div>
+  );
+}
+
+/* ── Asset card ───────────────────────────────────────── */
+
+function AssetCard({ name, subtitle, onEdit, onTest, onDelete }: {
+  name: string;
+  subtitle: string;
+  onEdit: () => void;
+  onTest: () => void;
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
+        <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-3">
+        <button onClick={onEdit} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
+          <Edit3 size={11} />
+        </button>
+        <button onClick={onTest} className="px-2 py-1 text-[10px] text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded" title="Test">
+          <TestTube size={11} />
+        </button>
+        {confirming ? (
+          <div className="flex items-center gap-1">
+            <button onClick={() => { onDelete(); setConfirming(false); }} className="px-2 py-1 text-[10px] text-red-400 hover:bg-red-900/30 rounded">Delete</button>
+            <button onClick={() => setConfirming(false)} className="px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 rounded">Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirming(true)} className="px-2 py-1 text-[10px] text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded" title="Delete">
+            <Trash2 size={11} />
+          </button>
+        )}
       </div>
     </div>
   );
