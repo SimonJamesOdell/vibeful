@@ -99,14 +99,16 @@
 
 <script>
 // ── Docs config — single source of truth: docs/*.md ──────────
+const DOCS_BASE = 'https://raw.githubusercontent.com/SimonJamesOdell/vibeful/master';
+
 const DOCS = [
-  { file: '../docs/getting-started.md',   nav: 'Getting Started',   section: 'Start Here' },
-  { file: '../docs/architecture.md',      nav: 'Architecture',      section: 'Core Concepts' },
-  { file: '../docs/api-reference.md',     nav: 'API Reference',     section: 'Core Concepts' },
-  { file: '../docs/sdk-guide.md',         nav: 'SDK Guide',         section: 'Integration' },
-  { file: '../docs/faq.md',               nav: 'FAQ',               section: 'Resources' },
-  { file: '../CONTRIBUTING.md',           nav: 'Contributing',      section: 'Resources' },
-  { file: '../ROADMAP.md',                nav: 'Roadmap',           section: 'Resources' },
+  { file: `${DOCS_BASE}/docs/getting-started.md`,   nav: 'Getting Started',   section: 'Start Here' },
+  { file: `${DOCS_BASE}/docs/architecture.md`,      nav: 'Architecture',      section: 'Core Concepts' },
+  { file: `${DOCS_BASE}/docs/api-reference.md`,     nav: 'API Reference',     section: 'Core Concepts' },
+  { file: `${DOCS_BASE}/docs/sdk-guide.md`,         nav: 'SDK Guide',         section: 'Integration' },
+  { file: `${DOCS_BASE}/docs/faq.md`,               nav: 'FAQ',               section: 'Resources' },
+  { file: `${DOCS_BASE}/CONTRIBUTING.md`,           nav: 'Contributing',      section: 'Resources' },
+  { file: `${DOCS_BASE}/ROADMAP.md`,                nav: 'Roadmap',           section: 'Resources' },
 ];
 
 // ── Minimal markdown → HTML renderer ────────────────────────
