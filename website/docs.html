@@ -16,7 +16,16 @@
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text); line-height: 1.7;
     display: flex; min-height: 100vh;
+    overflow-y: auto;
   }
+
+  /* Scrollbar — pinned to viewport edge, dark themed */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  /* Firefox */
+  html { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg-sidebar); }
 
   /* ── Sidebar ───────────────────────────────────────────────── */
   .sidebar {
@@ -43,7 +52,7 @@
   .sidebar-footer { margin-top: auto; padding: 1rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim); }
 
   /* ── Content ───────────────────────────────────────────────── */
-  .content { flex: 1; padding: 2.5rem 3rem; max-width: 850px; overflow-y: auto; height: 100vh; }
+  .content { flex: 1; padding: 2.5rem 3rem; max-width: 850px; }
   .content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1rem; letter-spacing: -0.02em; }
   .content h2 { font-size: 1.4rem; font-weight: 600; margin: 2rem 0 0.75rem; padding-top: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
   .content h3 { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--accent-hover); }
