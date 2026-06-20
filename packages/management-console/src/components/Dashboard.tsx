@@ -26,28 +26,6 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
-      {/* Header */}
-      <div className="border-b border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <Zap size={18} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-100">Vibeful Console</h1>
-              <p className="text-xs text-slate-500">Self-hosted AI Agent Platform</p>
-            </div>
-          </div>
-          <div className="flex gap-6 text-sm">
-            <span className="text-slate-400">{stats.bots} bot{stats.bots !== 1 ? 's' : ''}</span>
-            <span className="text-slate-600">·</span>
-            <span className="text-slate-400">{stats.agents} agent{stats.agents !== 1 ? 's' : ''}</span>
-            <span className="text-slate-600">·</span>
-            <span className="text-slate-400">{stats.pages} page{stats.pages !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {/* ── Bots ──────────────────────────────────────── */}
         <Section
