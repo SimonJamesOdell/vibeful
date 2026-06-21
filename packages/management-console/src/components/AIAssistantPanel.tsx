@@ -320,6 +320,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       window.dispatchEvent(new CustomEvent('vibeful:test-agent'));
       return { opened: true };
     });
+
+    registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {
+      window.dispatchEvent(new CustomEvent('vibeful:styling-modal', { detail: details }));
+      return { styling: 'applied', ...details };
+    });
   }, [onNavigate, onAgentsChanged, onContextsChanged, setAgentName, agentName]);
 
   // Quick-start auto-trigger: Dashboard "Create Chatbot" fires this event

@@ -304,6 +304,21 @@ export default function App() {
       setCreateModalDefaults(defaults);
       setCreateModalOpen(true);
     });
+    window.addEventListener('vibeful:styling-modal', (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      setActiveTab('designer');
+      setStylingModalOpen(true);
+      // Delay to let StylingModal mount, then apply preset if specified
+      if (detail.preset || detail.mode) {
+        const preset = detail.preset || detail.mode;
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { preset } }));
+          if (detail.font) {
+            window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { font: detail.font } }));
+          }
+        }, 100);
+      }
+    });
 
     return () => {
       window.removeEventListener('vibeful:deploy', onDeploy);
@@ -312,6 +327,8 @@ export default function App() {
       window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
       window.removeEventListener('vibeful:quick-start', onQuickStart);
       window.removeEventListener('vibeful:test-agent', () => setTestModalOpen(true));
+      window.removeEventListener('vibeful:create-agent-modal', () => {});
+      window.removeEventListener('vibeful:styling-modal', () => {});
     };
   }, []);
 
