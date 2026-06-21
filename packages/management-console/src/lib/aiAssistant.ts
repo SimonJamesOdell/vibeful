@@ -39,6 +39,9 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
 - ingest_context — ingest text into a context. Params: {context_id, text, filename?}
 - delete_context — delete a context. Params: {context_id}
 
+=== Testing ===
+- test_agent — open the test chat modal to try the agent live. No params needed.
+
 === Navigation ===
 - navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"}
 
