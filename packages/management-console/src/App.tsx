@@ -290,7 +290,6 @@ export default function App() {
             {/* Main */}
             {[
               { tab: 'dashboard' as const, label: 'Dashboard' },
-              { tab: 'designer' as const, label: 'Agent Editor' },
             ].map((t) => (
               <button key={t.tab} onClick={() => setActiveTab(t.tab)}
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === t.tab ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
