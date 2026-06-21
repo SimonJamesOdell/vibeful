@@ -28,7 +28,6 @@ $remoteCmd = @"
 cd $RepoPath
 git pull origin master
 cd packages/agent-engine
-pip install -e .
 pkill -f 'uvicorn src.rest_server' 2>/dev/null
 sleep 1
 VIBEFUL_STORAGE=sqlite nohup python -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 --log-level warning > /dev/null 2>&1 &
