@@ -248,6 +248,11 @@ export default function App() {
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
   const [stylingModalOpen, setStylingModalOpen] = useState(false);
 
+  // Auto-close styling modal when navigating away from editor
+  useEffect(() => {
+    if (activeTab !== 'designer') setStylingModalOpen(false);
+  }, [activeTab]);
+
   // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
     const onDeploy = () => { handleDeploy(); };
