@@ -111,11 +111,17 @@ export default function App() {
   const handleCreateAgent = async (name: string, templateKey: string) => {
     setCreateModalOpen(false);
     // Create in DB
-    await fetch('/v1/agents', {
+    const resp = await fetch('/v1/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description: '', system_prompt: '' }),
     });
+    if (!resp.ok) {
+      showToast('Failed to create agent', 'error');
+      return;
+    }
+    const data = await resp.json();
+    setActiveAgentId(data.id);
     fetchAgents();
     setAgentName(name);
     // Load template
