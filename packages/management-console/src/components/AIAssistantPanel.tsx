@@ -97,10 +97,14 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       const template = details.template as string;
       const tpl = TEMPLATES[template];
       if (!tpl) throw new Error(`Unknown template: "${template}"`);
-      useFlowStore.getState().loadGraph([...tpl.nodes], [...tpl.edges]);
-      useFlowStore.getState().setAgentName(tpl.name);
+      const state = useFlowStore.getState();
+      state.loadGraph([...tpl.nodes], [...tpl.edges]);
+      // Preserve existing agent name — don't overwrite with template default
+      if (!state.agentName || state.agentName === 'Unnamed Agent') {
+        state.setAgentName(tpl.name);
+      }
       setOnboarding(false);
-      return { template, nodes: useFlowStore.getState().nodes.length };
+      return { template, nodes: state.nodes.length };
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.DEPLOY, (_details) => {
