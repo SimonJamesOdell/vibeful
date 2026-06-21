@@ -40,7 +40,10 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
               key={agent.id}
               name={agent.name}
               subtitle={agent.description || agent.system_prompt?.slice(0, 80) || ''}
-              onEdit={() => onNavigate('designer')}
+              onEdit={() => {
+                onNavigate('designer');
+                window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: '' } }));
+              }}
               onTest={onTest}
               onDelete={() => onDelete(agent.id)}
             />
