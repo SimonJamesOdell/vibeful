@@ -78,27 +78,33 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
   };
 
-  // Listen for direct styling events from the AI Guide
+  // Apply preset on mount via initialPreset prop
+  useEffect(() => {
+    if (!initialPreset) return;
+    const key = initialPreset.toLowerCase().trim();
+    if (PRESET_STYLES[key]) {
+      setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
+    }
+  }, []); // eslint-disable-line
+
+  // Listen for live styling events from the AI Guide (post-mount)
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      const preset = detail.preset || detail.mode;
-      const font = detail.font;
-      if (preset) {
-        const key = preset.toLowerCase().trim();
+      const p = detail.preset || detail.mode;
+      const f = detail.font;
+      if (p) {
+        const key = p.toLowerCase().trim();
         if (PRESET_STYLES[key]) {
           setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
         }
       }
-      if (font) {
-        const allFonts = [...SYSTEM_FONTS, ...cdnFonts, ...customFonts.map((f) => ({ label: f.name, value: `'${f.name}', sans-serif` }))];
-        const match = allFonts.find((f) => f.label.toLowerCase().includes(font.toLowerCase())
-          || f.value.toLowerCase().includes(font.toLowerCase()));
+      if (f) {
+        const allFonts = [...SYSTEM_FONTS, ...cdnFonts, ...customFonts.map((c) => ({ label: c.name, value: `'${c.name}', sans-serif` }))];
+        const match = allFonts.find((ff) => ff.label.toLowerCase().includes(f.toLowerCase())
+          || ff.value.toLowerCase().includes(f.toLowerCase()));
         if (match) setConfig((prev) => ({ ...prev, fontFamily: match.value }));
-        else {
-          setCdnFontName(font);
-          handleCdnImport();
-        }
+        else { setCdnFontName(f); handleCdnImport(); }
       }
     };
     window.addEventListener('vibeful:styling-apply', handler);
