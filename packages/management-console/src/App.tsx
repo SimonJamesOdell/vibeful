@@ -395,7 +395,16 @@ export default function App() {
             onNavigate={setActiveTab}
             agents={agentList}
             contexts={contextList}
-            onDelete={async (id) => { await fetch(`/v1/agents/${id}`, { method: 'DELETE' }); fetchAgents(); }}
+            onDelete={async (id) => {
+                const name = agentList.find((a) => a.id === id)?.name;
+                await fetch(`/v1/agents/${id}`, { method: 'DELETE' });
+                fetchAgents();
+                // Clear graph if the deleted agent was being edited
+                if (name === agentName || agentList.length <= 1) {
+                  loadGraph([], []);
+                  setAgentName('');
+                }
+              }}
             onTest={() => setTestModalOpen(true)}
           />
         ) : activeTab === 'designer' ? (
