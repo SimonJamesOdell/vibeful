@@ -239,7 +239,12 @@ export default function App() {
       || templates.minimal;
 
     loadGraph(template.nodes as any, template.edges);
-    setAgentName(template.name);
+    // Only set the name from the template if no agent name is already set
+    // (avoids overwriting user-chosen names when called from handleCreateAgent)
+    const state = useFlowStore.getState();
+    if (!state.agentName || state.agentName === 'Untitled Agent') {
+      setAgentName(template.name);
+    }
   };
 
   // ── Quick-start toast state ──────────────────────────────────
