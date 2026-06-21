@@ -376,9 +376,14 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
           <Brain size={14} className="text-indigo-400" />
           <span className="text-sm font-medium text-slate-200">Vibeful Guide</span>
         </div>
-        <button onClick={() => setCollapsed(true)} className="text-slate-500 hover:text-slate-300">
-          <PanelRightClose size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setMessages([{ role: 'assistant', content: "Chat cleared. What can I help you with?" }])} className="text-slate-500 hover:text-slate-300 text-[10px] px-2 py-0.5 rounded hover:bg-slate-700" title="Clear chat">
+            Clear
+          </button>
+          <button onClick={() => setCollapsed(true)} className="text-slate-500 hover:text-slate-300">
+            <PanelRightClose size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
