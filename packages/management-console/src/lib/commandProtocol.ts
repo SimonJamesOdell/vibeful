@@ -56,7 +56,7 @@ export function unregisterCommandHandler(action: string): void {
  */
 export function parseCommands(text: string): VibefulCommand[] {
   const commands: VibefulCommand[] = [];
-  const regex = /```vibeful-command\n([\s\S]*?)```/g;
+  const regex = /```vibeful-command\s*([\s\S]*?)```/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     try {
@@ -105,7 +105,7 @@ export async function executeCommands(text: string): Promise<CommandResult[]> {
  */
 export function stripCommands(text: string | undefined): string {
   if (!text) return '';
-  return text.replace(/```vibeful-command\s*\n[\s\S]*?```/g, '').trim();
+  return text.replace(/```vibeful-command\s*[\s\S]*?```/g, '').trim();
 }
 
 /**

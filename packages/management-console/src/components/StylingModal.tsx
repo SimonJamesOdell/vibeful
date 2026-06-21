@@ -9,7 +9,21 @@ interface StylingConfig {
   headerLogo: string; // data URL or empty
 }
 
-const FONT_OPTIONS = ['Inter, sans-serif', 'Georgia, serif', 'Consolas, monospace', 'system-ui', 'Poppins, sans-serif'];
+const FONT_OPTIONS = [
+  { label: 'Inter', value: "'Inter', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Inter' },
+  { label: 'Roboto', value: "'Roboto', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Roboto' },
+  { label: 'Poppins', value: "'Poppins', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Poppins' },
+  { label: 'Open Sans', value: "'Open Sans', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Open+Sans' },
+  { label: 'Lato', value: "'Lato', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Lato' },
+  { label: 'Montserrat', value: "'Montserrat', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Montserrat' },
+  { label: 'Raleway', value: "'Raleway', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Raleway' },
+  { label: 'Playfair Display', value: "'Playfair Display', serif", cdn: 'https://fonts.googleapis.com/css2?family=Playfair+Display' },
+  { label: 'Source Code Pro', value: "'Source Code Pro', monospace", cdn: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro' },
+  { label: 'Merriweather', value: "'Merriweather', serif", cdn: 'https://fonts.googleapis.com/css2?family=Merriweather' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Consolas', value: 'Consolas, monospace' },
+  { label: 'System UI', value: 'system-ui, sans-serif' },
+];
 const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   default: { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: 'Inter, sans-serif', fontSize: '14px' },
   light: { bgColor: '#ffffff', fontColor: '#1e293b', fontFamily: 'system-ui', fontSize: '14px' },
@@ -21,15 +35,36 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
   const [config, setConfig] = useState<StylingConfig>({
     bgColor: '#1e293b',
     fontColor: '#e2e8f0',
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: "'Inter', sans-serif",
     fontSize: '14px',
     headerLogo: '',
   });
+  const [customFonts, setCustomFonts] = useState<Array<{ name: string; dataUrl: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fontInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFontUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.name.endsWith('.ttf')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const name = file.name.replace(/\.ttf$/i, '');
+      setCustomFonts((prev) => [...prev, { name, dataUrl }]);
+      setConfig((p) => ({ ...p, fontFamily: `'${name}', sans-serif` }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handlePreset = (key: string) => {
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
   };
+
+  // Dynamically load selected font (CDN or custom TTF) for live preview
+  const selectedFont = FONT_OPTIONS.find((f) => f.value === config.fontFamily);
+  const customFont = customFonts.find((f) => `'${f.name}', sans-serif` === config.fontFamily);
+  const fontCdn = selectedFont?.cdn;
+  const fontDataUrl = customFont?.dataUrl;
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,7 +127,12 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
             <div>
               <label className="text-xs text-slate-400 font-medium mb-1 block">Font</label>
               <select value={config.fontFamily} onChange={(e) => setConfig((p) => ({ ...p, fontFamily: e.target.value }))} className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200">
-                {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                  {FONT_OPTIONS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}{f.cdn ? ' (CDN)' : ' (system)'}</option>
+                  ))}
+                  {customFonts.map((f) => (
+                    <option key={f.name} value={`'${f.name}', sans-serif`}>{f.name} (uploaded)</option>
+                  ))}
               </select>
             </div>
             <div>
