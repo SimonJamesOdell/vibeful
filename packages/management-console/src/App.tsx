@@ -331,30 +331,7 @@ export default function App() {
             ))}
           </div>
 
-          {/* Agent selector dropdown */}
-          <div className="flex-1 flex justify-center">
-            {agentList.length > 1 && (
-              <select
-                value={activeAgentId || ''}
-                onChange={(e) => { const id = e.target.value; if (id === 'new') { setActiveAgentId(null); loadGraph([], []); setAgentName(''); } else if (id) switchToAgent(id); }}
-                className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 max-w-[200px]"
-              >
-                <option value="">Select agent…</option>
-                <option value="new">＋ New Agent</option>
-                {agentList.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name || 'Unnamed'}</option>
-                ))}
-              </select>
-            )}
-          </div>
-
           <div className="flex items-center gap-2">
-            <input
-              value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              placeholder="Agent name…"
-              className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 w-40 focus:outline-none focus:border-indigo-500"
-            />
             <div className="w-px h-5 bg-slate-700" />
             <button onClick={handleSave} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
               <Download size={12} /> Save
@@ -419,10 +396,15 @@ export default function App() {
             onTest={() => setTestModalOpen(true)}
           />
         ) : activeTab === 'designer' ? (
-          <div className="flex-1 flex overflow-hidden">
-            <NodePalette />
-            <div className="flex-1 min-w-0 relative">
-              <FlowCanvas />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="h-8 bg-slate-900 border-b border-slate-700 flex items-center px-3 flex-shrink-0">
+              <span className="text-xs text-slate-400 mr-2">Editing:</span>
+              <span className="text-xs font-medium text-slate-200">{agentName || 'Unnamed Agent'}</span>
+            </div>
+            <div className="flex-1 flex overflow-hidden">
+              <NodePalette />
+              <div className="flex-1 min-w-0 relative">
+                <FlowCanvas />
               {quickStartToast && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-indigo-600/95 text-white rounded-xl shadow-2xl animate-pulse flex items-center gap-3 text-sm font-medium">
                   <Loader2 size={16} className="animate-spin" />
