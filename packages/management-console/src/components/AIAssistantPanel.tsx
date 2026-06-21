@@ -323,8 +323,20 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {
-      const preset = (details.preset || details.mode || details.theme) as string | undefined;
-      const font = details.font as string | undefined;
+      // Scan all detail values for a known preset name (handles any param name the LLM might use)
+      const KNOWN_PRESETS = ['light', 'dark', 'default', 'brand'];
+      let preset: string | undefined;
+      let font: string | undefined;
+      for (const [k, v] of Object.entries(details)) {
+        if (typeof v !== 'string' || !v.trim()) continue;
+        const norm = v.toLowerCase().trim().replace(/\s+(mode|theme|preset|style)$/, '');
+        if (KNOWN_PRESETS.includes(norm)) { preset = v; continue; }
+        if (k === 'font' || k === 'fontFamily') { font = v; }
+      }
+      // Fallback: also check the standard param names directly
+      if (!preset) preset = (details.preset || details.mode || details.theme) as string | undefined;
+      if (!font) font = details.font as string | undefined;
+      console.log('[SET_STYLING] raw details:', JSON.stringify(details), '→ preset:', preset, 'font:', font);
       window.dispatchEvent(new CustomEvent('vibeful:styling-modal', { detail: details }));
       // Apply preset directly via global callback — no event chain
       if (preset) applyStylingPreset(preset);

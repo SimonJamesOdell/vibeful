@@ -313,14 +313,28 @@ export default function App() {
     });
     window.addEventListener('vibeful:styling-modal', (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      const preset = detail.preset || detail.mode || detail.theme || undefined;
-      const font = detail.font || undefined;
+      // Scan all values for known preset names (param-name agnostic)
+      const KNOWN_PRESETS = ['light', 'dark', 'default', 'brand'];
+      let preset: string | undefined;
+      let font: string | undefined;
+      if (detail && typeof detail === 'object') {
+        for (const [k, v] of Object.entries(detail)) {
+          if (typeof v !== 'string' || !v.trim()) continue;
+          const norm = v.toLowerCase().trim().replace(/\s+(mode|theme|preset|style)$/, '');
+          if (KNOWN_PRESETS.includes(norm)) { preset = v; continue; }
+          if (k === 'font' || k === 'fontFamily') { font = v; }
+        }
+      }
+      if (!preset) preset = detail.preset || detail.mode || detail.theme || undefined;
+      if (!font) font = detail.font || undefined;
+      console.log('[App:styling-modal] preset:', preset, 'font:', font, 'detail:', JSON.stringify(detail));
       stylingPresetRef.current = preset;
       stylingFontRef.current = font;
       setActiveTab('designer');
       setStylingModalOpen(true);
       // Re-dispatch so the StylingModal catches it after mount
       setTimeout(() => {
+        console.log('[App:styling-apply re-dispatch] preset:', preset, 'font:', font);
         window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { preset, font } }));
       }, 50);
     });

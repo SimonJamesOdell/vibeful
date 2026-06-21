@@ -43,6 +43,7 @@ const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
 let _applyFn: ((preset: string) => void) | null = null;
 let _pendingPreset: string | null = null;
 export function applyStylingPreset(preset: string) {
+  console.log('[StylingModal:applyStylingPreset] preset:', preset, '_applyFn set:', !!_applyFn);
   _pendingPreset = preset;
   _applyFn?.(preset); // try immediate apply if component is mounted
 }
@@ -98,22 +99,28 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   useEffect(() => {
     _applyFn = (preset: string) => {
       const key = normalizePreset(preset);
+      console.log('[StylingModal:_applyFn] preset:', preset, '→ key:', key, 'exists:', !!PRESET_STYLES[key]);
       if (PRESET_STYLES[key]) {
         setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
       }
     };
     // Apply any preset that arrived before mount
     if (_pendingPreset) {
+      console.log('[StylingModal:mount] applying _pendingPreset:', _pendingPreset);
       _applyFn(_pendingPreset);
       _pendingPreset = null;
+    } else {
+      console.log('[StylingModal:mount] no _pendingPreset');
     }
     return () => { _applyFn = null; };
   }, []);
 
   // Apply preset on mount via initialPreset prop
   useEffect(() => {
+    console.log('[StylingModal:initialPreset effect] initialPreset:', initialPreset);
     if (!initialPreset) return;
     const key = normalizePreset(initialPreset);
+    console.log('[StylingModal:initialPreset] normalized key:', key, 'exists:', !!PRESET_STYLES[key]);
     if (PRESET_STYLES[key]) {
       setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
     }
@@ -125,8 +132,10 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
       const detail = (e as CustomEvent).detail || {};
       const p = detail.preset || detail.mode || detail.theme;
       const f = detail.font;
+      console.log('[StylingModal:vibeful:styling-apply] p:', p, 'f:', f);
       if (p) {
         const key = normalizePreset(p);
+        console.log('[StylingModal:event] normalized key:', key, 'exists:', !!PRESET_STYLES[key]);
         if (PRESET_STYLES[key]) {
           setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
         }
