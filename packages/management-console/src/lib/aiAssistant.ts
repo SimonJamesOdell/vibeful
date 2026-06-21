@@ -40,7 +40,7 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
 - delete_context — delete a context. Params: {context_id}
 
 === Testing ===
-- test_agent — open the test chat modal to try the agent live. No params needed.
+- test_agent — open the test chat modal to try the agent live. No params needed. When the user says "test X" or "try it out", use this command directly — do NOT navigate to the designer first. The modal overlays whatever tab the user is on.
 
 === Navigation ===
 - navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"}
