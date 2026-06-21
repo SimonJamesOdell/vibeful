@@ -22,6 +22,7 @@ import NodeTooltip from './components/NodeTooltip';
 import AgentList from './components/AgentList';
 import ContextManager from './components/ContextManager';
 import Dashboard from './components/Dashboard';
+import CreateAgentModal from './components/CreateAgentModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
@@ -103,6 +104,25 @@ export default function App() {
     } catch (err: any) {
       showToast(`Deploy error: ${err.message}`, 'error');
     }
+  };
+
+  const handleCreateAgent = async (name: string, templateKey: string) => {
+    setCreateModalOpen(false);
+    // Create in DB
+    await fetch('/v1/agents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: '', system_prompt: '' }),
+    });
+    fetchAgents();
+    setAgentName(name);
+    // Load template
+    setActiveTab('designer');
+    setQuickStartToast(`Building your ${templateKey === 'minimal' ? 'chatbot' : 'agent'}…`);
+    setTimeout(() => {
+      loadTemplateFromYaml(templateKey);
+      setQuickStartToast(null);
+    }, 600);
   };
 
   const handleSave = () => {
@@ -222,6 +242,8 @@ export default function App() {
   // ── Quick-start toast state ──────────────────────────────────
   const [quickStartToast, setQuickStartToast] = useState<string | null>(null);
   const [testModalOpen, setTestModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
 
   // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
@@ -274,6 +296,11 @@ export default function App() {
     window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
     window.addEventListener('vibeful:quick-start', onQuickStart);
     window.addEventListener('vibeful:test-agent', () => setTestModalOpen(true));
+    window.addEventListener('vibeful:create-agent-modal', (e: Event) => {
+      const defaults = (e as CustomEvent).detail || {};
+      setCreateModalDefaults(defaults);
+      setCreateModalOpen(true);
+    });
 
     return () => {
       window.removeEventListener('vibeful:deploy', onDeploy);
@@ -537,6 +564,14 @@ export default function App() {
         </div>
       </div>
       <ToastContainer />
+      {createModalOpen && (
+        <CreateAgentModal
+          defaultName={createModalDefaults.name}
+          defaultTemplate={createModalDefaults.template}
+          onConfirm={handleCreateAgent}
+          onClose={() => setCreateModalOpen(false)}
+        />
+      )}
       {testModalOpen && (() => {
         // Extract system prompt from agent's graph nodes
         const spNode = nodes.find((n) => n.data.nodeType === 'builtin.system_prompt' || n.data.label?.toLowerCase().includes('system prompt'));
