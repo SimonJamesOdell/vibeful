@@ -1,6 +1,7 @@
 import { type Node, type Edge } from '@xyflow/react';
 import type { VibefulNodeData } from './flowStore';
 import { VIBEFUL_NODE_TYPES } from '../const';
+import { load as yamlLoad } from 'js-yaml';
 
 /** Generates a Vibeful-compatible agent graph YAML config. */
 export function generateYaml(
@@ -120,7 +121,10 @@ export function parseGraphFromYaml(
   config: Record<string, unknown>
 ): { nodes: Node<VibefulNodeData>[]; edges: Edge[] } | null {
   try {
-    const graphConfig = (config as any).graph;
+    // The API returns agents with config_json (a YAML string). Parse that first.
+    const yamlStr = (config as any).config_json || (config as any).config_yaml;
+    const parsed = yamlStr ? (typeof yamlStr === 'string' ? yamlLoad(yamlStr) : yamlStr) : config;
+    const graphConfig = (parsed as any).graph || (config as any).graph;
     if (!graphConfig?.nodes) return null;
 
     const nodes: Node<VibefulNodeData>[] = [];
