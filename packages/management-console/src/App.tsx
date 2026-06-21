@@ -420,6 +420,7 @@ export default function App() {
               <PropertyPanel />
             </div>
           </div>
+          </div>
         ) : activeTab === 'versions' ? (
           <div className="flex-1 overflow-y-auto">
             <VersionHistory agentId={activeAgentId} />
