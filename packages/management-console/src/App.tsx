@@ -240,10 +240,18 @@ export default function App() {
       if (currentNodes.length > 0) return;
 
       setQuickStartToast(`Building your ${template === 'minimal' ? 'chatbot' : 'agent'}…`);
-      setTimeout(() => {
+      setTimeout(async () => {
         loadTemplateFromYaml(template);
+        // Create the agent record in the database so it appears on the dashboard
+        const tplName = template === 'minimal' ? 'Basic Chatbot' : template === 'lucid' ? 'Lucid Agent' : template === 'full' ? 'Full Agent' : 'Agent';
+        await fetch('/v1/agents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: tplName, description: '', system_prompt: '' }),
+        });
+        setAgentName(tplName);
+        fetchAgents();
         setQuickStartToast(null);
-        // Only trigger AI confirmation if this came from an explicit user request (has message)
         if (message) {
           window.dispatchEvent(new CustomEvent('vibeful:quick-start-done', { detail: { template, message } }));
         }
