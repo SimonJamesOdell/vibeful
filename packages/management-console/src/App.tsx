@@ -290,7 +290,7 @@ export default function App() {
             {/* Main */}
             {[
               { tab: 'dashboard' as const, label: 'Dashboard' },
-              { tab: 'designer' as const, label: 'Designer' },
+              { tab: 'designer' as const, label: 'Agent Editor' },
             ].map((t) => (
               <button key={t.tab} onClick={() => setActiveTab(t.tab)}
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === t.tab ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -402,7 +402,31 @@ export default function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="h-8 bg-slate-900 border-b border-slate-700 flex items-center px-3 flex-shrink-0">
               <span className="text-xs text-slate-400 mr-2">Editing:</span>
-              <span className="text-xs font-medium text-slate-200">{agentName || 'Unnamed Agent'}</span>
+              <select
+                value={agentName}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  if (name === '__new') { setAgentName(''); loadGraph([], []); return; }
+                  const match = agentList.find((a) => a.name === name);
+                  if (match) {
+                    setAgentName(match.name);
+                    // Load agent's graph from config if available
+                    const cfg = match.config_yaml;
+                    if (cfg) {
+                      try { const { nodes: ns, edges: es } = parseGraphFromYaml(cfg, nodeDefaults); loadGraph(ns, es); } catch {}
+                    }
+                  }
+                }}
+                className="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
+              >
+                <option value={agentName || ''}>{agentName || 'Unnamed Agent'}</option>
+                <option disabled>──</option>
+                {agentList.filter((a) => a.name !== agentName).map((a) => (
+                  <option key={a.id} value={a.name}>{a.name}</option>
+                ))}
+                <option disabled>──</option>
+                <option value="__new">＋ New (blank canvas)</option>
+              </select>
             </div>
             <div className="flex-1 flex overflow-hidden">
               <NodePalette />
