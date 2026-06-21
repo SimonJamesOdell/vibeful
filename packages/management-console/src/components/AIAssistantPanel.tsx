@@ -36,6 +36,10 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
   const [onboarding, setOnboarding] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const agentsRef = useRef(agents);
+  const contextsRef = useRef(contexts);
+  agentsRef.current = agents;
+  contextsRef.current = contexts;
 
   const { nodes, edges, loadGraph, addNode, setAgentName, agentName } = useFlowStore();
 
@@ -165,9 +169,8 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     registerCommandHandler(CONSOLE_COMMANDS.DELETE_AGENT, async (details) => {
       let agentId = (details.agent_id || details.id) as string | undefined;
       const name = details.name as string | undefined;
-      // If name is given but not id, look up by name
       if (!agentId && name) {
-        const match = agents.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) throw new Error(`Agent "${name}" not found`);
         agentId = match.id;
       }
@@ -182,7 +185,7 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       let agentId = (details.agent_id || details.id) as string | undefined;
       const name = details.name as string | undefined;
       if (!agentId && name) {
-        const match = agents.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) throw new Error(`Agent "${name}" not found`);
         agentId = match.id;
       }
