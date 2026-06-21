@@ -169,6 +169,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     registerCommandHandler(CONSOLE_COMMANDS.DELETE_AGENT, async (details) => {
       let agentId = (details.agent_id || details.id) as string | undefined;
       const name = details.name as string | undefined;
+      // If agent_id doesn't look like a UUID, treat it as a name
+      if (agentId && !/^[0-9a-f-]{30,}$/i.test(agentId)) {
+        name ||= agentId as string;
+        agentId = undefined;
+      }
       if (!agentId && name) {
         const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) throw new Error(`Agent "${name}" not found`);
@@ -184,6 +189,10 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     registerCommandHandler(CONSOLE_COMMANDS.SELECT_AGENT, async (details) => {
       let agentId = (details.agent_id || details.id) as string | undefined;
       const name = details.name as string | undefined;
+      if (agentId && !/^[0-9a-f-]{30,}$/i.test(agentId)) {
+        name ||= agentId as string;
+        agentId = undefined;
+      }
       if (!agentId && name) {
         const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) throw new Error(`Agent "${name}" not found`);
