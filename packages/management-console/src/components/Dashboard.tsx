@@ -31,7 +31,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
           subtitle="Build once, embed anywhere. Simple chatbot on a static site, or an interactive agent driving your app — same platform."
           count={agents.length}
           actionLabel="New Agent"
-          onAction={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: 'I want to create a basic chatbot' } }))}
+          onAction={() => window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: '' } }))}
           emptyTitle="No agents yet"
           emptyDesc="Create your first agent — it takes seconds. You'll get a ready-to-embed script for any website."
         >

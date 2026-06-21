@@ -20,7 +20,7 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
 - add_node — add a node. Params: {nodeType, label?, afterNodeId?}
   Example: \`\`\`vibeful-command\n{"action":"add_node","details":{"nodeType":"builtin.rag","label":"RAG","afterNodeId":"system_prompt"}}\n\`\`\`
 - remove_node — remove a node. Params: {label}
-- add_edge — connect two nodes. Params: {source, target}
+- add_edge — connect two nodes. Params: {source, target}. source and target are node labels (not IDs). The edge is created between the two matching nodes on the canvas.
 - load_template — load a pre-built template. Params: {template: "minimal"|"full"|"lucid"}
 - start_tour — guided walkthrough of graph nodes. Params: {steps: [{node, explanation}]}
 - highlight_node — highlight one node. Params: {node, explanation?}
