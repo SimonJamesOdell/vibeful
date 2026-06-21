@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Palette, Type } from 'lucide-react';
 
 interface StylingConfig {
