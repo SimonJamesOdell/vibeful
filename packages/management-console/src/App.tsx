@@ -313,10 +313,16 @@ export default function App() {
     });
     window.addEventListener('vibeful:styling-modal', (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      stylingPresetRef.current = detail.preset || detail.mode || undefined;
-      stylingFontRef.current = detail.font || undefined;
+      const preset = detail.preset || detail.mode || undefined;
+      const font = detail.font || undefined;
+      stylingPresetRef.current = preset;
+      stylingFontRef.current = font;
       setActiveTab('designer');
       setStylingModalOpen(true);
+      // Re-dispatch so the StylingModal catches it after mount
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { preset, font } }));
+      }, 50);
     });
 
     return () => {

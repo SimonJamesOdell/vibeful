@@ -37,13 +37,12 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   initialPreset?: string;
   initialFont?: string;
 }) {
-  const [config, setConfig] = useState<StylingConfig>(() => {
-    const base = { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: '"Inter", sans-serif', fontSize: '14px', headerLogo: '' };
-    const presetKey = initialPreset?.toLowerCase();
-    if (presetKey && PRESET_STYLES[presetKey]) {
-      return { ...base, ...PRESET_STYLES[presetKey] };
-    }
-    return base;
+  const [config, setConfig] = useState<StylingConfig>({
+    bgColor: '#1e293b',
+    fontColor: '#e2e8f0',
+    fontFamily: '"Inter", sans-serif',
+    fontSize: '14px',
+    headerLogo: '',
   });
   const [customFonts, setCustomFonts] = useState<Array<{ name: string; dataUrl: string }>>([]);
   const [cdnProvider, setCdnProvider] = useState('google');
@@ -79,11 +78,17 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
   };
 
+  // Listen for direct styling events from the AI Guide
   useEffect(() => {
     const handler = (e: Event) => {
-      const { preset, font } = (e as CustomEvent).detail || {};
-      if (preset && PRESET_STYLES[preset]) {
-        setConfig((prev) => ({ ...prev, ...PRESET_STYLES[preset] }));
+      const detail = (e as CustomEvent).detail || {};
+      const preset = detail.preset || detail.mode;
+      const font = detail.font;
+      if (preset) {
+        const key = preset.toLowerCase().trim();
+        if (PRESET_STYLES[key]) {
+          setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
+        }
       }
       if (font) {
         const allFonts = [...SYSTEM_FONTS, ...cdnFonts, ...customFonts.map((f) => ({ label: f.name, value: `'${f.name}', sans-serif` }))];
