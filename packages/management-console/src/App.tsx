@@ -477,11 +477,20 @@ export default function App() {
                 <Palette size={12} /> Styling
               </button>
             </div>
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden relative">
               <NodePalette />
               <div className="flex-1 min-w-0 relative">
                 <FlowCanvas />
-              {quickStartToast && (
+                {stylingModalOpen && (
+                  <StylingModal
+                    onClose={() => setStylingModalOpen(false)}
+                    onApply={(cfg) => {
+                      setStylingModalOpen(false);
+                      showToast('Styling applied — will be saved with your agent', 'success');
+                    }}
+                  />
+                )}
+                {quickStartToast && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-indigo-600/95 text-white rounded-xl shadow-2xl animate-pulse flex items-center gap-3 text-sm font-medium">
                   <Loader2 size={16} className="animate-spin" />
                   {quickStartToast}
@@ -577,16 +586,6 @@ export default function App() {
           defaultTemplate={createModalDefaults.template}
           onConfirm={handleCreateAgent}
           onClose={() => setCreateModalOpen(false)}
-        />
-      )}
-      {stylingModalOpen && (
-        <StylingModal
-          onClose={() => setStylingModalOpen(false)}
-          onApply={(cfg) => {
-            setStylingModalOpen(false);
-            showToast('Styling applied — will be saved with your agent', 'success');
-            // TODO: store config in agent's metadata
-          }}
         />
       )}
       {testModalOpen && (() => {
