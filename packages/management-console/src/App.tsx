@@ -231,9 +231,10 @@ export default function App() {
       },
     };
 
-    const template = Object.values(templates).find((t) =>
-      yamlText.includes(t.name)
-    ) || templates.minimal;
+    // Try exact key first, then name match, fall back to minimal
+    const template = templates[yamlText]
+      || Object.values(templates).find((t) => yamlText.includes(t.name))
+      || templates.minimal;
 
     loadGraph(template.nodes as any, template.edges);
     setAgentName(template.name);
