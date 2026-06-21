@@ -163,6 +163,7 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       if (!resp.ok) throw new Error('Failed to create agent');
       const data = await resp.json();
       onAgentsChanged();
+      useFlowStore.getState().setAgentName(name);
       return { id: data.id, name };
     });
 
