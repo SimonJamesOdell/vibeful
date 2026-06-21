@@ -247,6 +247,8 @@ export default function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
   const [stylingModalOpen, setStylingModalOpen] = useState(false);
+  const stylingPresetRef = useRef<string | undefined>(undefined);
+  const stylingFontRef = useRef<string | undefined>(undefined);
 
   // Auto-close styling modal when navigating away from editor
   useEffect(() => {
@@ -311,18 +313,10 @@ export default function App() {
     });
     window.addEventListener('vibeful:styling-modal', (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
+      stylingPresetRef.current = detail.preset || detail.mode || undefined;
+      stylingFontRef.current = detail.font || undefined;
       setActiveTab('designer');
       setStylingModalOpen(true);
-      // Delay to let StylingModal mount, then apply preset if specified
-      if (detail.preset || detail.mode) {
-        const preset = detail.preset || detail.mode;
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { preset } }));
-          if (detail.font) {
-            window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { font: detail.font } }));
-          }
-        }, 100);
-      }
     });
 
     return () => {
@@ -505,9 +499,12 @@ export default function App() {
                 <FlowCanvas />
                 {stylingModalOpen && (
                   <StylingModal
-                    onClose={() => setStylingModalOpen(false)}
+                    initialPreset={stylingPresetRef.current}
+                    initialFont={stylingFontRef.current}
+                    onClose={() => { setStylingModalOpen(false); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
                     onApply={(cfg) => {
                       setStylingModalOpen(false);
+                      stylingPresetRef.current = undefined; stylingFontRef.current = undefined;
                       showToast('Styling applied — will be saved with your agent', 'success');
                     }}
                   />
