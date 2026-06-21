@@ -9,21 +9,20 @@ interface StylingConfig {
   headerLogo: string; // data URL or empty
 }
 
-const FONT_OPTIONS = [
-  { label: 'Inter', value: "'Inter', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Inter' },
-  { label: 'Roboto', value: "'Roboto', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Roboto' },
-  { label: 'Poppins', value: "'Poppins', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Poppins' },
-  { label: 'Open Sans', value: "'Open Sans', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Open+Sans' },
-  { label: 'Lato', value: "'Lato', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Lato' },
-  { label: 'Montserrat', value: "'Montserrat', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Montserrat' },
-  { label: 'Raleway', value: "'Raleway', sans-serif", cdn: 'https://fonts.googleapis.com/css2?family=Raleway' },
-  { label: 'Playfair Display', value: "'Playfair Display', serif", cdn: 'https://fonts.googleapis.com/css2?family=Playfair+Display' },
-  { label: 'Source Code Pro', value: "'Source Code Pro', monospace", cdn: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro' },
-  { label: 'Merriweather', value: "'Merriweather', serif", cdn: 'https://fonts.googleapis.com/css2?family=Merriweather' },
-  { label: 'Georgia', value: 'Georgia, serif' },
-  { label: 'Consolas', value: 'Consolas, monospace' },
+const SYSTEM_FONTS = [
   { label: 'System UI', value: 'system-ui, sans-serif' },
+  { label: 'Inter', value: '"Inter", sans-serif', cdn: 'https://fonts.googleapis.com/css2?family=Inter' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Consolas', value: '"Consolas", monospace' },
+  { label: 'Arial', value: 'Arial, sans-serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", serif' },
 ];
+
+const CDN_BASES: Record<string, { label: string; url: (name: string) => string }> = {
+  google: { label: 'Google Fonts', url: (n) => `https://fonts.googleapis.com/css2?family=${encodeURIComponent(n)}` },
+  adobe: { label: 'Adobe Fonts (Typekit)', url: (n) => `https://use.typekit.net/${n}.css` },
+  custom: { label: 'Custom URL', url: (n) => n },
+};
 const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   default: { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: 'Inter, sans-serif', fontSize: '14px' },
   light: { bgColor: '#ffffff', fontColor: '#1e293b', fontFamily: 'system-ui', fontSize: '14px' },
@@ -40,12 +39,25 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
     headerLogo: '',
   });
   const [customFonts, setCustomFonts] = useState<Array<{ name: string; dataUrl: string }>>([]);
+  const [cdnProvider, setCdnProvider] = useState('google');
+  const [cdnFontName, setCdnFontName] = useState('');
+  const [cdnFonts, setCdnFonts] = useState<Array<{ label: string; value: string; cdn: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fontInputRef = useRef<HTMLInputElement>(null);
 
+  const handleCdnImport = () => {
+    const name = cdnFontName.trim();
+    if (!name || !CDN_BASES[cdnProvider]) return;
+    const url = CDN_BASES[cdnProvider].url(name);
+    const value = `"${name}", sans-serif`;
+    setCdnFonts((prev) => [...prev.filter((f) => f.value !== value), { label: `${name} (CDN)`, value, cdn: url }]);
+    setConfig((p) => ({ ...p, fontFamily: value }));
+    setCdnFontName('');
+  };
+
   const handleFontUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith('.ttf')) return;
+    if (!file || (!file.name.endsWith('.ttf') && !file.name.endsWith('.woff') && !file.name.endsWith('.woff2'))) return;
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -68,9 +80,15 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
         setConfig((prev) => ({ ...prev, ...PRESET_STYLES[preset] }));
       }
       if (font) {
-        const match = FONT_OPTIONS.find((f) => f.label.toLowerCase().includes(font.toLowerCase())
+        const allFonts = [...SYSTEM_FONTS, ...cdnFonts, ...customFonts.map((f) => ({ label: f.name, value: `'${f.name}', sans-serif` }))];
+        const match = allFonts.find((f) => f.label.toLowerCase().includes(font.toLowerCase())
           || f.value.toLowerCase().includes(font.toLowerCase()));
         if (match) setConfig((prev) => ({ ...prev, fontFamily: match.value }));
+        else {
+          // Auto-import from CDN if not found
+          setCdnFontName(font);
+          handleCdnImport();
+        }
       }
     };
     window.addEventListener('vibeful:styling-apply', handler);
@@ -78,7 +96,7 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
   }, []);
 
   // Dynamically load selected font (CDN or custom TTF) for live preview
-  const selectedFont = FONT_OPTIONS.find((f) => f.value === config.fontFamily);
+  const selectedFont = [...SYSTEM_FONTS, ...cdnFonts].find((f) => f.value === config.fontFamily);
   const customFont = customFonts.find((f) => `'${f.name}', sans-serif` === config.fontFamily);
   const fontCdn = selectedFont?.cdn;
   const fontDataUrl = customFont?.dataUrl;
@@ -140,17 +158,49 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
           </div>
 
           {/* Typography */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
             <div>
               <label className="text-xs text-slate-400 font-medium mb-1 block">Font</label>
               <select value={config.fontFamily} onChange={(e) => setConfig((p) => ({ ...p, fontFamily: e.target.value }))} className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200">
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}{f.cdn ? ' (CDN)' : ' (system)'}</option>
+                <optgroup label="System Fonts">
+                  {SYSTEM_FONTS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
                   ))}
-                  {customFonts.map((f) => (
-                    <option key={f.name} value={`'${f.name}', sans-serif`}>{f.name} (uploaded)</option>
-                  ))}
+                </optgroup>
+                {cdnFonts.length > 0 && (
+                  <optgroup label="CDN Fonts">
+                    {cdnFonts.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {customFonts.length > 0 && (
+                  <optgroup label="Custom Uploads">
+                    {customFonts.map((f) => (
+                      <option key={f.name} value={`'${f.name}', sans-serif`}>{f.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <select value={cdnProvider} onChange={(e) => setCdnProvider(e.target.value)} className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200">
+                {Object.entries(CDN_BASES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+              <input
+                value={cdnFontName}
+                onChange={(e) => setCdnFontName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCdnImport()}
+                placeholder="Font name…"
+                className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500"
+              />
+              <button onClick={handleCdnImport} disabled={!cdnFontName.trim()} className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded">Import</button>
+            </div>
+            <div>
+              <input ref={fontInputRef} type="file" accept=".ttf,.woff,.woff2" onChange={handleFontUpload} className="hidden" />
+              <button onClick={() => fontInputRef.current?.click()} className="w-full px-3 py-2 border-2 border-dashed border-slate-600 hover:border-indigo-500 rounded-lg text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1">
+                <Upload size={12} /> Upload custom font (TTF, WOFF, WOFF2)
+              </button>
             </div>
             <div>
               <label className="text-xs text-slate-400 font-medium mb-1 block">Size</label>
