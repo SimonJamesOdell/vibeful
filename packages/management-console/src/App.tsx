@@ -5,7 +5,7 @@ import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ToastContainer, { showToast } from './components/Toast';
 import TestChatModal from './components/TestChatModal';
@@ -24,6 +24,7 @@ import ContextManager from './components/ContextManager';
 import Dashboard from './components/Dashboard';
 import CreateAgentModal from './components/CreateAgentModal';
 import StylingModal from './components/StylingModal';
+import KnowledgeAttachModal from './components/KnowledgeAttachModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
@@ -247,6 +248,7 @@ export default function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
   const [stylingModalOpen, setStylingModalOpen] = useState(false);
+  const [knowledgeModalOpen, setKnowledgeModalOpen] = useState(false);
   const stylingPresetRef = useRef<string | undefined>(undefined);
   const stylingFontRef = useRef<string | undefined>(undefined);
 
@@ -306,6 +308,7 @@ export default function App() {
     window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
     window.addEventListener('vibeful:quick-start', onQuickStart);
     window.addEventListener('vibeful:test-agent', () => setTestModalOpen(true));
+    window.addEventListener('vibeful:open-knowledge', () => setKnowledgeModalOpen(true));
     window.addEventListener('vibeful:create-agent-modal', (e: Event) => {
       const defaults = (e as CustomEvent).detail || {};
       setCreateModalDefaults(defaults);
@@ -346,6 +349,7 @@ export default function App() {
       window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
       window.removeEventListener('vibeful:quick-start', onQuickStart);
       window.removeEventListener('vibeful:test-agent', () => setTestModalOpen(true));
+      window.removeEventListener('vibeful:open-knowledge', () => setKnowledgeModalOpen(true));
       window.removeEventListener('vibeful:create-agent-modal', () => {});
       window.removeEventListener('vibeful:styling-modal', () => {});
     };
@@ -505,6 +509,9 @@ export default function App() {
               <button onClick={() => setTestModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <TestTube size={12} /> Test
               </button>
+              <button onClick={() => setKnowledgeModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <BookOpen size={12} /> Knowledge
+              </button>
             </div>
             <div className="flex-1 flex overflow-hidden relative">
               <NodePalette />
@@ -605,6 +612,7 @@ export default function App() {
             agents={agentList}
             contexts={contextList}
             activeTab={activeTab}
+            activeAgentId={activeAgentId}
             onNavigate={setActiveTab}
             onAgentsChanged={fetchAgents}
             onContextsChanged={fetchContexts}
@@ -626,6 +634,15 @@ export default function App() {
         const prompt = spNode?.data?.config?.prompt || spNode?.data?.config?.content || '';
         return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt || undefined} onClose={() => setTestModalOpen(false)} />;
       })()}
+      {knowledgeModalOpen && (
+        <KnowledgeAttachModal
+          activeAgentId={activeAgentId}
+          contextList={contextList}
+          onClose={() => setKnowledgeModalOpen(false)}
+          onNavigate={setActiveTab}
+          onRefresh={fetchContexts}
+        />
+      )}
     </ReactFlowProvider>
   );
 }

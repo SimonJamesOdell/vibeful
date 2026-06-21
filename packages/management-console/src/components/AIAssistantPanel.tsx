@@ -24,12 +24,13 @@ interface Props {
   agents: Array<{ id: string; name: string }>;
   contexts: Array<{ id: string; name: string }>;
   activeTab: string;
+  activeAgentId: string | null;
   onNavigate: (tab: any) => void;
   onAgentsChanged: () => void;
   onContextsChanged: () => void;
 }
 
-export default function AIAssistantPanel({ agents, contexts, activeTab, onNavigate, onAgentsChanged, onContextsChanged }: Props) {
+export default function AIAssistantPanel({ agents, contexts, activeTab, activeAgentId, onNavigate, onAgentsChanged, onContextsChanged }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -320,6 +321,48 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     registerCommandHandler(CONSOLE_COMMANDS.TEST_AGENT, () => {
       window.dispatchEvent(new CustomEvent('vibeful:test-agent'));
       return { opened: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.OPEN_KNOWLEDGE, () => {
+      window.dispatchEvent(new CustomEvent('vibeful:open-knowledge'));
+      return { opened: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.ATTACH_KNOWLEDGE, async (details) => {
+      const contextIds = (details.context_ids as string[]) || [];
+      const state = useFlowStore.getState();
+      // Use the active agent ID from the store or the agentsRef
+      const agentId = activeAgentId || '';
+      if (!agentId) throw new Error('No agent selected');
+      const resp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context_ids: contextIds }),
+      });
+      if (!resp.ok) throw new Error('Failed to attach knowledge');
+      window.dispatchEvent(new CustomEvent('vibeful:open-knowledge'));
+      onContextsChanged();
+      return { attached: contextIds.length };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DETACH_KNOWLEDGE, async (details) => {
+      const contextId = details.context_id as string;
+      if (!contextId) throw new Error('context_id required');
+      const agentId = activeAgentId || '';
+      if (!agentId) throw new Error('No agent selected');
+      // Get current context_ids, remove the one to detach
+      const resp = await fetch(`/v1/agents/${agentId}`);
+      const agent = await resp.json();
+      const currentIds = (agent.context_ids || []) as string[];
+      const newIds = currentIds.filter((id: string) => id !== contextId);
+      const updateResp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context_ids: newIds }),
+      });
+      if (!updateResp.ok) throw new Error('Failed to detach knowledge');
+      onContextsChanged();
+      return { detached: true };
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {

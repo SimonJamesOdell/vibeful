@@ -133,6 +133,9 @@ export const CONSOLE_COMMANDS = {
   TEST_AGENT: 'test_agent',
   RENAME_AGENT: 'rename_agent',
   SET_STYLING: 'set_styling',
+  OPEN_KNOWLEDGE: 'open_knowledge',
+  ATTACH_KNOWLEDGE: 'attach_knowledge',
+  DETACH_KNOWLEDGE: 'detach_knowledge',
 } as const;
 
 /**

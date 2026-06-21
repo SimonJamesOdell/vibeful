@@ -548,6 +548,7 @@ async def delete_agent(agent_id: str):
 
 class AgentUpdateRequest(BaseModel):
     name: str = ""
+    context_ids: list[str] | None = None
 
 @app.put("/v1/agents/{agent_id}")
 async def update_agent(agent_id: str, req: AgentUpdateRequest):
@@ -556,9 +557,14 @@ async def update_agent(agent_id: str, req: AgentUpdateRequest):
     agent = await db.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "agent not found")
+    updates = {}
     if req.name:
-        await db.update_agent(agent_id, {"name": req.name})
-        agent["name"] = req.name
+        updates["name"] = req.name
+    if req.context_ids is not None:
+        updates["context_ids"] = req.context_ids
+    if updates:
+        await db.update_agent(agent_id, updates)
+        agent.update(updates)
     return agent
 
 
