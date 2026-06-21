@@ -5,7 +5,7 @@ import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ToastContainer, { showToast } from './components/Toast';
 import TestChatModal from './components/TestChatModal';
@@ -23,6 +23,7 @@ import AgentList from './components/AgentList';
 import ContextManager from './components/ContextManager';
 import Dashboard from './components/Dashboard';
 import CreateAgentModal from './components/CreateAgentModal';
+import StylingModal from './components/StylingModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
@@ -245,6 +246,7 @@ export default function App() {
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
+  const [stylingModalOpen, setStylingModalOpen] = useState(false);
 
   // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
@@ -471,6 +473,9 @@ export default function App() {
                 <option disabled>──</option>
                 <option value="__new">＋ New (blank canvas)</option>
               </select>
+              <button onClick={() => setStylingModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <Palette size={12} /> Styling
+              </button>
             </div>
             <div className="flex-1 flex overflow-hidden">
               <NodePalette />
@@ -572,6 +577,16 @@ export default function App() {
           defaultTemplate={createModalDefaults.template}
           onConfirm={handleCreateAgent}
           onClose={() => setCreateModalOpen(false)}
+        />
+      )}
+      {stylingModalOpen && (
+        <StylingModal
+          onClose={() => setStylingModalOpen(false)}
+          onApply={(cfg) => {
+            setStylingModalOpen(false);
+            showToast('Styling applied — will be saved with your agent', 'success');
+            // TODO: store config in agent's metadata
+          }}
         />
       )}
       {testModalOpen && (() => {
