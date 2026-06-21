@@ -51,16 +51,24 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       const nodeType = details.nodeType as string;
       const label = (details.label as string) || nodeType;
       const afterLabel = details.afterNodeId as string | undefined;
-      let position = undefined;
+      let position: { x: number; y: number } | undefined = undefined;
       let afterNodeId: string | null = null;
+      const existing = useFlowStore.getState().nodes;
       if (afterLabel) {
-        const afterNode = useFlowStore.getState().nodes.find(
+        const afterNode = existing.find(
           (n) => n.data.label === afterLabel || n.id === afterLabel
         );
         if (afterNode) {
           position = { x: afterNode.position.x, y: afterNode.position.y + 120 };
           afterNodeId = afterNode.id;
         }
+      }
+      // If no afterNodeId, place below the rightmost existing node
+      if (!position && existing.length > 0) {
+        const rightmost = existing.reduce((a, b) => a.position.x > b.position.x ? a : b);
+        const belowRightmost = existing.filter((n) => n.position.x >= rightmost.position.x - 10);
+        const lowest = belowRightmost.reduce((a, b) => a.position.y > b.position.y ? a : b);
+        position = { x: rightmost.position.x, y: lowest.position.y + 120 };
       }
       useFlowStore.getState().addNode(nodeType, label, position);
       if (afterNodeId) {
