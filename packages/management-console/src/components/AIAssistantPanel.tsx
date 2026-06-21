@@ -163,21 +163,32 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.DELETE_AGENT, async (details) => {
-      const agentId = details.agent_id as string;
-      if (!agentId) throw new Error('agent_id required');
+      let agentId = (details.agent_id || details.id) as string | undefined;
+      const name = details.name as string | undefined;
+      // If name is given but not id, look up by name
+      if (!agentId && name) {
+        const match = agents.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match) throw new Error(`Agent "${name}" not found`);
+        agentId = match.id;
+      }
+      if (!agentId) throw new Error('agent_id or name required');
       const resp = await fetch(`/v1/agents/${agentId}`, { method: 'DELETE' });
       if (!resp.ok) throw new Error('Failed to delete agent');
       onAgentsChanged();
-      return { deleted: true };
+      return { deleted: true, name: name || agentId };
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.SELECT_AGENT, async (details) => {
-      const agentId = details.agent_id as string;
-      if (!agentId) throw new Error('agent_id required');
-      const resp = await fetch(`/v1/agents/${agentId}`);
-      if (!resp.ok) throw new Error('Agent not found');
+      let agentId = (details.agent_id || details.id) as string | undefined;
+      const name = details.name as string | undefined;
+      if (!agentId && name) {
+        const match = agents.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match) throw new Error(`Agent "${name}" not found`);
+        agentId = match.id;
+      }
+      if (!agentId) throw new Error('agent_id or name required');
       onNavigate('designer');
-      return { agent_id: agentId };
+      return { agent_id: agentId, name: name || agentId };
     });
 
     // Knowledge base commands
