@@ -12,6 +12,7 @@ import {
   CONSOLE_COMMANDS, type CommandResult,
 } from '../lib/commandProtocol';
 import { TEMPLATES } from '../lib/templates';
+import { applyStylingPreset } from './StylingModal';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -322,7 +323,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {
+      const preset = (details.preset || details.mode) as string | undefined;
+      const font = details.font as string | undefined;
       window.dispatchEvent(new CustomEvent('vibeful:styling-modal', { detail: details }));
+      // Apply preset directly via global callback — no event chain
+      if (preset) applyStylingPreset(preset);
       return { styling: 'applied', ...details };
     });
   }, [onNavigate, onAgentsChanged, onContextsChanged, setAgentName, agentName]);

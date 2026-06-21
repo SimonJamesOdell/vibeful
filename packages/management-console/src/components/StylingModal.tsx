@@ -31,6 +31,10 @@ const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   brand: { bgColor: '#4f46e5', fontColor: '#ffffff', fontFamily: '"Poppins", sans-serif', fontSize: '14px' },
 };
 
+// Global callback — AI Guide sets this to apply styling directly, no event chain
+let _applyPreset: ((preset: string) => void) | null = null;
+export function applyStylingPreset(preset: string) { _applyPreset?.(preset); }
+
 export default function StylingModal({ onClose, onApply, initialPreset, initialFont }: {
   onClose: () => void;
   onApply: (config: StylingConfig) => void;
@@ -77,6 +81,17 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   const handlePreset = (key: string) => {
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
   };
+
+  // Register global callback so AI Guide can apply presets directly
+  useEffect(() => {
+    _applyPreset = (preset: string) => {
+      const key = preset.toLowerCase().trim();
+      if (PRESET_STYLES[key]) {
+        setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
+      }
+    };
+    return () => { _applyPreset = null; };
+  }, []);
 
   // Apply preset on mount via initialPreset prop
   useEffect(() => {
