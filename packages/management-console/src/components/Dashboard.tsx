@@ -175,19 +175,19 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete }: {
         {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-3">
-        <button onClick={onEdit} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
+        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
           <Edit3 size={11} />
         </button>
-        <button onClick={onTest} className="px-2 py-1 text-[10px] text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded" title="Test">
+        <button onClick={(e) => { e.stopPropagation(); onTest(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded" title="Test">
           <TestTube size={11} />
         </button>
         {confirming ? (
           <div className="flex items-center gap-1">
-            <button onClick={() => { onDelete(); setConfirming(false); }} className="px-2 py-1 text-[10px] text-red-400 hover:bg-red-900/30 rounded">Delete</button>
-            <button onClick={() => setConfirming(false)} className="px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 rounded">Cancel</button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); setConfirming(false); }} className="px-2 py-1 text-[10px] text-red-400 hover:bg-red-900/30 rounded">Delete</button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirming(false); }} className="px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 rounded">Cancel</button>
           </div>
         ) : (
-          <button onClick={() => setConfirming(true)} className="px-2 py-1 text-[10px] text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded" title="Delete">
+          <button onClick={(e) => { e.stopPropagation(); setConfirming(true); }} className="px-2 py-1 text-[10px] text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded" title="Delete">
             <Trash2 size={11} />
           </button>
         )}
