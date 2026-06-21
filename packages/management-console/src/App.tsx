@@ -408,9 +408,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => setTestModalOpen(true)} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
-              <TestTube size={12} /> Test
-            </button>
             {activeAgentId && (
               <>
                 <div className="w-px h-5 bg-slate-700" />
@@ -504,6 +501,9 @@ export default function App() {
               </select>
               <button onClick={() => setStylingModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Palette size={12} /> Styling
+              </button>
+              <button onClick={() => setTestModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <TestTube size={12} /> Test
               </button>
             </div>
             <div className="flex-1 flex overflow-hidden relative">
