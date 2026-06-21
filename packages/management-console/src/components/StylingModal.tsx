@@ -32,8 +32,12 @@ const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
 };
 
 // Global callback — AI Guide sets this to apply styling directly, no event chain
-let _applyPreset: ((preset: string) => void) | null = null;
-export function applyStylingPreset(preset: string) { _applyPreset?.(preset); }
+let _applyFn: ((preset: string) => void) | null = null;
+let _pendingPreset: string | null = null;
+export function applyStylingPreset(preset: string) {
+  _pendingPreset = preset;
+  _applyFn?.(preset); // try immediate apply if component is mounted
+}
 
 export default function StylingModal({ onClose, onApply, initialPreset, initialFont }: {
   onClose: () => void;
@@ -84,13 +88,18 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
 
   // Register global callback so AI Guide can apply presets directly
   useEffect(() => {
-    _applyPreset = (preset: string) => {
+    _applyFn = (preset: string) => {
       const key = preset.toLowerCase().trim();
       if (PRESET_STYLES[key]) {
         setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
       }
     };
-    return () => { _applyPreset = null; };
+    // Apply any preset that arrived before mount
+    if (_pendingPreset) {
+      _applyFn(_pendingPreset);
+      _pendingPreset = null;
+    }
+    return () => { _applyFn = null; };
   }, []);
 
   // Apply preset on mount via initialPreset prop
