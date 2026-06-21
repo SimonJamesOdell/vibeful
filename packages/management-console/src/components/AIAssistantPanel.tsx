@@ -175,7 +175,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
         agentId = undefined;
       }
       if (!agentId && name) {
-        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        // Try exact name match first, then ID prefix match
+        let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match) {
+          match = agentsRef.current.find((a) => a.id.startsWith(name));
+        }
         if (!match) throw new Error(`Agent "${name}" not found`);
         agentId = match.id;
       }
@@ -194,8 +198,10 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
         agentId = undefined;
       }
       if (!agentId && name) {
-        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
-        if (!match) throw new Error(`Agent "${name}" not found`);
+        let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match) {
+          match = agentsRef.current.find((a) => a.id.startsWith(name));
+        }
         agentId = match.id;
       }
       if (!agentId) throw new Error('agent_id or name required');
