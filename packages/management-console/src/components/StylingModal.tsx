@@ -165,7 +165,7 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <Palette size={14} className="text-indigo-400" />
-            <span className="text-sm font-medium text-slate-200">Widget Styling</span>
+            <span className="text-sm font-medium text-slate-200">Agent Styling</span>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300"><X size={16} /></button>
         </div>
