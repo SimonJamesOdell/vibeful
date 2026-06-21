@@ -10,7 +10,7 @@
 param(
     [string]$TestHost = "192.168.0.16",
     [string]$TestUser = "simon",
-    [string]$RepoPath = "C:\Users\simon\mindset\vibeful"
+    [string]$RepoPath = "~/vibeful"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,15 +25,14 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Deploying to test machine ($TestHost)..." -ForegroundColor Cyan
 
 $remoteCmd = @"
-cd `"$RepoPath`"
+cd $RepoPath
 git pull origin master
-cd packages\agent-engine
+cd packages/agent-engine
 pip install -e .
-taskkill /F /IM python.exe /FI "WINDOWTITLE eq *uvicorn*" 2>nul
-Start-Sleep 1
-`$env:VIBEFUL_STORAGE = "sqlite"
-Start-Process python -ArgumentList "-m","uvicorn","src.rest_server:app","--host","127.0.0.1","--port","50052","--log-level","warning" -WindowStyle Hidden
-Write-Host "Deploy complete"
+pkill -f 'uvicorn src.rest_server' 2>/dev/null
+sleep 1
+VIBEFUL_STORAGE=sqlite nohup python -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 --log-level warning > /dev/null 2>&1 &
+echo "Deploy complete"
 "@
 
 ssh "$TestUser@$TestHost" $remoteCmd
