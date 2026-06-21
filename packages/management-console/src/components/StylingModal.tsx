@@ -60,6 +60,23 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
   };
 
+  // Listen for AI Guide styling commands
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { preset, font } = (e as CustomEvent).detail || {};
+      if (preset && PRESET_STYLES[preset]) {
+        setConfig((prev) => ({ ...prev, ...PRESET_STYLES[preset] }));
+      }
+      if (font) {
+        const match = FONT_OPTIONS.find((f) => f.label.toLowerCase().includes(font.toLowerCase())
+          || f.value.toLowerCase().includes(font.toLowerCase()));
+        if (match) setConfig((prev) => ({ ...prev, fontFamily: match.value }));
+      }
+    };
+    window.addEventListener('vibeful:styling-apply', handler);
+    return () => window.removeEventListener('vibeful:styling-apply', handler);
+  }, []);
+
   // Dynamically load selected font (CDN or custom TTF) for live preview
   const selectedFont = FONT_OPTIONS.find((f) => f.value === config.fontFamily);
   const customFont = customFonts.find((f) => `'${f.name}', sans-serif` === config.fontFamily);
