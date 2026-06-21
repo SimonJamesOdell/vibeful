@@ -102,7 +102,7 @@ export default function StylingModal({ onClose, onApply }: { onClose: () => void
   return (
     <div className="absolute inset-0 z-[9998] flex bg-slate-950">
       {/* Left: Options */}
-      <div className="w-[380px] flex-shrink-0 border-r border-slate-700 overflow-y-auto bg-slate-900">
+      <div className="w-[500px] flex-shrink-0 border-r border-slate-700 overflow-y-auto bg-slate-900">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
