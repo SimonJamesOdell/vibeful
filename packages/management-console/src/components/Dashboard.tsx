@@ -169,7 +169,7 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete }: {
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <div className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group">
+     <div onClick={onEdit} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group cursor-pointer">
       <div className="min-w-0 flex-1">
         <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
         {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
