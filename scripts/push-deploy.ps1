@@ -36,7 +36,6 @@ Start-Process python -ArgumentList "-m","uvicorn","src.rest_server:app","--host"
 Write-Host "Deploy complete"
 "@
 
-$sshTarget = "${TestUser}@${TestHost}"
-ssh $sshTarget $remoteCmd
+ssh "$TestUser@$TestHost" $remoteCmd
 
 Write-Host "Done — test machine updated and restarted" -ForegroundColor Green
