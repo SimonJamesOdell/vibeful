@@ -166,7 +166,17 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     // Agent commands
     registerCommandHandler(CONSOLE_COMMANDS.CREATE_AGENT, async (details) => {
       const name = details.name as string;
-      if (!name) throw new Error('name is required');
+      // If no name given, show modal for user to fill in
+      if (!name || name.trim() === '') {
+        const nameLower = (details.description || details.template || '') as string;
+        const detectedTemplate = /lucid/.test(nameLower) ? 'lucid'
+          : /full|complete/.test(nameLower) ? 'full'
+          : 'minimal';
+        window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', {
+          detail: { template: detectedTemplate },
+        }));
+        return { modal_shown: true, template: detectedTemplate };
+      }
       const resp = await fetch('/v1/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
