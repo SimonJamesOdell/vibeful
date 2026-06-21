@@ -214,10 +214,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
         agentId = undefined;
       }
       if (!agentId && name) {
-        // Try exact name match first, then ID prefix match
+        // Try exact name match first, then ID prefix match (strip ellipsis)
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) {
-          match = agentsRef.current.find((a) => a.id.startsWith(name));
+          const clean = name.replace(/[^0-9a-f-]/gi, '');
+          match = agentsRef.current.find((a) => a.id.startsWith(clean));
         }
         if (!match) throw new Error(`Agent "${name}" not found`);
         agentId = match.id;
@@ -240,7 +241,10 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       }
       if (!agentId && name) {
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
-        if (!match) match = agentsRef.current.find((a) => a.id.startsWith(name));
+        if (!match) {
+          const clean = name.replace(/[^0-9a-f-]/gi, '');
+          match = agentsRef.current.find((a) => a.id.startsWith(clean));
+        }
         if (!match) throw new Error(`Agent "${name}" not found`);
         agentId = match.id;
       }
@@ -266,7 +270,8 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       if (!agentId && name) {
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) {
-          match = agentsRef.current.find((a) => a.id.startsWith(name));
+          const clean = name.replace(/[^0-9a-f-]/gi, '');
+          match = agentsRef.current.find((a) => a.id.startsWith(clean));
         }
         agentId = match.id;
       }
