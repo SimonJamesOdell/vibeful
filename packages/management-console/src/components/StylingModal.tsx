@@ -24,6 +24,14 @@ const CDN_BASES: Record<string, { label: string; url: (name: string) => string }
   custom: { label: 'Custom URL', url: (n) => n },
 };
 
+/** Normalize LLM-emitted preset values: "light mode" → "light", "Dark Theme" → "dark" */
+function normalizePreset(raw: string): string {
+  let key = raw.toLowerCase().trim();
+  // Strip common suffix words
+  key = key.replace(/\s+(mode|theme|preset|style)$/, '');
+  return key;
+}
+
 const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   default: { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: '"Inter", sans-serif', fontSize: '14px' },
   light: { bgColor: '#ffffff', fontColor: '#1e293b', fontFamily: 'system-ui', fontSize: '14px' },
@@ -89,7 +97,7 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   // Register global callback so AI Guide can apply presets directly
   useEffect(() => {
     _applyFn = (preset: string) => {
-      const key = preset.toLowerCase().trim();
+      const key = normalizePreset(preset);
       if (PRESET_STYLES[key]) {
         setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
       }
@@ -105,7 +113,7 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   // Apply preset on mount via initialPreset prop
   useEffect(() => {
     if (!initialPreset) return;
-    const key = initialPreset.toLowerCase().trim();
+    const key = normalizePreset(initialPreset);
     if (PRESET_STYLES[key]) {
       setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
     }
@@ -115,10 +123,10 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      const p = detail.preset || detail.mode;
+      const p = detail.preset || detail.mode || detail.theme;
       const f = detail.font;
       if (p) {
-        const key = p.toLowerCase().trim();
+        const key = normalizePreset(p);
         if (PRESET_STYLES[key]) {
           setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
         }

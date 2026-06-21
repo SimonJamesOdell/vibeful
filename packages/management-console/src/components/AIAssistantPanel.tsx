@@ -323,7 +323,7 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {
-      const preset = (details.preset || details.mode) as string | undefined;
+      const preset = (details.preset || details.mode || details.theme) as string | undefined;
       const font = details.font as string | undefined;
       window.dispatchEvent(new CustomEvent('vibeful:styling-modal', { detail: details }));
       // Apply preset directly via global callback — no event chain

@@ -313,7 +313,7 @@ export default function App() {
     });
     window.addEventListener('vibeful:styling-modal', (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      const preset = detail.preset || detail.mode || undefined;
+      const preset = detail.preset || detail.mode || detail.theme || undefined;
       const font = detail.font || undefined;
       stylingPresetRef.current = preset;
       stylingFontRef.current = font;
