@@ -408,13 +408,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-px h-5 bg-slate-700" />
-            <button onClick={handleSave} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
-              <Download size={12} /> Save
-            </button>
-            <button onClick={handleDeploy} className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors">
-              <Play size={12} /> Deploy
-            </button>
             <button onClick={() => setTestModalOpen(true)} className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors">
               <TestTube size={12} /> Test
             </button>
