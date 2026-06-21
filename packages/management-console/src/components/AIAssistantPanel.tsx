@@ -167,7 +167,23 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       if (!resp.ok) throw new Error('Failed to create agent');
       const data = await resp.json();
       onAgentsChanged();
-      useFlowStore.getState().setAgentName(name);
+      const state = useFlowStore.getState();
+      state.setAgentName(name);
+
+      // Load matching template nodes so the agent has a real graph (no navigation)
+      const nameLower = name.toLowerCase();
+      const templateKey = /lucid/.test(nameLower) ? 'lucid'
+        : /full|complete/.test(nameLower) ? 'full'
+        : /basic|minimal|simple|chatbot/.test(nameLower) ? 'minimal'
+        : /codereview|code.review/.test(nameLower) ? 'codereview'
+        : /support|help/.test(nameLower) ? 'support'
+        : /sales|sell/.test(nameLower) ? 'sales'
+        : 'minimal'; // default: basic chatbot
+      const tpl = TEMPLATES[templateKey];
+      if (tpl) {
+        state.loadGraph([...tpl.nodes], [...tpl.edges]);
+        return { id: data.id, name, template: templateKey, nodes: tpl.nodes.length };
+      }
       return { id: data.id, name };
     });
 

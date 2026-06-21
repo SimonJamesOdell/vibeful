@@ -243,7 +243,10 @@ export default function App() {
       setTimeout(() => {
         loadTemplateFromYaml(template);
         setQuickStartToast(null);
-        window.dispatchEvent(new CustomEvent('vibeful:quick-start-done', { detail: { template, message } }));
+        // Only trigger AI confirmation if this came from an explicit user request (has message)
+        if (message) {
+          window.dispatchEvent(new CustomEvent('vibeful:quick-start-done', { detail: { template, message } }));
+        }
       }, 1800);
     };
 
