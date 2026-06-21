@@ -6,7 +6,7 @@ interface Message {
   content: string;
 }
 
-export default function TestChatModal({ agentName, onClose }: { agentName: string; onClose: () => void }) {
+export default function TestChatModal({ agentName, systemPrompt, onClose }: { agentName: string; systemPrompt?: string; onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
     content: `Hi! I'm **${agentName}**. Ask me anything to test how I respond.`,
@@ -36,7 +36,7 @@ export default function TestChatModal({ agentName, onClose }: { agentName: strin
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_prompt: `You are ${agentName}. Be helpful and concise.`,
+          system_prompt: systemPrompt || `You are ${agentName}. Be helpful and concise.`,
           message: text,
           temperature: 0.4,
           max_tokens: 400,

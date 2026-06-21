@@ -497,7 +497,12 @@ export default function App() {
         </div>
       </div>
       <ToastContainer />
-      {testModalOpen && <TestChatModal agentName={agentName || 'My Agent'} onClose={() => setTestModalOpen(false)} />}
+      {testModalOpen && (() => {
+        // Extract system prompt from agent's graph nodes
+        const spNode = nodes.find((n) => n.data.nodeType === 'builtin.system_prompt' || n.data.label?.toLowerCase().includes('system prompt'));
+        const prompt = spNode?.data?.config?.prompt || spNode?.data?.config?.content || '';
+        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt || undefined} onClose={() => setTestModalOpen(false)} />;
+      })()}
     </ReactFlowProvider>
   );
 }
