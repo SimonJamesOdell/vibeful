@@ -31,13 +31,19 @@ const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   brand: { bgColor: '#4f46e5', fontColor: '#ffffff', fontFamily: '"Poppins", sans-serif', fontSize: '14px' },
 };
 
-export default function StylingModal({ onClose, onApply }: { onClose: () => void; onApply: (config: StylingConfig) => void }) {
-  const [config, setConfig] = useState<StylingConfig>({
-    bgColor: '#1e293b',
-    fontColor: '#e2e8f0',
-    fontFamily: '"Inter", sans-serif',
-    fontSize: '14px',
-    headerLogo: '',
+export default function StylingModal({ onClose, onApply, initialPreset, initialFont }: {
+  onClose: () => void;
+  onApply: (config: StylingConfig) => void;
+  initialPreset?: string;
+  initialFont?: string;
+}) {
+  const [config, setConfig] = useState<StylingConfig>(() => {
+    const base = { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: '"Inter", sans-serif', fontSize: '14px', headerLogo: '' };
+    const presetKey = initialPreset?.toLowerCase();
+    if (presetKey && PRESET_STYLES[presetKey]) {
+      return { ...base, ...PRESET_STYLES[presetKey] };
+    }
+    return base;
   });
   const [customFonts, setCustomFonts] = useState<Array<{ name: string; dataUrl: string }>>([]);
   const [cdnProvider, setCdnProvider] = useState('google');
