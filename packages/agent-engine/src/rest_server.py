@@ -546,6 +546,22 @@ async def delete_agent(agent_id: str):
     return {"deleted": True}
 
 
+class AgentUpdateRequest(BaseModel):
+    name: str = ""
+
+@app.put("/v1/agents/{agent_id}")
+async def update_agent(agent_id: str, req: AgentUpdateRequest):
+    """Update an agent's name or other mutable fields."""
+    db = _require_db()
+    agent = await db.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "agent not found")
+    if req.name:
+        await db.update_agent(agent_id, {"name": req.name})
+        agent["name"] = req.name
+    return agent
+
+
 # ── Setup (local mode) ────────────────────────────────────
 
 @app.post("/v1/setup/api-key")

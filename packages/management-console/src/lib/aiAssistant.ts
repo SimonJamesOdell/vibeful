@@ -32,6 +32,7 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
 - create_agent — create a new agent. Params: {name, description?, system_prompt?}
   Example: \`\`\`vibeful-command\n{"action":"create_agent","details":{"name":"Support Bot","description":"Handles customer support","system_prompt":"You are a helpful support agent."}}\n\`\`\`
 - delete_agent — delete an agent. Params: {agent_id}
+- rename_agent — rename an agent. Params: {agent_id, new_name}
 - select_agent — switch to an agent in the designer. Params: {agent_id}
 
 === Knowledge Base ===

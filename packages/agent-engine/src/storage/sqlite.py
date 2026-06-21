@@ -294,10 +294,17 @@ class SqliteBackend:
 
     async def delete_agent(self, agent_id: str) -> bool:
         conn = await self._get_conn()
-        # Clean up related data
         await conn.execute("DELETE FROM agent_versions WHERE agent_id = ?", (agent_id,))
         await conn.execute("DELETE FROM ab_tests WHERE agent_id = ?", (agent_id,))
         async with conn.execute("DELETE FROM agents WHERE id = ?", (agent_id,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def update_agent(self, agent_id: str, data: dict[str, Any]) -> bool:
+        conn = await self._get_conn()
+        sets = ", ".join(f"{k} = ?" for k in data.keys())
+        values = list(data.values()) + [agent_id]
+        async with conn.execute(f"UPDATE agents SET {sets} WHERE id = ?", values) as cursor:
             await conn.commit()
             return cursor.rowcount > 0
 

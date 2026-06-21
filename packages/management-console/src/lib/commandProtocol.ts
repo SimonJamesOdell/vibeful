@@ -131,6 +131,7 @@ export const CONSOLE_COMMANDS = {
   INGEST_CONTEXT: 'ingest_context',
   DELETE_CONTEXT: 'delete_context',
   TEST_AGENT: 'test_agent',
+  RENAME_AGENT: 'rename_agent',
 } as const;
 
 /**

@@ -219,6 +219,33 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, onNaviga
       return { deleted: true, name: name || agentId };
     });
 
+    registerCommandHandler(CONSOLE_COMMANDS.RENAME_AGENT, async (details) => {
+      let agentId = (details.agent_id || details.id) as string | undefined;
+      let name = details.name as string | undefined;
+      const newName = (details.new_name || details.to) as string;
+      if (!newName) throw new Error('new_name required');
+      if (agentId && !/^[0-9a-f-]{30,}$/i.test(agentId)) {
+        name ||= agentId as string;
+        agentId = undefined;
+      }
+      if (!agentId && name) {
+        let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match) match = agentsRef.current.find((a) => a.id.startsWith(name));
+        if (!match) throw new Error(`Agent "${name}" not found`);
+        agentId = match.id;
+      }
+      if (!agentId) throw new Error('agent_id or name required');
+      const resp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!resp.ok) throw new Error('Failed to rename agent');
+      useFlowStore.getState().setAgentName(newName);
+      onAgentsChanged();
+      return { renamed: true, from: name || agentId, to: newName };
+    });
+
     registerCommandHandler(CONSOLE_COMMANDS.SELECT_AGENT, async (details) => {
       let agentId = (details.agent_id || details.id) as string | undefined;
       let name = details.name as string | undefined;
