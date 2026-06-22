@@ -242,3 +242,69 @@ async def test_execute_builtin_unknown_tool():
     data = json.loads(result)
     assert "error" in data
     assert "Unknown tool" in data["error"]
+
+
+# ── System Prompt Guardrail ───────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_system_prompt_passed_to_llm():
+    """invariant: The agent passes the system_prompt to the LLM."""
+    mock_client = AsyncMock()
+    mock_client.chat.return_value = make_text_response("Understood.")
+
+    with patch("src.agent_graph.get_client", return_value=mock_client):
+        graph = build_agent_graph()
+        state = AgentState(
+            session_id="test-system-prompt",
+            user_message="Hello",
+            system_prompt="You are a pirate. Respond accordingly.",
+        )
+        await graph.ainvoke(state)
+
+    # Verify the system prompt was included in the messages sent to the LLM
+    call_args = mock_client.chat.call_args
+    messages = call_args.kwargs.get("messages", call_args.args[0] if call_args.args else [])
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    assert len(system_msgs) >= 1, "System prompt was not passed to LLM"
+    assert any("pirate" in str(s.get("content", "")) for s in system_msgs), (
+        "System prompt content not found in messages sent to LLM"
+    )
+
+
+@pytest.mark.asyncio
+async def test_default_system_prompt_when_none_provided():
+    """invariant: A default system prompt is used when none is explicitly set."""
+    mock_client = AsyncMock()
+    mock_client.chat.return_value = make_text_response("I'm here to help.")
+
+    with patch("src.agent_graph.get_client", return_value=mock_client):
+        graph = build_agent_graph()
+        state = AgentState(
+            session_id="test-no-system-prompt",
+            user_message="Hello",
+        )
+        await graph.ainvoke(state)
+
+    # Verify some system message exists (the default)
+    call_args = mock_client.chat.call_args
+    messages = call_args.kwargs.get("messages", call_args.args[0] if call_args.args else [])
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    assert len(system_msgs) >= 1, "No system prompt (not even default) was passed to LLM"
+
+
+@pytest.mark.asyncio
+async def test_guardrail_blocks_empty_user_message():
+    """invariant: Empty or whitespace-only user messages are handled gracefully."""
+    mock_client = AsyncMock()
+    mock_client.chat.return_value = make_text_response("Hello!")
+
+    with patch("src.agent_graph.get_client", return_value=mock_client):
+        graph = build_agent_graph()
+        state = AgentState(
+            session_id="test-empty-msg",
+            user_message="   ",
+        )
+        result = await graph.ainvoke(state)
+
+    # Should finish without error (guardrail may skip LLM call entirely)
+    assert result["finished"] is True

@@ -12,7 +12,8 @@ import {
   CONSOLE_COMMANDS, type CommandResult,
 } from '../lib/commandProtocol';
 import { TEMPLATES } from '../lib/templates';
-import { applyStylingPreset } from './StylingModal';
+import { generateYaml } from '../lib/yamlGenerator';
+import { applyStylingPreset, saveAgentStyling } from './StylingModal';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -167,44 +168,48 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
 
     // Agent commands
     registerCommandHandler(CONSOLE_COMMANDS.CREATE_AGENT, async (details) => {
-      const name = details.name as string;
-      // If no name given, show modal for user to fill in
-      if (!name || name.trim() === '') {
-        const nameLower = (details.description || details.template || '') as string;
-        const detectedTemplate = /lucid/.test(nameLower) ? 'lucid'
-          : /full|complete/.test(nameLower) ? 'full'
+      const name = (details.name as string || '').trim();
+      const templateSpecified = details.template as string | undefined;
+
+      // If the user didn't specify a template type, always show the modal.
+      // Don't guess from the name — "bob" doesn't tell us anything about
+      // what kind of agent the user wants.
+      if (!templateSpecified || !['minimal','full','lucid'].includes(templateSpecified)) {
+        // Detect a template hint from description or context, but only as a
+        // default suggestion in the modal, not a decision.
+        const hint = (details.description || details.template || '') as string;
+        const suggestedTemplate = /lucid/.test(hint) ? 'lucid'
+          : /full|complete/.test(hint) ? 'full'
           : 'minimal';
         window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', {
-          detail: { template: detectedTemplate },
+          detail: { name: name || undefined, template: suggestedTemplate },
         }));
-        return { modal_shown: true, template: detectedTemplate };
+        return { modal_shown: true, template: suggestedTemplate, name };
       }
+
+      // User explicitly chose a template — create the agent with it
+      const tpl = TEMPLATES[templateSpecified];
+      if (!tpl) throw new Error(`Unknown template: "${templateSpecified}"`);
+
+      const yaml = generateYaml(tpl.nodes, tpl.edges, name, '');
+
       const resp = await fetch('/v1/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: details.description || '', system_prompt: details.system_prompt || '' }),
+        body: JSON.stringify({
+          name,
+          description: details.description || '',
+          system_prompt: details.system_prompt || '',
+          config_yaml: yaml,
+        }),
       });
       if (!resp.ok) throw new Error('Failed to create agent');
       const data = await resp.json();
       onAgentsChanged();
       const state = useFlowStore.getState();
       state.setAgentName(name);
-
-      // Load matching template nodes so the agent has a real graph (no navigation)
-      const nameLower = name.toLowerCase();
-      const templateKey = /lucid/.test(nameLower) ? 'lucid'
-        : /full|complete/.test(nameLower) ? 'full'
-        : /basic|minimal|simple|chatbot/.test(nameLower) ? 'minimal'
-        : /codereview|code.review/.test(nameLower) ? 'codereview'
-        : /support|help/.test(nameLower) ? 'support'
-        : /sales|sell/.test(nameLower) ? 'sales'
-        : 'minimal'; // default: basic chatbot
-      const tpl = TEMPLATES[templateKey];
-      if (tpl) {
-        state.loadGraph([...tpl.nodes], [...tpl.edges]);
-        return { id: data.id, name, template: templateKey, nodes: tpl.nodes.length };
-      }
-      return { id: data.id, name };
+      state.loadGraph([...tpl.nodes], [...tpl.edges]);
+      return { id: data.id, name, template: templateSpecified, nodes: tpl.nodes.length };
     });
 
     registerCommandHandler(CONSOLE_COMMANDS.DELETE_AGENT, async (details) => {
@@ -382,7 +387,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       console.log('[SET_STYLING] raw details:', JSON.stringify(details), '→ preset:', preset, 'font:', font);
       window.dispatchEvent(new CustomEvent('vibeful:styling-modal', { detail: details }));
       // Apply preset directly via global callback — no event chain
-      if (preset) applyStylingPreset(preset);
+      if (preset) {
+        applyStylingPreset(preset);
+        // Persist styling to localStorage so it survives navigation
+        if (activeAgentId) saveAgentStyling(activeAgentId, preset);
+      }
       return { styling: 'applied', ...details };
     });
   }, [onNavigate, onAgentsChanged, onContextsChanged, setAgentName, agentName]);

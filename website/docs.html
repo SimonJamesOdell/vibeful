@@ -101,21 +101,22 @@
   </div>
   <div class="sidebar-section">Documentation</div>
   <ul class="sidebar-nav" id="nav"></ul>
-  <div class="sidebar-footer">Docs source: <code style="color:var(--text-dim);font-size:0.7rem">docs/*.md</code></div>
+  <div class="sidebar-footer">Docs source: <code style="color:var(--text-dim);font-size:0.7rem">../docs/*.md</code> (canonical)</div>
 </nav>
 
 <main class="content" id="content"><p class="loading">Loading documentation…</p></main>
 
 <script>
 // ── Docs config — single source of truth: docs/*.md ──────────
+// Docs source: ../docs/ (canonical) — sync with `npm run docs:sync` for static builds
 const DOCS = [
-  { file: 'docs/getting-started.md',   nav: 'Getting Started',   section: 'Start Here' },
-  { file: 'docs/architecture.md',      nav: 'Architecture',      section: 'Core Concepts' },
-  { file: 'docs/api-reference.md',     nav: 'API Reference',     section: 'Core Concepts' },
-  { file: 'docs/sdk-guide.md',         nav: 'SDK Guide',         section: 'Integration' },
-  { file: 'docs/faq.md',               nav: 'FAQ',               section: 'Resources' },
-  { file: 'docs/CONTRIBUTING.md',      nav: 'Contributing',      section: 'Resources' },
-  { file: 'docs/ROADMAP.md',           nav: 'Roadmap',           section: 'Resources' },
+  { file: '../docs/getting-started.md',   nav: 'Getting Started',   section: 'Start Here' },
+  { file: '../docs/architecture.md',      nav: 'Architecture',      section: 'Core Concepts' },
+  { file: '../docs/api-reference.md',     nav: 'API Reference',     section: 'Core Concepts' },
+  { file: '../docs/sdk-guide.md',         nav: 'SDK Guide',         section: 'Integration' },
+  { file: '../docs/faq.md',               nav: 'FAQ',               section: 'Resources' },
+  { file: '../CONTRIBUTING.md',           nav: 'Contributing',      section: 'Resources' },
+  { file: '../ROADMAP.md',                nav: 'Roadmap',           section: 'Resources' },
 ];
 
 // ── Minimal markdown → HTML renderer ────────────────────────

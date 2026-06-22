@@ -88,13 +88,23 @@ Write-Host ""
 
 Write-Host "  → Python packages..."
 Push-Location "$ROOT\packages\agent-engine"
+
+# Create virtual environment if needed (matches setup.sh behavior)
+if (-not (Test-Path ".venv\Scripts\python.exe")) {
+    Write-Host "    Creating virtual environment..."
+    python -m venv .venv
+}
+
+$venvPython = ".venv\Scripts\python.exe"
+$venvPip = ".venv\Scripts\pip.exe"
+
 $alreadyInstalled = Test-Path "src\vibeful_agent_engine.egg-info\PKG-INFO"
 if ($alreadyInstalled) {
     Write-Host "  ✓ Python packages already installed (skipping pip install)" -ForegroundColor Green
 } else {
     Write-Host "    (first run — installing, this may take a moment...)"
     try {
-        pip install -e ".[dev]" --quiet 2>&1 | Out-Null
+        & $venvPython -m pip install -e ".[dev]" --quiet 2>&1 | Out-Null
         Write-Host "  ✓ Python dependencies installed" -ForegroundColor Green
     } catch {
         Write-Host "  ⚠ Python install had warnings (non-fatal)" -ForegroundColor Yellow
@@ -103,7 +113,7 @@ if ($alreadyInstalled) {
 Pop-Location
 
 Write-Host "  → Node.js packages..."
-Push-Location "$ROOT\packages\management-console"
+Push-Location "$ROOT"
 try {
     $env:COREPACK_ENABLE_STRICT = "0"
     pnpm install --silent 2>&1 | Out-Null
@@ -141,14 +151,7 @@ if (-not $API_KEY -or $API_KEY.Length -le 20) {
     Write-Host ""
 }
 
-# ── 5. Copy docs for website ─────────────────────────────────────
-
-Write-Host "  → Copying documentation for website..."
-New-Item -ItemType Directory -Path "$ROOT\website\docs" -Force -ErrorAction SilentlyContinue | Out-Null
-Copy-Item "$ROOT\docs\*.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
-Copy-Item "$ROOT\CONTRIBUTING.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
-Copy-Item "$ROOT\ROADMAP.md" "$ROOT\website\docs\" -Force -ErrorAction SilentlyContinue
-Write-Host ""
+# ── 5. Docs — canonical source is docs/, sync with npm run docs:sync ──
 
 # ── 6. Start Vibeful ───────────────────────────────────────────
 
@@ -166,7 +169,12 @@ $agentJob = Start-Job -ScriptBlock {
     param($root)
     Set-Location "$root\packages\agent-engine"
     $env:VIBEFUL_STORAGE = "sqlite"
-    python -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 --log-level warning
+    # Use virtualenv Python if available (matches setup.sh behavior)
+    if (Test-Path ".venv\Scripts\python.exe") {
+        & ".venv\Scripts\python.exe" -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 --log-level warning
+    } else {
+        python -m uvicorn src.rest_server:app --host 127.0.0.1 --port 50052 --log-level warning
+    }
 } -ArgumentList $ROOT
 
 # Wait for it

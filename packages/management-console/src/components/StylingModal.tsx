@@ -48,11 +48,38 @@ export function applyStylingPreset(preset: string) {
   _applyFn?.(preset); // try immediate apply if component is mounted
 }
 
-export default function StylingModal({ onClose, onApply, initialPreset, initialFont }: {
+// ── Styling persistence — stored in the database via REST API ──────────
+
+export async function saveAgentStyling(agentId: string, preset: string) {
+  try {
+    await fetch(`/v1/agents/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ styling: preset }),
+    });
+  } catch { /* best-effort */ }
+}
+
+export function loadAgentStyling(agent: { styling_json?: string } | null): string | null {
+  return agent?.styling_json || null;
+}
+
+export function applyStylingToDOM(preset: string) {
+  const key = normalizePreset(preset);
+  const style = PRESET_STYLES[key];
+  if (!style) return;
+  const root = document.documentElement;
+  if (style.bgColor) root.style.setProperty('--vibeful-bg', style.bgColor);
+  if (style.fontColor) root.style.setProperty('--vibeful-fg', style.fontColor);
+  if (style.fontFamily) root.style.setProperty('--vibeful-font', style.fontFamily);
+  if (style.fontSize) root.style.setProperty('--vibeful-font-size', style.fontSize);
+}
+
+export default function StylingModal({ onClose, initialPreset, initialFont, agentId }: {
   onClose: () => void;
-  onApply: (config: StylingConfig) => void;
   initialPreset?: string;
   initialFont?: string;
+  agentId?: string | null;
 }) {
   const [config, setConfig] = useState<StylingConfig>({
     bgColor: '#1e293b',
@@ -91,8 +118,53 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
     reader.readAsDataURL(file);
   };
 
+  // Snapshot of config + preset on mount — used by Revert to undo changes
+  const savedConfigRef = useRef<StylingConfig>({ ...config });
+  const savedPresetRef = useRef<string | null>(null);
+
+  // Track which preset is active (for saving to localStorage)
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  // On mount: fetch agent styling from database and apply it
+  useEffect(() => {
+    if (!agentId) return;
+    fetch(`/v1/agents/${agentId}`)
+      .then((r) => r.json())
+      .then((agent) => {
+        const saved = loadAgentStyling(agent);
+        if (saved) {
+          const key = normalizePreset(saved);
+          if (PRESET_STYLES[key]) {
+            setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
+            setActivePreset(key);
+          }
+        }
+        // Capture initial state for Revert AFTER loading saved
+        savedConfigRef.current = { ...config };
+        savedPresetRef.current = activePreset;
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-persist: whenever config changes, save to localStorage and apply to DOM
+  useEffect(() => {
+    if (!agentId) return;
+    if (activePreset) {
+      saveAgentStyling(agentId, activePreset);
+      applyStylingToDOM(activePreset);
+    }
+  }, [config, activePreset, agentId]);
+
   const handlePreset = (key: string) => {
+    setActivePreset(key);
     setConfig((prev) => ({ ...prev, ...PRESET_STYLES[key] }));
+    // Persist immediately — don't wait for useEffect, which can lose
+    // the save if the modal closes before the effect fires.
+    if (agentId) {
+      saveAgentStyling(agentId, key);
+      applyStylingToDOM(key);
+    }
   };
 
   // Register global callback so AI Guide can apply presets directly
@@ -282,10 +354,22 @@ export default function StylingModal({ onClose, onApply, initialPreset, initialF
             )}
           </div>
 
-          {/* Footer buttons */}
+          {/* Footer — Revert to styling as it was when modal opened */}
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-700">
-            <button onClick={onClose} className="px-3 py-1.5 text-[11px] text-slate-400 hover:text-slate-200 rounded">Cancel</button>
-            <button onClick={() => onApply(config)} className="px-3 py-1.5 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white rounded">Apply</button>
+            <button
+              onClick={() => {
+                setConfig({ ...savedConfigRef.current });
+                setActivePreset(savedPresetRef.current);
+                if (savedPresetRef.current) {
+                  applyStylingToDOM(savedPresetRef.current);
+                  if (agentId) saveAgentStyling(agentId, savedPresetRef.current);
+                }
+              }}
+              className="px-3 py-1.5 text-[11px] text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/30 hover:text-indigo-200 rounded"
+              title="Undo changes, restore styling from when you opened this panel"
+            >
+              Revert
+            </button>
           </div>
         </div>
       </div>

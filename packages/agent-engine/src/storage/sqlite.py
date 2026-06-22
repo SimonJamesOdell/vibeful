@@ -100,6 +100,7 @@ class SqliteBackend:
                 model TEXT DEFAULT 'deepseek-chat',
                 temperature REAL DEFAULT 0.7,
                 config_json TEXT DEFAULT '{}',
+                styling_json TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
@@ -271,11 +272,11 @@ class SqliteBackend:
         conn = await self._get_conn()
         aid = data.get("id") or str(uuid.uuid4())
         await conn.execute(
-            """INSERT INTO agents (id, name, description, system_prompt, model, temperature, config_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO agents (id, name, description, system_prompt, model, temperature, config_json, styling_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (aid, data["name"], data.get("description", ""), data.get("system_prompt", ""),
              data.get("model", "deepseek-chat"), data.get("temperature", 0.7),
-             json.dumps(data.get("config_yaml", ""))),
+              data.get("config_yaml", ""), data.get("styling", "")),
         )
         await conn.commit()
         return await self.get_agent(aid) or {}

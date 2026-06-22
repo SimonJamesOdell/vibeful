@@ -1,4 +1,5 @@
 // @vibeful/shared — MCP Protocol Types
+import type { WidgetType } from './widgets';
 
 // ── JSON-RPC 2.0 ──────────────────────────────────────────────
 
@@ -82,8 +83,6 @@ export interface McpServerConfig {
 }
 
 // ── Widget Types ──────────────────────────────────────────────
-
-export type WidgetType = 'chart' | 'table' | 'form' | 'card' | 'dashboard' | 'custom';
 
 export interface WidgetDefinition {
   type: WidgetType;

@@ -12,7 +12,7 @@ export interface WidgetSpec {
   position?: WidgetPosition;
 }
 
-export type WidgetType = 'button' | 'card' | 'form' | 'chart' | 'table';
+export type WidgetType = 'button' | 'card' | 'form' | 'chart' | 'table' | 'dashboard' | 'custom';
 
 export interface WidgetPosition {
   /** Grid placement: row, column, or standalone */

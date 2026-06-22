@@ -295,14 +295,7 @@ fi
 
 echo ""
 
-# ── 7. Copy docs for website ─────────────────────────────────────
-
-echo "  → Copying documentation for website..."
-mkdir -p "$ROOT/website/docs"
-cp "$ROOT/docs/"*.md "$ROOT/website/docs/" 2>/dev/null || true
-cp "$ROOT/CONTRIBUTING.md" "$ROOT/website/docs/" 2>/dev/null || true
-cp "$ROOT/ROADMAP.md" "$ROOT/website/docs/" 2>/dev/null || true
-echo ""
+# ── 7. Docs — canonical source is docs/, sync with npm run docs:sync ──
 
 # ── 8. Start Vibeful ───────────────────────────────────────────
 

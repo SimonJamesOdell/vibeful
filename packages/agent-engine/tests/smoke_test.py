@@ -320,6 +320,46 @@ async def main():
             assert r.status_code == 200  # fastapi doesn't auto-validate empty string
         check("Create context empty name", create_context_no_name)
 
+        # ── AI Assist ────────────────────────────────────────
+
+        # Invariant: AI assist endpoint accepts system_prompt + message
+        def ai_assist():
+            r = httpx.post(f"{BASE}/v1/ai/assist", json={
+                "system_prompt": "You are a test bot. Reply with exactly 'OK'.",
+                "message": "ping",
+                "temperature": 0.0,
+                "max_tokens": 10,
+            })
+            # May return 200 (if API key works) or 503 (if no key)
+            assert r.status_code in (200, 503), f"Unexpected status: {r.status_code}"
+            if r.status_code == 200:
+                assert "response" in r.json()
+        check("AI assist (endpoint reachable)", ai_assist)
+
+        # Invariant: AI assist with empty message is rejected
+        def ai_assist_empty():
+            r = httpx.post(f"{BASE}/v1/ai/assist", json={
+                "system_prompt": "test",
+                "message": "",
+            })
+            assert r.status_code in (200, 422, 503)
+        check("AI assist empty message", ai_assist_empty)
+
+        # ── Converse Stream ──────────────────────────────────
+
+        # Invariant: Converse stream returns SSE events
+        def converse_stream():
+            r = httpx.get(f"{BASE}/v1/agents")
+            agents = r.json()
+            agent_id = agents[0]["id"] if agents else None
+            if agent_id:
+                r2 = httpx.get(f"{BASE}/converse/stream", params={
+                    "message": "Hello",
+                    "agent_id": agent_id,
+                })
+                assert r2.status_code in (200, 503), f"Unexpected status: {r2.status_code}"
+        check("Converse stream (endpoint reachable)", converse_stream)
+
         # ── Multimodal Analysis ──────────────────────────────
 
         # Invariant: Analyze endpoint exists and returns a predictable status

@@ -5,7 +5,8 @@ import NodePalette from './components/NodePalette';
 import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen } from 'lucide-react';
+import { TEMPLATES } from './lib/templates';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen, Smile } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ToastContainer, { showToast } from './components/Toast';
 import TestChatModal from './components/TestChatModal';
@@ -23,8 +24,9 @@ import AgentList from './components/AgentList';
 import ContextManager from './components/ContextManager';
 import Dashboard from './components/Dashboard';
 import CreateAgentModal from './components/CreateAgentModal';
-import StylingModal from './components/StylingModal';
+import StylingModal, { loadAgentStyling, applyStylingToDOM } from './components/StylingModal';
 import KnowledgeAttachModal from './components/KnowledgeAttachModal';
+import PersonalityModal from './components/PersonalityModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
@@ -48,7 +50,44 @@ export default function App() {
   // Fetch agent and context lists
   useEffect(() => { fetchAgents(); fetchContexts(); }, []);
 
+  // ── Auto-save: persist graph changes to the database ──────
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSave = () => {
+    if (!activeAgentId) return;
+    // Debounce: clear previous timer, set a new one
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    autoSaveRef.current = setTimeout(async () => {
+      const state = useFlowStore.getState();
+      const yaml = generateYaml(state.nodes, state.edges, state.agentName, state.agentDescription);
+      try {
+        await fetch(`/v1/agents/${activeAgentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: state.agentName, description: state.agentDescription, config_yaml: yaml }),
+        });
+      } catch { /* silent — save is best-effort */ }
+    }, 1500);
+  };
+
+  // Save immediately before switching agents (don't wait for debounce)
+  const saveNow = async () => {
+    if (!activeAgentId) return;
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    const state = useFlowStore.getState();
+    const yaml = generateYaml(state.nodes, state.edges, state.agentName, state.agentDescription);
+    try {
+      await fetch(`/v1/agents/${activeAgentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: state.agentName, description: state.agentDescription, config_yaml: yaml }),
+      });
+    } catch { /* silent */ }
+  };
+
   const switchToAgent = async (agentId: string) => {
+    // Save current agent's state before switching away
+    await saveNow();
+
     try {
       const resp = await fetch(`/v1/agents/${agentId}`);
       if (!resp.ok) {
@@ -76,6 +115,10 @@ export default function App() {
     }
     setActiveAgentId(agentId);
     setActiveTab('designer');
+
+    // Reapply persisted styling for this agent (from database)
+    const savedPreset = loadAgentStyling(data);
+    if (savedPreset) applyStylingToDOM(savedPreset);
   };
 
   const {
@@ -87,6 +130,13 @@ export default function App() {
     selectedNodeId,
     loadGraph, clearGraph,
   } = useFlowStore();
+
+  // ── Auto-save: persist graph changes to the database ──────
+  // Must be AFTER useFlowStore() destructuring (temporal dead zone)
+  useEffect(() => {
+    if (!activeAgentId || nodes.length === 0) return;
+    autoSave();
+  }, [nodes, edges, agentName, agentDescription]);
 
   // Track previous selection to animate properties panel only on enter/exit
   const prevSelectedRef = useRef<string | null>(null);
@@ -126,11 +176,24 @@ export default function App() {
 
   const handleCreateAgent = async (name: string, templateKey: string) => {
     setCreateModalOpen(false);
-    // Create in DB
+
+    // Get the template from shared TEMPLATES to generate a YAML config.
+    // The YAML is what makes the agent reloadable after navigation.
+    const tplName = templateKey;
+    const localTemplates: Record<string, { nodes: any[]; edges: any[]; name: string }> = {
+      minimal: { name: 'Minimal Agent', nodes: [], edges: [] },
+      full: { name: 'Full Agent', nodes: [], edges: [] },
+      lucid: { name: 'Lucid Analysis Agent', nodes: [], edges: [] },
+    };
+    // Use TEMPLATES from lib if available, fall back to local
+    const source = (TEMPLATES as any)[templateKey] || localTemplates[templateKey];
+    const yaml = source ? generateYaml(source.nodes, source.edges, name, '') : '';
+
+    // Create in DB with config_yaml so it survives reloads
     const resp = await fetch('/v1/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description: '', system_prompt: '' }),
+      body: JSON.stringify({ name, description: '', system_prompt: '', config_yaml: yaml }),
     });
     if (!resp.ok) {
       showToast('Failed to create agent', 'error');
@@ -140,7 +203,9 @@ export default function App() {
     setActiveAgentId(data.id);
     fetchAgents();
     setAgentName(name);
-    // Load template
+    // Clear old graph immediately so previous agent's nodes don't flicker
+    clearGraph();
+    // Load template into canvas
     setActiveTab('designer');
     setQuickStartToast(`Building your ${templateKey === 'minimal' ? 'chatbot' : 'agent'}…`);
     setTimeout(() => {
@@ -190,77 +255,13 @@ export default function App() {
   };
 
   const loadTemplateFromYaml = (yamlText: string) => {
-    // Simple template loading - in production, use a proper YAML parser
-    // For now, we load pre-built templates
-    const templates: Record<string, { nodes: any[]; edges: any[]; name: string }> = {
-      minimal: {
-        name: 'Minimal Agent',
-        nodes: [
-          { id: 'n1', type: 'vibefulNode', position: { x: 250, y: 50 }, data: { label: 'setup', nodeType: 'builtin.setup', config: {} } },
-          { id: 'n2', type: 'vibefulNode', position: { x: 250, y: 170 }, data: { label: 'system_prompt', nodeType: 'builtin.system_message_builder', config: {} } },
-          { id: 'n3', type: 'vibefulNode', position: { x: 250, y: 290 }, data: { label: 'react_agent', nodeType: 'builtin.react_agent', config: { max_iterations: 5 } } },
-          { id: 'n4', type: 'vibefulNode', position: { x: 250, y: 410 }, data: { label: 'stream_completion', nodeType: 'builtin.stream_completion', config: {} } },
-        ],
-        edges: [
-          { id: 'e1', source: 'n1', target: 'n2' },
-          { id: 'e2', source: 'n2', target: 'n3' },
-          { id: 'e3', source: 'n3', target: 'n4' },
-        ],
-      },
-      full: {
-        name: 'Full Agent',
-        nodes: [
-          { id: 'n1', type: 'vibefulNode', position: { x: 250, y: 50 }, data: { label: 'attack_guard', nodeType: 'builtin.attack_guard', config: {} } },
-          { id: 'n2', type: 'vibefulNode', position: { x: 250, y: 170 }, data: { label: 'setup', nodeType: 'builtin.setup', config: {} } },
-          { id: 'n3', type: 'vibefulNode', position: { x: 250, y: 290 }, data: { label: 'fact_recall', nodeType: 'builtin.fact_recall', config: {} } },
-          { id: 'n4', type: 'vibefulNode', position: { x: 250, y: 410 }, data: { label: 'planning', nodeType: 'builtin.planning', config: {} } },
-          { id: 'n5', type: 'vibefulNode', position: { x: 250, y: 530 }, data: { label: 'system_prompt', nodeType: 'builtin.system_message_builder', config: {} } },
-          { id: 'n6', type: 'vibefulNode', position: { x: 250, y: 650 }, data: { label: 'analysis_pipeline', nodeType: 'builtin.analysis_pipeline', config: {} } },
-          { id: 'n7', type: 'vibefulNode', position: { x: 250, y: 770 }, data: { label: 'react_agent', nodeType: 'builtin.react_agent', config: { max_iterations: 5 } } },
-          { id: 'n8', type: 'vibefulNode', position: { x: 250, y: 890 }, data: { label: 'output_router', nodeType: 'builtin.output_router', config: {} } },
-          { id: 'n9', type: 'vibefulNode', position: { x: 250, y: 1010 }, data: { label: 'stream_completion', nodeType: 'builtin.stream_completion', config: {} } },
-          { id: 'n10', type: 'vibefulNode', position: { x: 250, y: 1130 }, data: { label: 'fact_mining', nodeType: 'builtin.fact_mining', config: {} } },
-        ],
-        edges: [
-          { id: 'e1', source: 'n1', target: 'n2' },
-          { id: 'e2', source: 'n2', target: 'n3' },
-          { id: 'e3', source: 'n3', target: 'n4' },
-          { id: 'e4', source: 'n4', target: 'n5' },
-          { id: 'e5', source: 'n5', target: 'n6' },
-          { id: 'e6', source: 'n6', target: 'n7' },
-          { id: 'e7', source: 'n7', target: 'n8' },
-          { id: 'e8', source: 'n8', target: 'n9' },
-          { id: 'e9', source: 'n9', target: 'n10' },
-        ],
-      },
-      lucid: {
-        name: 'Lucid Analysis Agent',
-        nodes: [
-          { id: 'n1', type: 'vibefulNode', position: { x: 250, y: 50 }, data: { label: 'attack_guard', nodeType: 'builtin.attack_guard', config: {} } },
-          { id: 'n2', type: 'vibefulNode', position: { x: 250, y: 170 }, data: { label: 'setup', nodeType: 'builtin.setup', config: {} } },
-          { id: 'n3', type: 'vibefulNode', position: { x: 250, y: 290 }, data: { label: 'system_prompt', nodeType: 'builtin.system_message_builder', config: {} } },
-          { id: 'n4', type: 'vibefulNode', position: { x: 250, y: 410 }, data: { label: 'analysis_pipeline', nodeType: 'builtin.analysis_pipeline', config: {} } },
-          { id: 'n5', type: 'vibefulNode', position: { x: 250, y: 530 }, data: { label: 'react_agent', nodeType: 'builtin.react_agent', config: { max_iterations: 5 } } },
-          { id: 'n6', type: 'vibefulNode', position: { x: 250, y: 650 }, data: { label: 'output_router', nodeType: 'builtin.output_router', config: {} } },
-          { id: 'n7', type: 'vibefulNode', position: { x: 250, y: 770 }, data: { label: 'stream_completion', nodeType: 'builtin.stream_completion', config: {} } },
-        ],
-        edges: [
-          { id: 'e1', source: 'n1', target: 'n2' },
-          { id: 'e2', source: 'n2', target: 'n3' },
-          { id: 'e3', source: 'n3', target: 'n4' },
-          { id: 'e4', source: 'n4', target: 'n5' },
-          { id: 'e5', source: 'n5', target: 'n6' },
-          { id: 'e6', source: 'n6', target: 'n7' },
-        ],
-      },
-    };
+    // Use shared TEMPLATES from lib — single source of truth.
+    // Try exact key first, then name match, fall back to minimal.
+    const template = (TEMPLATES as any)[yamlText]
+      || Object.values(TEMPLATES).find((t) => yamlText.includes(t.name))
+      || TEMPLATES.minimal;
 
-    // Try exact key first, then name match, fall back to minimal
-    const template = templates[yamlText]
-      || Object.values(templates).find((t) => yamlText.includes(t.name))
-      || templates.minimal;
-
-    loadGraph(template.nodes as any, template.edges);
+    loadGraph([...template.nodes], [...template.edges]);
     // Only set the name from the template if no agent name is already set
     // (avoids overwriting user-chosen names when called from handleCreateAgent)
     const state = useFlowStore.getState();
@@ -276,6 +277,7 @@ export default function App() {
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
   const [stylingModalOpen, setStylingModalOpen] = useState(false);
   const [knowledgeModalOpen, setKnowledgeModalOpen] = useState(false);
+  const [personalityModalOpen, setPersonalityModalOpen] = useState(false);
   const stylingPresetRef = useRef<string | undefined>(undefined);
   const stylingFontRef = useRef<string | undefined>(undefined);
 
@@ -450,45 +452,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {activeAgentId && (
-              <>
-                <div className="w-px h-5 bg-slate-700" />
-                <button
-                  onClick={async () => {
-                    const yaml = generateYaml(nodes, edges, agentName, agentDescription);
-                    const resp = await fetch('/v1/agents', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name: `${agentName} (copy)`, description: agentDescription, config_yaml: yaml }),
-                    });
-                    if (resp.ok) {
-                      const data = await resp.json();
-                      setActiveAgentId(data.id);
-                      setAgentList((prev) => [...prev, { id: data.id, name: `${agentName} (copy)` }]);
-                    }
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors"
-                  title="Clone agent"
-                >
-                  Clone
-                </button>
-                <button
-                  onClick={() => {
-                    if (!confirm(`Delete agent "${agentName}"? This cannot be undone.`)) return;
-                    fetch(`/v1/agents/${activeAgentId}`, { method: 'DELETE' }).then(() => {
-                      setAgentList((prev) => prev.filter((a) => a.id !== activeAgentId));
-                      setActiveAgentId(null);
-                      loadGraph([], []);
-                      setAgentName('');
-                    });
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-red-700 text-slate-200 rounded transition-colors"
-                  title="Delete agent"
-                >
-                  Delete
-                </button>
-              </>
-            )}
           </div>
         </header>
 
@@ -551,21 +514,20 @@ export default function App() {
               <button onClick={() => setKnowledgeModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <BookOpen size={12} /> Knowledge
               </button>
+              <button onClick={() => setPersonalityModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <Smile size={12} /> Personality
+              </button>
             </div>
             <div className="flex-1 flex overflow-hidden relative">
               <NodePalette />
               <div className="flex-1 min-w-0 relative">
                 <FlowCanvas />
-                {stylingModalOpen && (
+                 {stylingModalOpen && (
                   <StylingModal
+                    agentId={activeAgentId}
                     initialPreset={stylingPresetRef.current}
                     initialFont={stylingFontRef.current}
                     onClose={() => { setStylingModalOpen(false); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
-                    onApply={(cfg) => {
-                      setStylingModalOpen(false);
-                      stylingPresetRef.current = undefined; stylingFontRef.current = undefined;
-                      showToast('Styling applied — will be saved with your agent', 'success');
-                    }}
                   />
                 )}
                 {quickStartToast && (
@@ -680,6 +642,12 @@ export default function App() {
           onClose={() => setKnowledgeModalOpen(false)}
           onNavigate={setActiveTab}
           onRefresh={fetchContexts}
+        />
+      )}
+      {personalityModalOpen && (
+        <PersonalityModal
+          agentId={activeAgentId}
+          onClose={() => setPersonalityModalOpen(false)}
         />
       )}
     </ReactFlowProvider>

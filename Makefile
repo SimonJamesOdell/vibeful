@@ -22,7 +22,7 @@ SHELL := /bin/bash
 ROOT := $(shell pwd)
 AGENT_ENGINE := $(ROOT)/packages/agent-engine
 MGMT_CONSOLE := $(ROOT)/packages/management-console
-API_GATEWAY := $(ROOT)/packages/api-gateway
+# API_GATEWAY removed — management console talks directly to agent-engine REST
 SDK := $(ROOT)/packages/sdk
 SCRIPTS := $(ROOT)/scripts
 
@@ -65,7 +65,7 @@ typecheck-py:
 typecheck-ts:
 	@echo "── TypeScript typecheck ──"
 	@cd $(MGMT_CONSOLE) && npx tsc --noEmit
-	@cd $(API_GATEWAY) && npx tsc --noEmit 2>/dev/null || echo "  ⚠ api-gateway typecheck skipped (deps may differ)"
+	@echo "  ⚠ api-gateway typecheck removed — API gateway superseded by agent-engine REST"
 
 # ── Tests ────────────────────────────────────────────────────
 

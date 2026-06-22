@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Trash2, ExternalLink } from 'lucide-react';
+import { Bot, Trash2, Copy } from 'lucide-react';
 import { useFlowStore } from '../lib/flowStore';
 import { parseGraphFromYaml } from '../lib/yamlGenerator';
 
@@ -17,6 +17,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [cloning, setCloning] = useState<string | null>(null);
 
   const loadGraph = useFlowStore((s) => s.loadGraph);
   const setAgentName = useFlowStore((s) => s.setAgentName);
@@ -68,6 +69,33 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
     }
   };
 
+  const handleClone = async (id: string, name: string) => {
+    setCloning(id);
+    try {
+      const resp = await fetch(`/v1/agents/${id}`);
+      const agent = await resp.json();
+      const resp2 = await fetch('/v1/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${name} (copy)`,
+          description: agent.description || '',
+          system_prompt: agent.system_prompt || '',
+          config_yaml: agent.config_json || '',
+          styling: agent.styling_json || '',
+        }),
+      });
+      if (resp2.ok) {
+        const clone = await resp2.json();
+        setAgents((prev) => [...prev, { id: clone.id, name: clone.name, description: clone.description || '', model: clone.model || 'deepseek-chat', created_at: clone.created_at || '', updated_at: clone.created_at || '' }]);
+      }
+    } catch (e: any) {
+      alert(`Clone failed: ${e.message}`);
+    } finally {
+      setCloning(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -116,9 +144,17 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
                 </p>
               </div>
               <button
+                onClick={(e) => { e.stopPropagation(); handleClone(agent.id, agent.name); }}
+                disabled={cloning === agent.id}
+                className="ml-2 p-1 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                title="Clone agent"
+              >
+                <Copy size={14} />
+              </button>
+              <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(agent.id, agent.name); }}
                 disabled={deleting === agent.id}
-                className="ml-2 p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                 title="Delete agent"
               >
                 <Trash2 size={14} />

@@ -35,27 +35,42 @@ services:
       agent-engine:
         condition: service_healthy
 
-  # ── Agent Engine (Python, LangGraph, gRPC) ──────────────────
+  # ── Agent Engine (Python, LangGraph, REST + gRPC) ───────────
   agent-engine:
     build:
       context: .
       dockerfile: packages/agent-engine/Dockerfile
     ports:
-      - "50051:50051"
+      - "50051:50051"   # gRPC (SDK streaming)
+      - "50052:50052"   # REST (management console)
     environment:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DATABASE_URL: postgresql://vibeful:vibeful_dev@postgres:5432/vibeful
       REDIS_URL: redis://redis:6379
       GRPC_PORT: "50051"
+      REST_PORT: "50052"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import grpc; print(1)'"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:50052/health\")'"]
       interval: 5s
       retries: 5
+
+  # ── Management Console (React/Vite) ─────────────────────────
+  management-console:
+    build:
+      context: .
+      dockerfile: packages/management-console/Dockerfile
+    ports:
+      - "5174:5174"
+    environment:
+      VITE_API_URL: http://agent-engine:50052
+    depends_on:
+      agent-engine:
+        condition: service_healthy
 
   # ── MCP Servers (Node/TS) ───────────────────────────────────
   mcp-web-search:
@@ -106,22 +121,6 @@ services:
         condition: service_healthy
       agent-engine:
         condition: service_healthy
-
-  # ── API Gateway (Node/TS) ──────────────────────────────────
-  api-gateway:
-    build:
-      context: .
-      dockerfile: packages/api-gateway/Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://vibeful:vibeful_dev@postgres:5432/vibeful
-      REDIS_URL: redis://redis:6379
-      AGENT_ENGINE_URL: agent-engine:50051
-      PROXY_URL: http://proxy:8000
-    depends_on:
-      proxy:
-        condition: service_started
 
   # ── SDK Dev Server (React/Vite) ────────────────────────────
   sdk:

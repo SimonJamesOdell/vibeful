@@ -80,22 +80,15 @@ services:
         limits:
           memory: 512M
 
-  # ── API Gateway ─────────────────────────────────────────────
-  api-gateway:
-    build:
-      context: .
-      dockerfile: packages/api-gateway/Dockerfile
-    ports:
-      - "127.0.0.1:3000:3000"
-    environment:
-      PROXY_URL: http://proxy:8000
-    restart: unless-stopped
-    depends_on:
-      - proxy
-    deploy:
-      resources:
-        limits:
-          memory: 256M
+  # ── Management Console (production static build) ─────────────
+  # In production, build with `vite build` and serve via nginx.
+  # The dev-mode Vite server is replaced by a static file server.
+  # management-console:
+  #   build:
+  #     context: .
+  #     dockerfile: packages/management-console/Dockerfile.prod
+  #   ports:
+  #     - "127.0.0.1:5174:80"
 
 volumes:
   pgdata:

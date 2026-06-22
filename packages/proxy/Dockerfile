@@ -8,11 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc && \
     rm -rf /var/lib/apt/lists/*
 
+# Copy package config and source (must copy src/ before pip install)
 COPY packages/proxy/pyproject.toml .
-RUN pip install --no-cache-dir .
-
-# Copy proxy source
 COPY packages/proxy/src/ /app/src/
+RUN pip install --no-cache-dir .
 
 # Copy shared agent-engine modules the proxy depends on (as a proper package)
 RUN mkdir -p /app/agent_engine/src

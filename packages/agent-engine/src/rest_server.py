@@ -41,6 +41,24 @@ app.add_middleware(
 
 
 @app.on_event("startup")
+async def _startup_graph():
+    """Build agent graph on startup if not already set (standalone mode).
+
+    When running through entrypoint.py, set_graph() is called before the
+    server starts. When running standalone (e.g. setup.sh), this event
+    builds the graph so /converse works without an external setter.
+    """
+    global _graph
+    if _graph is None:
+        try:
+            from .agent_graph import build_agent_graph
+            _graph = build_agent_graph()
+            print("[vibeful] Agent graph compiled (standalone mode)")
+        except Exception as e:
+            print(f"[vibeful] WARNING: Agent graph build failed: {e}")
+
+
+@app.on_event("startup")
 async def _startup_diag():
     """Log API key and LLM status on startup for debugging."""
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
@@ -524,6 +542,7 @@ class AgentCreateRequest(BaseModel):
     model: str = "deepseek-chat"
     temperature: float = 0.7
     config_yaml: str = ""
+    styling: str = ""
 
 
 @app.post("/v1/agents")
@@ -533,6 +552,7 @@ async def create_agent(req: AgentCreateRequest):
         "name": req.name, "description": req.description,
         "system_prompt": req.system_prompt, "model": req.model,
         "temperature": req.temperature, "config_yaml": req.config_yaml,
+        "styling": req.styling,
     })
     return agent
 
@@ -563,18 +583,31 @@ async def delete_agent(agent_id: str):
 
 class AgentUpdateRequest(BaseModel):
     name: str = ""
+    description: str | None = None
+    system_prompt: str | None = None
+    config_yaml: str | None = None
+    styling: str | None = None
+    model: str | None = None
+    temperature: float | None = None
     context_ids: list[str] | None = None
 
 @app.put("/v1/agents/{agent_id}")
 async def update_agent(agent_id: str, req: AgentUpdateRequest):
-    """Update an agent's name or other mutable fields."""
+    """Update an agent's mutable fields — used by auto-save in the designer."""
     db = _require_db()
     agent = await db.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "agent not found")
     updates = {}
-    if req.name:
-        updates["name"] = req.name
+    for field in ("name", "description", "system_prompt", "model", "temperature"):
+        val = getattr(req, field, None)
+        if val is not None and val != "":
+            updates[field] = val
+    # config_yaml stores as config_json in the DB (SQLite column name)
+    if req.config_yaml is not None and req.config_yaml != "":
+        updates["config_json"] = req.config_yaml
+    if req.styling is not None:
+        updates["styling_json"] = req.styling
     if req.context_ids is not None:
         updates["context_ids"] = req.context_ids
     if updates:

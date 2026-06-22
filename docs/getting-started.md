@@ -1,139 +1,114 @@
 # Getting Started
 
-Add AI agents to your app in 5 minutes. Two paths — pick the one that fits.
+Add AI agents to your app in minutes. Two paths — pick the one that fits.
 
 ## Prerequisites
 
 - A [DeepSeek API key](https://platform.deepseek.com/api_keys) (free tier available)
-- **Path A (Docker):** [Docker](https://docs.docker.com/get-docker/) — recommended for production
-- **Path B (Local):** Python 3.12+ and Node.js 22+ — fastest for development
+- Python 3.12+ and Node.js 22+
+- **Docker** is optional — needed only for the full production-like stack
 
 ---
 
-## Path A: Docker (Recommended for Production)
+## First-Time Setup
 
-### 1. Clone and start
+Run the setup script. It detects your system, installs missing dependencies, and boots everything.
 
+**Linux / macOS / WSL:**
 ```bash
-git clone https://github.com/vibeful/vibeful.git
+git clone https://github.com/SimonJamesOdell/vibeful.git
 cd vibeful
-cp .env.example .env
+bash scripts/setup.sh
 ```
 
-Edit `.env` and add your DeepSeek API key:
-```
-DEEPSEEK_API_KEY=sk-your-key-here
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/SimonJamesOdell/vibeful.git
+cd vibeful
+.\scripts\setup.ps1
 ```
 
-## 2. Start Vibeful
+The script:
+- Checks for Python 3.12+ and Node.js 22+
+- Creates a Python virtual environment
+- Installs all Python and Node.js dependencies
+- Prompts for your DeepSeek API key
+- Starts the agent engine (REST API) on port 50052
+- Starts the management console on port 5174
+
+Open **http://localhost:5174** — the Vibeful Guide greets you there.
+
+## Day-to-Day Development
+
+After the initial setup, use these commands:
 
 ```bash
-docker compose up -d
+npm run dev        # Start agent engine + console (SQLite, no Docker)
+npm run stack      # Start full Docker architecture (PostgreSQL, Redis, Envoy, proxy)
+npm run stack:down # Tear down Docker stack
+npm run build      # Production builds
+npm run test       # Run all tests
 ```
 
-This starts 10 services: PostgreSQL, Redis, Agent Engine, Proxy, API Gateway, 3 MCP servers, SDK dev server, and Envoy. First run downloads images (~2 min).
+`npm run dev` starts both the agent engine and management console as child processes. Press Ctrl+C to stop both.
 
-## 3. Open the Management Console
+## Docker Stack
 
-Go to **http://localhost:5174** — the Vibeful Management Console.
-
-This is a visual agent design tool where you can drag-and-drop agent graph nodes, configure the analysis pipeline, manage versions, run A/B tests, and monitor performance — all from a React Flow canvas.
-
-## 4. Design Your First Agent
-
-1. Drag nodes from the **Node Palette** onto the canvas (start with Setup → System Prompt → ReAct Agent → Stream Completion)
-2. Click any node to edit its **Properties** (e.g., set `max_iterations` on ReAct Agent)
-3. Give your agent a **name** in the header bar
-4. See the **YAML Preview** panel update in real-time
-5. Click **Deploy** to push the config to the agent engine
-6. Copy the **Agent ID** that appears
-
-> **Tip:** Use the **AI Assistant** (bottom-right panel) to build agents with natural language: "Add an attack guard at the start" or "add a rag node after the system prompt."
-
-### Manage Multiple Agents
-
-The **Agents tab** (in the header bar) shows all your deployed agents. Click any agent to load its graph into the Designer. Each agent has its own:
-
-- Agent graph (nodes + edges)
-- Knowledge contexts and MCP tool connections
-- Version history and A/B tests
-- Performance monitoring
-
-Create a new agent by clicking **Deploy** with a new name, or clone an existing agent from the Agents dashboard.
-
-### Apply Guardrails to Your Agent
-
-Every agent you deploy needs boundaries. Vibeful provides three layers of guardrails:
-
-**1. System Prompt (behavioral boundary)** — Click the **System Prompt** node in your agent graph, then use the properties panel to write a `system_prompt_text`. This is your agent's constitution — it defines what the agent will and won't do. Example:
-
-```
-You are a support assistant for Acme SaaS. Answer questions about our product, billing, and account management.
-
-If asked about competitors, pricing negotiations, or anything outside Acme's scope, respond:
-"I can only help with Acme product questions. Is there something about your Acme account I can assist with?"
-```
-
-**2. Attack Guard (security boundary)** — Add an **Attack Guard** node at the start of your graph. It detects prompt injection, jailbreak attempts, XSS, and SQLi. Configure `block_mode` in properties: `block` (reject), `flag` (log only), or `passthrough` (no filter).
-
-**3. Token Budget (cost boundary)** — Use the **Supervisor** tab to set per-agent token budgets. Agents stop responding when they hit their limit, preventing runaway costs.
-
-> **Example:** The Vibeful homepage bot uses a system prompt guardrail to limit responses to Vibeful-related questions only. This is the same pattern you use for your own agents.
-
-## 5. Test Your Agent
+For testing the full production-like architecture:
 
 ```bash
-curl -X POST http://localhost:3000/v1/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"agent_id":"YOUR_AGENT_ID"}'
-
-curl -X POST http://localhost:3000/v1/sessions/SESSION_ID/converse \
-  -H "Content-Type: application/json" \
-  -d '{"content":"Hello!"}'
+npm run stack
 ```
 
-## 6. Enable Analysis Pipeline
+This starts 8 Docker services: PostgreSQL (pgvector), Redis, Envoy (gRPC proxy), agent engine (REST + gRPC), management console, proxy, MCP web search, and SDK dev server.
 
-Give your agent deeper understanding by enabling the analysis pipeline:
+Open **http://localhost:5174** for the management console — it connects to the agent engine REST API inside Docker.
 
-1. In the Management Console, add an **Analysis Pipeline** node before the ReAct Agent
-2. Configure which phases to enable (memories, impressions, intent classification, etc.)
-3. The **Conductor** phase dynamically adjusts response temperature based on user state
+---
 
-Or via API — add to your agent config:
+## Design Your First Agent
 
-```json
-{
-  "analysis": {
-    "enabled": true,
-    "phases": {
-      "impressions": { "enabled": true, "temperature": 0.5 },
-      "conductor": { "enabled": true, "temperature": 0.5 }
-    }
-  }
-}
+1. Open the **Management Console** at http://localhost:5174
+2. Drag nodes from the **Node Palette** onto the canvas
+3. Connect them with edges — start simple: Setup → System Prompt → ReAct Agent → Stream Completion
+4. Click any node to edit its **Properties**
+5. Give your agent a **name** in the header bar
+6. Click **Deploy** to push the config to the agent engine
+7. Copy the **Agent ID** that appears
+
+> **Tip:** Use the **AI Assistant** (bottom-right panel) to build agents with natural language: "Add an attack guard at the start" or "add a RAG node after the system prompt."
+
+### Apply Guardrails
+
+**System Prompt (behavioral):** Click the System Prompt node and write your agent's constitution — what it will and won't do.
+
+**Attack Guard (security):** Add an Attack Guard node to detect prompt injection, jailbreak attempts, XSS, and SQLi.
+
+**Token Budget (cost):** Use the Supervisor tab to set per-agent token limits.
+
+## Add Knowledge (RAG)
+
+1. In the Management Console, go to the **Contexts** tab
+2. Create a knowledge context and ingest documents
+3. Add a **RAG node** to your agent graph — it automatically searches your knowledge
+
+Or via API:
+
+```bash
+curl -X POST http://localhost:50052/v1/contexts \
+  -H "Content-Type: application/json" \
+  -d '{"name":"FAQ","description":"Support knowledge base"}'
+
+curl -X POST http://localhost:50052/v1/contexts/CONTEXT_ID/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Your knowledge here","filename":"doc.txt"}'
 ```
 
-## 7. Add Knowledge (RAG)
+## Enable Analysis Pipeline
 
-1. Go to the **API Gateway** (`http://localhost:3000`)
-2. Create a context:
-   ```bash
-   curl -X POST http://localhost:3000/v1/contexts \
-     -H "Content-Type: application/json" \
-     -d '{"name":"FAQ","description":"Support knowledge base"}'
-   ```
-3. Ingest knowledge:
-   ```bash
-   curl -X POST http://localhost:3000/v1/contexts/CONTEXT_ID/ingest \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Your knowledge here","filename":"doc.txt"}'
-   ```
-4. Add a **RAG node** to your agent graph — it will automatically search your knowledge
+Give your agent deeper understanding by adding an **Analysis Pipeline** node before the ReAct Agent. Configure which of the 11 parallel LLM phases to enable — memories, impressions, concepts, intent classification, and more. The Conductor phase dynamically adjusts response temperature based on user state.
 
-## 8. Embed in Your App
-
-Add this to any HTML page:
+## Embed in Your App
 
 ```html
 <div id="vibeful-chat" style="max-width:400px;height:500px"></div>
@@ -146,47 +121,12 @@ VibefulSDK.mount({
 </script>
 ```
 
-That's it. Your app now has an AI agent.
+Three lines. Your app now has an AI agent.
 
 ---
 
-## Path B: Local (No Docker Required)
+## API Reference
 
-Best for development, small-scale apps, or when you don't want Docker overhead. Uses SQLite instead of PostgreSQL.
+All endpoints are served by the agent engine REST API at `http://localhost:50052/v1/`.
 
-### 1. Clone and install
-
-```bash
-git clone https://github.com/vibeful/vibeful.git
-cd vibeful
-cd packages/agent-engine && pip install -e ".[dev]" && cd ../..
-cd packages/management-console && pnpm install && cd ../..
-```
-
-### 2. Set your API key
-
-```bash
-export DEEPSEEK_API_KEY=sk-your-key-here
-```
-
-Or paste it in the Management Console when prompted — no file editing needed.
-
-### 3. Start
-
-```bash
-# Terminal 1: Agent engine
-cd packages/agent-engine
-VIBEFUL_STORAGE=sqlite python -m uvicorn src.rest_server:app --host 0.0.0.0 --port 50052
-
-# Terminal 2: Management console
-cd packages/management-console
-pnpm dev
-```
-
-Open **http://localhost:5174**. Design your agent on the canvas, deploy, and embed.
-
-### Local mode limitations
-
-- **SQLite** instead of PostgreSQL/pgvector — fine for dev, use Docker for production vector search
-- **No Redis** — session caching is in-memory
-- **No MCP servers or Envoy** — use the REST API directly
+See [docs/api-reference.md](api-reference.md) for the full API reference.

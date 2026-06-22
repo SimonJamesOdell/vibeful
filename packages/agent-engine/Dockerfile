@@ -11,15 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy package config
+# Copy package config and source (must copy src/ before pip install)
 COPY packages/agent-engine/pyproject.toml .
+COPY packages/agent-engine/src/ /app/src/
 RUN pip install --no-cache-dir .
 
 # Copy protos from root
 COPY protos/ /app/protos/
-
-# Copy agent-engine source
-COPY packages/agent-engine/src/ /app/src/
 
 # Generate gRPC stubs
 RUN python3 -m grpc_tools.protoc \
@@ -30,4 +28,6 @@ RUN python3 -m grpc_tools.protoc \
 
 EXPOSE 50051
 
-CMD ["python3", "-m", "src.main"]
+EXPOSE 50052
+
+CMD ["python3", "-m", "src.entrypoint"]
