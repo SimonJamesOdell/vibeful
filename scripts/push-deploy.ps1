@@ -8,7 +8,7 @@
 #   - Your SSH key authorized in ~/.ssh/authorized_keys
 
 param(
-    [string]$TestHost = "192.168.0.16",
+    [string]$TestHost = "192.168.0.71",
     [string]$TestUser = "simon",
     [string]$RepoPath = "~/vibeful"
 )

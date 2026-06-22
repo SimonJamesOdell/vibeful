@@ -9,7 +9,7 @@ Usage on test machine:
 
 Then configure GitHub webhook:
     Settings → Webhooks → Add webhook
-    Payload URL: http://192.168.0.16:9000/webhook
+    Payload URL: http://192.168.0.71:9000/webhook
     Content type: application/json
     Events: Just the push event
 """

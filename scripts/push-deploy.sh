@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-TEST_HOST="${VIBEFUL_TEST_HOST:-192.168.0.16}"
+TEST_HOST="${VIBEFUL_TEST_HOST:-192.168.0.71}"
 TEST_USER="${VIBEFUL_TEST_USER:-simon}"
 REPO_PATH="${VIBEFUL_REPO_PATH:-/home/simon/mindset/vibeful}"
 
