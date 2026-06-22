@@ -51,14 +51,28 @@ export default function App() {
   const switchToAgent = async (agentId: string) => {
     try {
       const resp = await fetch(`/v1/agents/${agentId}`);
+      if (!resp.ok) {
+        showToast(`Agent not found (${resp.status})`, 'error');
+        return;
+      }
       const data = await resp.json();
       const parsed = parseGraphFromYaml(data);
       if (parsed) {
         loadGraph(parsed.nodes as any, parsed.edges);
-        setAgentName(data.name || '');
+      } else {
+        // Agent has no YAML config (e.g., created via AI assistant).
+        // Start with a clean canvas but preserve agent metadata.
+        clearGraph();
+        // Don't silently fail — notify the user
+        if (!data.config_json && !(data as any).config_yaml) {
+          showToast('Agent has no visual config — showing blank canvas', 'info');
+        }
       }
-    } catch {
-      // Keep current graph if agent can't be loaded
+      setAgentName(data.name || '');
+      setAgentDescription(data.description || '');
+    } catch (err: any) {
+      showToast(`Failed to load agent: ${err.message}`, 'error');
+      return;
     }
     setActiveAgentId(agentId);
     setActiveTab('designer');
@@ -99,6 +113,8 @@ export default function App() {
       });
       const data = await resp.json();
       if (resp.ok) {
+        setActiveAgentId(data.id);
+        fetchAgents();
         showToast(`Agent "${agentName}" deployed — ID: ${data.id.slice(0, 8)}…`, 'success');
       } else {
         showToast(`Deploy failed: ${data.error}`, 'error');
@@ -275,25 +291,36 @@ export default function App() {
       loadTemplateFromYaml((e as CustomEvent).detail);
     };
 
-    // Quick-start flow: navigate to designer, load template, show toast, trigger AI
+    // Quick-start flow: navigate to designer, load template, show toast, trigger AI.
+    // Only creates a new agent on a genuinely empty canvas — never overwrites an existing agent.
     const onQuickStart = (e: Event) => {
       const { template, message } = (e as CustomEvent).detail as { template: string; message: string };
-      const currentNodes = useFlowStore.getState().nodes;
+      const state = useFlowStore.getState();
+      const currentNodes = state.nodes;
+      const hasAgent = !!activeAgentId;
+
       setActiveTab('designer');
 
-      // If there's already a chatbot on the canvas, just navigate — don't rebuild
-      if (currentNodes.length > 0) return;
+      // If there's already an active agent or nodes on the canvas, just navigate — don't rebuild
+      if (hasAgent || currentNodes.length > 0) return;
 
       setQuickStartToast(`Building your ${template === 'minimal' ? 'chatbot' : 'agent'}…`);
       setTimeout(async () => {
         loadTemplateFromYaml(template);
-        // Create the agent record in the database so it appears on the dashboard
+        // Create the agent record in the database so it appears on the dashboard.
+        // Store the current graph as config_yaml so the agent is reloadable.
+        const { nodes: ns, edges: es, agentName: an, agentDescription: ad } = useFlowStore.getState();
+        const yaml = generateYaml(ns, es, an || 'Untitled Agent', ad || '');
         const tplName = template === 'minimal' ? 'Basic Chatbot' : template === 'lucid' ? 'Lucid Agent' : template === 'full' ? 'Full Agent' : 'Agent';
-        await fetch('/v1/agents', {
+        const resp = await fetch('/v1/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: tplName, description: '', system_prompt: '' }),
+          body: JSON.stringify({ name: tplName, description: '', system_prompt: '', config_yaml: yaml }),
         });
+        if (resp.ok) {
+          const data = await resp.json();
+          setActiveAgentId(data.id);
+        }
         setAgentName(tplName);
         fetchAgents();
         setQuickStartToast(null);
@@ -473,6 +500,7 @@ export default function App() {
             onNavigate={setActiveTab}
             agents={agentList}
             contexts={contextList}
+            onSelectAgent={switchToAgent}
             onDelete={async (id) => {
                 const name = agentList.find((a) => a.id === id)?.name;
                 await fetch(`/v1/agents/${id}`, { method: 'DELETE' });

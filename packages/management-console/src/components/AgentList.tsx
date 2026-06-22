@@ -37,11 +37,15 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   const handleSelect = async (agent: AgentSummary) => {
     try {
       const resp = await fetch(`/v1/agents/${agent.id}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       const parsed = parseGraphFromYaml(data);
       if (parsed) {
         loadGraph(parsed.nodes as any, parsed.edges);
         setAgentName(data.name || '');
+      } else {
+        // Agent has no YAML config — still load it with metadata
+        setAgentName(data.name || agent.name);
       }
       onSelect(agent.id);
     } catch {

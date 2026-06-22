@@ -56,20 +56,35 @@ async def _startup_diag():
 @app.on_event("startup")
 async def _startup_db():
     """Initialize the database for Lucid endpoints.
-    Uses PostgreSQL in Docker mode, SQLite in local mode."""
+    
+    Strategy: default to SQLite (local dev). Use PostgreSQL only when
+    DATABASE_URL is explicitly set to a postgres:// URL. This prevents
+    silent fallback from PostgreSQL (unreachable after restart) to an
+    empty SQLite file — the root cause of agents "disappearing."
+    """
     global _db_lucid
-    try:
-        from .database import Database
-        _db_lucid = Database()
-        await _db_lucid.init_schema()
-    except Exception:
-        # SQLite fallback for local dev mode
+    db_url = os.getenv("DATABASE_URL", "")
+    use_postgres = db_url.startswith("postgresql://") or db_url.startswith("postgres://")
+
+    if use_postgres:
         try:
-            from .storage.sqlite import SqliteBackend
-            _db_lucid = SqliteBackend()
+            from .database import Database
+            _db_lucid = Database()
             await _db_lucid.init_schema()
-        except Exception:
-            pass
+            print("[vibeful] Database: PostgreSQL connected")
+            return
+        except Exception as e:
+            print(f"[vibeful] WARNING: PostgreSQL unavailable ({e}), falling back to SQLite")
+            # Fall through to SQLite below
+
+    # SQLite — default for local dev
+    try:
+        from .storage.sqlite import SqliteBackend
+        _db_lucid = SqliteBackend()
+        await _db_lucid.init_schema()
+        print("[vibeful] Database: SQLite (local dev mode)")
+    except Exception as e:
+        print(f"[vibeful] ERROR: Database initialization failed: {e}")
 
 _graph = None
 

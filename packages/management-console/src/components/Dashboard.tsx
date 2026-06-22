@@ -12,11 +12,12 @@ interface Props {
   onNavigate: (tab: any) => void;
   agents: Agent[];
   contexts: Context[];
+  onSelectAgent: (id: string) => void;
   onDelete: (id: string) => void;
   onTest: () => void;
 }
 
-export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTest }: Props) {
+export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest }: Props) {
   const [tiersOpen, setTiersOpen] = useState(false);
 
   const pages: any[] = []; // placeholder for future Page builder
@@ -40,10 +41,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onDelete, onTe
               key={agent.id}
               name={agent.name}
               subtitle={agent.description || agent.system_prompt?.slice(0, 80) || ''}
-              onEdit={() => {
-                onNavigate('designer');
-                window.dispatchEvent(new CustomEvent('vibeful:quick-start', { detail: { template: 'minimal', message: '' } }));
-              }}
+              onEdit={() => onSelectAgent(agent.id)}
               onTest={onTest}
               onDelete={() => onDelete(agent.id)}
             />
