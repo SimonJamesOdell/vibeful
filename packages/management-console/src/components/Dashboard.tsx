@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, FileText, Edit3, Trash2, TestTube, Plus, Pencil, Check, X } from 'lucide-react';
+import { Brain, FileText, Trash2, TestTube, Plus, Pencil, Check, X } from 'lucide-react';
 
 interface Agent {
   id: string; name: string; description?: string; system_prompt?: string;
@@ -196,9 +196,6 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete, onRename }: {
             <Pencil size={11} />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
-          <Edit3 size={11} />
-        </button>
         <button onClick={(e) => { e.stopPropagation(); onTest(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded" title="Test">
           <TestTube size={11} />
         </button>
