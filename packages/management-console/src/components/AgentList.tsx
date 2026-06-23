@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Trash2, Copy } from 'lucide-react';
+import { Bot, Trash2, Copy, Pencil, Check, X } from 'lucide-react';
 
 interface AgentSummary {
   id: string;
@@ -16,6 +16,8 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [cloning, setCloning] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
     fetch('/v1/agents')
@@ -31,10 +33,35 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   }, []);
 
   const handleSelect = (agent: AgentSummary) => {
-    // Delegate entirely to the parent — switchToAgent handles save, fetch, load, and naming.
-    // Must NOT set agentName/loadGraph here: doing so before the parent's saveNow()
-    // would corrupt the previous agent's name in the database.
     onSelect(agent.id);
+  };
+
+  const handleRename = async (id: string) => {
+    const name = renameValue.trim();
+    if (!name) { setRenaming(null); return; }
+    if (agents.some((a) => a.id !== id && a.name === name)) {
+      alert(`An agent named "${name}" already exists.`);
+      return;
+    }
+    try {
+      const resp = await fetch(`/v1/agents/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (resp.ok) {
+        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, name } : a)));
+      } else if (resp.status === 409) {
+        const data = await resp.json();
+        alert(data.detail || `An agent named "${name}" already exists.`);
+      } else {
+        alert(`Rename failed (${resp.status})`);
+      }
+    } catch (e: any) {
+      alert(`Rename failed: ${e.message}`);
+    } finally {
+      setRenaming(null);
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -114,32 +141,58 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => handleSelect(agent)}
-                  className="text-sm font-medium text-slate-200 hover:text-indigo-400 text-left truncate block w-full"
-                >
-                  {agent.name || 'Unnamed Agent'}
-                </button>
+                {renaming === agent.id ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(agent.id);
+                        if (e.key === 'Escape') setRenaming(null);
+                      }}
+                      className="bg-slate-800 border border-indigo-500 rounded px-2 py-0.5 text-sm text-slate-200 w-full focus:outline-none"
+                    />
+                    <button onClick={() => handleRename(agent.id)} className="p-0.5 text-green-400 hover:text-green-300 flex-shrink-0" title="Save"><Check size={14} /></button>
+                    <button onClick={() => setRenaming(null)} className="p-0.5 text-slate-500 hover:text-slate-400 flex-shrink-0" title="Cancel"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleSelect(agent)}
+                    className="text-sm font-medium text-slate-200 hover:text-indigo-400 text-left truncate block w-full"
+                  >
+                    {agent.name || 'Unnamed Agent'}
+                  </button>
+                )}
                 <p className="text-xs text-slate-500 mt-1 truncate">
                   {agent.description || 'No description'}
                 </p>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleClone(agent.id, agent.name); }}
-                disabled={cloning === agent.id}
-                className="ml-2 p-1 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                title="Clone agent"
-              >
-                <Copy size={14} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(agent.id, agent.name); }}
-                disabled={deleting === agent.id}
-                className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                title="Delete agent"
-              >
-                <Trash2 size={14} />
-              </button>
+              <div className="flex items-center gap-0.5 ml-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setRenaming(agent.id); setRenameValue(agent.name); }}
+                  className="p-1 text-slate-600 hover:text-yellow-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  title="Rename agent"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleClone(agent.id, agent.name); }}
+                  disabled={cloning === agent.id}
+                  className="p-1 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  title="Clone agent"
+                >
+                  <Copy size={14} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(agent.id, agent.name); }}
+                  disabled={deleting === agent.id}
+                  className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  title="Delete agent"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-3 mt-3 text-[10px] text-slate-600">
               <span>{agent.model || 'deepseek-chat'}</span>
