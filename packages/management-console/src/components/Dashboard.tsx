@@ -166,7 +166,7 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete, onRename }: {
   };
 
   return (
-     <div onClick={!renaming ? onEdit : undefined} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group cursor-pointer">
+      <div onClick={!renaming ? onEdit : undefined} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors cursor-pointer">
       <div className="min-w-0 flex-1">
         {renaming ? (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -185,17 +185,19 @@ function AssetCard({ name, subtitle, onEdit, onTest, onDelete, onRename }: {
           </div>
         ) : (
           <>
-            <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
-            {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-slate-200 font-medium">{name}</span>
+              {onRename && (
+                <button onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(name); }} className="p-0.5 text-slate-600 hover:text-yellow-400 transition-colors" title="Rename">
+                  <Pencil size={11} />
+                </button>
+              )}
+            </div>
+            {subtitle && <div className="text-[10px] text-slate-500 truncate mt-0.5">{subtitle}</div>}
           </>
         )}
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-3">
-        {onRename && (
-          <button onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(name); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-yellow-400 hover:bg-slate-800 rounded" title="Rename">
-            <Pencil size={11} />
-          </button>
-        )}
+      <div className="flex items-center gap-1 ml-3">
         <button onClick={(e) => { e.stopPropagation(); onTest(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded" title="Test">
           <TestTube size={11} />
         </button>
