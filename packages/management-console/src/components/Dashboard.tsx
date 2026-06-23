@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, FileText, Edit3, Trash2, TestTube, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Brain, FileText, Edit3, Trash2, TestTube, Plus } from 'lucide-react';
 
 interface Agent {
   id: string; name: string; description?: string; system_prompt?: string;
@@ -18,10 +18,6 @@ interface Props {
 }
 
 export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest }: Props) {
-  const [tiersOpen, setTiersOpen] = useState(false);
-
-  const pages: any[] = []; // placeholder for future Page builder
-
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
@@ -29,7 +25,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
         <Section
           icon={<Brain size={16} className="text-purple-400" />}
           title="Agents"
-          subtitle="Build once, embed anywhere. Simple chatbot on a static site, or an interactive agent driving your app — same platform."
+          subtitle=""
           count={agents.length}
           actionLabel="New Agent"
           onAction={() => window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: { template: 'minimal' } }))}
@@ -46,20 +42,6 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
               onDelete={() => onDelete(agent.id)}
             />
           ))}
-        </Section>
-
-        {/* ── Pages ─────────────────────────────────────── */}
-        <Section
-          icon={<FileText size={16} className="text-amber-400" />}
-          title="Pages"
-          subtitle="Full pages built and served by Vibeful — agent-driven web experiences."
-          count={pages.length}
-          actionLabel="New Page"
-          onAction={() => onNavigate('designer')}
-          emptyTitle="No pages yet"
-          emptyDesc="Use Vibeful as your full application stack. Build pages that are driven by AI agents."
-        >
-          {pages.length === 0 ? null : <p className="text-xs text-slate-500">Pages coming soon.</p>}
         </Section>
 
         {/* ── Knowledge ─────────────────────────────────── */}
@@ -92,27 +74,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
           )}
         </div>
 
-        {/* ── Integration Tiers (collapsed) ─────────────── */}
-        <div className="border-t border-slate-800 pt-4">
-          <button onClick={() => setTiersOpen(!tiersOpen)} className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-400 transition-colors w-full text-left">
-            {tiersOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            Integration Tiers — how deep can you go?
-          </button>
-          {tiersOpen && (
-            <div className="grid grid-cols-3 gap-3 mt-3">
-              {[
-                { title: 'Simple Chatbot', color: 'text-cyan-400', desc: 'Embed a chatbot in any site with a script tag. Perfect for FAQs and support.' },
-                { title: 'Interactive Widget', color: 'text-purple-400', desc: 'Agent navigates your app, highlights elements, runs guided tours.' },
-                { title: 'Agent-Driven App', color: 'text-amber-400', desc: 'Full application built around AI agents. Multi-agent, RAG, custom widgets.' },
-              ].map((tier) => (
-                <div key={tier.title} className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                  <h4 className={`text-xs font-semibold ${tier.color} mb-1`}>{tier.title}</h4>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">{tier.desc}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
       </div>
     </div>
   );
