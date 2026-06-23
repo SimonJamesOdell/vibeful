@@ -634,6 +634,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Keep input focused during navigation events
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [activeTab]);
+
   const handleSend = async () => {
     const msg = input.trim();
     if (!msg || loading) return;

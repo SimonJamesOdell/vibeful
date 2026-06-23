@@ -648,7 +648,6 @@ export default function App() {
         )}
           </div>
           <AIAssistantPanel
-            key={activeTab}
             agents={agentList}
             contexts={contextList}
             activeTab={activeTab}
