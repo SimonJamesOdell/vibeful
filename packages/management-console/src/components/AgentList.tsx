@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Bot, Trash2, Copy } from 'lucide-react';
-import { useFlowStore } from '../lib/flowStore';
-import { parseGraphFromYaml } from '../lib/yamlGenerator';
 
 interface AgentSummary {
   id: string;
@@ -19,9 +17,6 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   const [deleting, setDeleting] = useState<string | null>(null);
   const [cloning, setCloning] = useState<string | null>(null);
 
-  const loadGraph = useFlowStore((s) => s.loadGraph);
-  const setAgentName = useFlowStore((s) => s.setAgentName);
-
   useEffect(() => {
     fetch('/v1/agents')
       .then((r) => r.json())
@@ -35,25 +30,11 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
       });
   }, []);
 
-  const handleSelect = async (agent: AgentSummary) => {
-    try {
-      const resp = await fetch(`/v1/agents/${agent.id}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      const parsed = parseGraphFromYaml(data);
-      if (parsed) {
-        loadGraph(parsed.nodes as any, parsed.edges);
-        setAgentName(data.name || '');
-      } else {
-        // Agent has no YAML config — still load it with metadata
-        setAgentName(data.name || agent.name);
-      }
-      onSelect(agent.id);
-    } catch {
-      // Load without saved graph — fresh canvas with agent name
-      setAgentName(agent.name);
-      onSelect(agent.id);
-    }
+  const handleSelect = (agent: AgentSummary) => {
+    // Delegate entirely to the parent — switchToAgent handles save, fetch, load, and naming.
+    // Must NOT set agentName/loadGraph here: doing so before the parent's saveNow()
+    // would corrupt the previous agent's name in the database.
+    onSelect(agent.id);
   };
 
   const handleDelete = async (id: string, name: string) => {
