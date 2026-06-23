@@ -175,7 +175,7 @@ export default function App() {
   };
 
   const handleCreateAgent = async (name: string, templateKey: string) => {
-    setCreateModalOpen(false);
+    setActiveModal(null);
 
     // Get the template from shared TEMPLATES to generate a YAML config.
     // The YAML is what makes the agent reloadable after navigation.
@@ -272,18 +272,15 @@ export default function App() {
 
   // ── Quick-start toast state ──────────────────────────────────
   const [quickStartToast, setQuickStartToast] = useState<string | null>(null);
-  const [testModalOpen, setTestModalOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Single modal state — opening any modal closes all others
+  const [activeModal, setActiveModal] = useState<string | null>(null);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
-  const [stylingModalOpen, setStylingModalOpen] = useState(false);
-  const [knowledgeModalOpen, setKnowledgeModalOpen] = useState(false);
-  const [personalityModalOpen, setPersonalityModalOpen] = useState(false);
   const stylingPresetRef = useRef<string | undefined>(undefined);
   const stylingFontRef = useRef<string | undefined>(undefined);
 
   // Auto-close styling modal when navigating away from editor
   useEffect(() => {
-    if (activeTab !== 'designer') setStylingModalOpen(false);
+    if (activeTab !== 'designer') setActiveModal(null);
   }, [activeTab]);
 
   // ── Vibeful Guide event handlers ────────────────────────────
@@ -347,12 +344,12 @@ export default function App() {
     window.addEventListener('vibeful:navigate', onNavigate);
     window.addEventListener('vibeful:configure-analysis', onConfigureAnalysis);
     window.addEventListener('vibeful:quick-start', onQuickStart);
-    window.addEventListener('vibeful:test-agent', () => setTestModalOpen(true));
-    window.addEventListener('vibeful:open-knowledge', () => setKnowledgeModalOpen(true));
+    window.addEventListener('vibeful:test-agent', () => setActiveModal('test'));
+    window.addEventListener('vibeful:open-knowledge', () => setActiveModal('knowledge'));
     window.addEventListener('vibeful:create-agent-modal', (e: Event) => {
       const defaults = (e as CustomEvent).detail || {};
       setCreateModalDefaults(defaults);
-      setCreateModalOpen(true);
+      setActiveModal('create');
     });
     window.addEventListener('vibeful:styling-modal', (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
@@ -374,7 +371,7 @@ export default function App() {
       stylingPresetRef.current = preset;
       stylingFontRef.current = font;
       setActiveTab('designer');
-      setStylingModalOpen(true);
+      setActiveModal('styling');
       // Re-dispatch so the StylingModal catches it after mount
       setTimeout(() => {
         console.log('[App:styling-apply re-dispatch] preset:', preset, 'font:', font);
@@ -388,8 +385,8 @@ export default function App() {
       window.removeEventListener('vibeful:navigate', onNavigate);
       window.removeEventListener('vibeful:configure-analysis', onConfigureAnalysis);
       window.removeEventListener('vibeful:quick-start', onQuickStart);
-      window.removeEventListener('vibeful:test-agent', () => setTestModalOpen(true));
-      window.removeEventListener('vibeful:open-knowledge', () => setKnowledgeModalOpen(true));
+      window.removeEventListener('vibeful:test-agent', () => setActiveModal('test'));
+      window.removeEventListener('vibeful:open-knowledge', () => setActiveModal('knowledge'));
       window.removeEventListener('vibeful:create-agent-modal', () => {});
       window.removeEventListener('vibeful:styling-modal', () => {});
     };
@@ -474,7 +471,7 @@ export default function App() {
                   setAgentName('');
                 }
               }}
-            onTest={() => setTestModalOpen(true)}
+            onTest={() => setActiveModal('test')}
           />
         ) : activeTab === 'designer' ? (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -505,16 +502,16 @@ export default function App() {
                 <option disabled>──</option>
                 <option value="__new">＋ New (blank canvas)</option>
               </select>
-              <button onClick={() => setStylingModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+              <button onClick={() => setActiveModal('styling')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Palette size={12} /> Styling
               </button>
-              <button onClick={() => setTestModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+              <button onClick={() => setActiveModal('test')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <TestTube size={12} /> Test
               </button>
-              <button onClick={() => setKnowledgeModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+              <button onClick={() => setActiveModal('knowledge')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <BookOpen size={12} /> Knowledge
               </button>
-              <button onClick={() => setPersonalityModalOpen(true)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+              <button onClick={() => setActiveModal('personality')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Smile size={12} /> Personality
               </button>
             </div>
@@ -522,12 +519,12 @@ export default function App() {
               <NodePalette />
               <div className="flex-1 min-w-0 relative">
                 <FlowCanvas />
-                 {stylingModalOpen && (
+                 {activeModal === 'styling' && (
                   <StylingModal
                     agentId={activeAgentId}
                     initialPreset={stylingPresetRef.current}
                     initialFont={stylingFontRef.current}
-                    onClose={() => { setStylingModalOpen(false); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
+                    onClose={() => { setActiveModal(null); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
                   />
                 )}
                 {quickStartToast && (
@@ -621,33 +618,33 @@ export default function App() {
         </div>
       </div>
       <ToastContainer />
-      {createModalOpen && (
+      {activeModal === 'create' && (
         <CreateAgentModal
           defaultName={createModalDefaults.name}
           defaultTemplate={createModalDefaults.template}
           onConfirm={handleCreateAgent}
-          onClose={() => setCreateModalOpen(false)}
+          onClose={() => setActiveModal(null)}
         />
       )}
-      {testModalOpen && (() => {
+      {activeModal === 'test' && (() => {
         // Extract system prompt from agent's graph nodes
         const spNode = nodes.find((n) => n.data.nodeType === 'builtin.system_prompt' || n.data.label?.toLowerCase().includes('system prompt'));
         const prompt = spNode?.data?.config?.prompt || spNode?.data?.config?.content || '';
-        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt || undefined} onClose={() => setTestModalOpen(false)} />;
+        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt || undefined} onClose={() => setActiveModal(null)} />;
       })()}
-      {knowledgeModalOpen && (
+      {activeModal === 'knowledge' && (
         <KnowledgeAttachModal
           activeAgentId={activeAgentId}
           contextList={contextList}
-          onClose={() => setKnowledgeModalOpen(false)}
+          onClose={() => setActiveModal(null)}
           onNavigate={setActiveTab}
           onRefresh={fetchContexts}
         />
       )}
-      {personalityModalOpen && (
+      {activeModal === 'personality' && (
         <PersonalityModal
           agentId={activeAgentId}
-          onClose={() => setPersonalityModalOpen(false)}
+          onClose={() => setActiveModal(null)}
         />
       )}
     </ReactFlowProvider>
