@@ -47,20 +47,6 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
           ))}
         </Section>
 
-        {/* ── Pages ─────────────────────────────────────── */}
-        <Section
-          icon={<FileText size={16} className="text-amber-400" />}
-          title="Pages"
-          subtitle=""
-          count={pages.length}
-          actionLabel="New Page"
-          onAction={() => onNavigate('designer')}
-          emptyTitle="No pages yet"
-          emptyDesc=""
-        >
-          {pages.length === 0 ? null : <p className="text-xs text-slate-500">Pages coming soon.</p>}
-        </Section>
-
         {/* ── Knowledge ─────────────────────────────────── */}
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
@@ -90,6 +76,20 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
             </div>
           )}
         </div>
+
+        {/* ── Pages ─────────────────────────────────────── */}
+        <Section
+          icon={<FileText size={16} className="text-amber-400" />}
+          title="Pages"
+          subtitle=""
+          count={pages.length}
+          actionLabel="New Page"
+          onAction={() => onNavigate('designer')}
+          emptyTitle="No pages yet"
+          emptyDesc=""
+        >
+          {pages.length === 0 ? null : <p className="text-xs text-slate-500">Pages coming soon.</p>}
+        </Section>
 
 
       </div>
