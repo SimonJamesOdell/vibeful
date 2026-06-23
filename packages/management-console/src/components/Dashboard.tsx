@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, FileText, Edit3, Trash2, TestTube, Plus } from 'lucide-react';
+import { Brain, FileText, Edit3, Trash2, TestTube, Plus, Pencil, Check, X } from 'lucide-react';
 
 interface Agent {
   id: string; name: string; description?: string; system_prompt?: string;
@@ -15,9 +15,10 @@ interface Props {
   onSelectAgent: (id: string) => void;
   onDelete: (id: string) => void;
   onTest: () => void;
+  onRename: (id: string, name: string) => Promise<boolean>;
 }
 
-export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest }: Props) {
+export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest, onRename }: Props) {
   const pages: any[] = []; // placeholder for future Page builder
   const namedContexts = contexts.filter((c) => c.name && c.name.trim());
 
@@ -43,6 +44,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
               onEdit={() => onSelectAgent(agent.id)}
               onTest={onTest}
               onDelete={() => onDelete(agent.id)}
+              onRename={async (name: string) => onRename(agent.id, name)}
             />
           ))}
         </Section>
@@ -140,21 +142,60 @@ function Section({ icon, title, subtitle, count, actionLabel, onAction, emptyTit
 
 /* ── Asset card ───────────────────────────────────────── */
 
-function AssetCard({ name, subtitle, onEdit, onTest, onDelete }: {
+function AssetCard({ name, subtitle, onEdit, onTest, onDelete, onRename }: {
   name: string;
   subtitle: string;
   onEdit: () => void;
   onTest: () => void;
   onDelete: () => void;
+  onRename?: (newName: string) => Promise<boolean>;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+
+  const handleRename = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const trimmed = renameValue.trim();
+    if (!trimmed) { setRenaming(false); return; }
+    if (onRename) {
+      const ok = await onRename(trimmed);
+      if (!ok) return;
+    }
+    setRenaming(false);
+  };
+
   return (
-     <div onClick={onEdit} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group cursor-pointer">
+     <div onClick={!renaming ? onEdit : undefined} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors group cursor-pointer">
       <div className="min-w-0 flex-1">
-        <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
-        {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
+        {renaming ? (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRename(e as any);
+                if (e.key === 'Escape') setRenaming(false);
+              }}
+              className="bg-slate-800 border border-indigo-500 rounded px-2 py-0.5 text-sm text-slate-200 w-full focus:outline-none"
+            />
+            <button onClick={handleRename} className="p-0.5 text-green-400 hover:text-green-300 flex-shrink-0" title="Save"><Check size={14} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setRenaming(false); }} className="p-0.5 text-slate-500 hover:text-slate-400 flex-shrink-0" title="Cancel"><X size={14} /></button>
+          </div>
+        ) : (
+          <>
+            <div className="text-sm text-slate-200 font-medium truncate">{name}</div>
+            {subtitle && <div className="text-[10px] text-slate-500 truncate">{subtitle}</div>}
+          </>
+        )}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-3">
+        {onRename && (
+          <button onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(name); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-yellow-400 hover:bg-slate-800 rounded" title="Rename">
+            <Pencil size={11} />
+          </button>
+        )}
         <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="px-2 py-1 text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded" title="Edit">
           <Edit3 size={11} />
         </button>

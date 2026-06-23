@@ -482,7 +482,28 @@ export default function App() {
                   setAgentName('');
                 }
               }}
-            onTest={() => setActiveModal('test')}
+             onTest={() => setActiveModal('test')}
+            onRename={async (id, name) => {
+              try {
+                const resp = await fetch(`/v1/agents/${id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name }),
+                });
+                if (resp.status === 409) {
+                  const data = await resp.json();
+                  showToast(data.detail || `An agent named "${name}" already exists.`, 'error');
+                  return false;
+                }
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                fetchAgents();
+                showToast(`Renamed to "${name}"`, 'success');
+                return true;
+              } catch (e: any) {
+                showToast(`Rename failed: ${e.message}`, 'error');
+                return false;
+              }
+            }}
           />
         ) : activeTab === 'designer' ? (
           <div className="flex-1 flex flex-col overflow-hidden">
