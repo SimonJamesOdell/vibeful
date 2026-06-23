@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import FlowCanvas from './components/FlowCanvas';
 import NodePalette from './components/NodePalette';
@@ -477,6 +477,18 @@ export default function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="h-8 bg-slate-900 border-b border-slate-700 flex items-center px-3 flex-shrink-0">
               <span className="text-xs text-slate-400 mr-2">Editing:</span>
+              {(() => {
+                // Stable options list — only recomputes when agentList or activeAgentId changes
+                const nameCount: Record<string, number> = {};
+                for (const a of agentList) nameCount[a.name] = (nameCount[a.name] || 0) + 1;
+                const otherAgents = agentList
+                  .filter((a) => a.id !== activeAgentId)
+                  .map((a) => ({
+                    ...a,
+                    label: nameCount[a.name] > 1 ? `${a.name} (…${a.id.slice(0, 8)})` : a.name,
+                  }));
+
+                return (
               <select
                 value={activeAgentId || ''}
                 onChange={(e) => {
@@ -492,12 +504,14 @@ export default function App() {
                   <option value="">(select agent)</option>
                 )}
                 <option disabled>──</option>
-                {agentList.filter((a) => a.id !== activeAgentId).map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                {otherAgents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
                 ))}
                 <option disabled>──</option>
                 <option value="__new">＋ New (blank canvas)</option>
               </select>
+                );
+              })()}
               <button onClick={() => setActiveModal('styling')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Palette size={12} /> Styling
               </button>
