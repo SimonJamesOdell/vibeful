@@ -370,6 +370,180 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       return { detached: true };
     });
 
+    registerCommandHandler(CONSOLE_COMMANDS.ADD_EDGE, (details) => {
+      const sourceLabel = (details.source as string || '').toLowerCase();
+      const targetLabel = (details.target as string || '').toLowerCase();
+      if (!sourceLabel || !targetLabel) throw new Error('source and target required');
+      const state = useFlowStore.getState();
+      const src = state.nodes.find((n) => n.data.label.toLowerCase() === sourceLabel || n.id === sourceLabel);
+      const tgt = state.nodes.find((n) => n.data.label.toLowerCase() === targetLabel || n.id === targetLabel);
+      if (!src) throw new Error(`Source node '${sourceLabel}' not found`);
+      if (!tgt) throw new Error(`Target node '${targetLabel}' not found`);
+      const edgeId = `edge_${src.id}_${tgt.id}`;
+      if (state.edges.some((e) => e.source === src.id && e.target === tgt.id)) {
+        return { edgeId, existed: true };
+      }
+      useFlowStore.setState({ edges: [...state.edges, { id: edgeId, source: src.id, target: tgt.id }] });
+      return { edgeId, source: src.data.label, target: tgt.data.label };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CONFIGURE_ANALYSIS, (details) => {
+      const phases = (details.phases || details) as Record<string, { enabled?: boolean }>;
+      const state = useFlowStore.getState();
+      const pipelineNode = state.nodes.find((n) => n.data.nodeType === 'builtin.analysis_pipeline' || n.data.label?.toLowerCase().includes('analysis'));
+      if (!pipelineNode) throw new Error('No analysis pipeline node on canvas. Add one first.');
+      const current = (pipelineNode.data.config?.phases || {}) as Record<string, unknown>;
+      for (const [key, val] of Object.entries(phases)) {
+        if (val && typeof val === 'object') {
+          current[key] = { ...((current[key] as object) || {}), ...val };
+        }
+      }
+      state.updateNodeConfig(pipelineNode.id, { phases: current });
+      return { phases: Object.keys(phases) };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CLONE_AGENT, async (details) => {
+      let agentId = (details.agent_id || details.id) as string | undefined;
+      let name = details.name as string | undefined;
+      if (agentId && !/^[0-9a-f-]{30,}$/i.test(agentId)) { name ||= agentId; agentId = undefined; }
+      if (!agentId && name) {
+        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (match) agentId = match.id;
+      }
+      if (!agentId) throw new Error('agent_id or name required');
+      const resp = await fetch(`/v1/agents/${agentId}`);
+      if (!resp.ok) throw new Error('Agent not found');
+      const agent = await resp.json();
+      const cloneResp = await fetch('/v1/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${agent.name} (copy)`,
+          description: agent.description || '',
+          system_prompt: agent.system_prompt || '',
+          config_yaml: agent.config_json || '',
+          styling: agent.styling_json || '',
+        }),
+      });
+      if (!cloneResp.ok) throw new Error('Clone failed');
+      onAgentsChanged();
+      return { cloned: true, original: agent.name };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.SAVE_VERSION, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      if (!agentId) throw new Error('No agent selected');
+      const state = useFlowStore.getState();
+      const resp = await fetch(`/v1/agents/${agentId}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          yaml_str: details.yaml || '',
+          change_description: (details.description as string) || 'Saved via Vibeful Guide',
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to save version');
+      return { version: (await resp.json()).version_number };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.RESTORE_VERSION, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const version = details.version as number | string;
+      if (!agentId || version === undefined) throw new Error('agent_id and version required');
+      const resp = await fetch(`/v1/agents/${agentId}/versions/${version}/restore`, { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to restore version');
+      const state = useFlowStore.getState();
+      const agentResp = await fetch(`/v1/agents/${agentId}`);
+      const agent = await agentResp.json();
+      const { parseGraphFromYaml } = await import('../lib/yamlGenerator');
+      const parsed = parseGraphFromYaml(agent);
+      if (parsed) state.loadGraph(parsed.nodes, parsed.edges);
+      state.setAgentName(agent.name || '');
+      onAgentsChanged();
+      return { restored: true, version };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_AB_TEST, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const name = details.name as string;
+      if (!agentId || !name) throw new Error('agent_id and name required');
+      const resp = await fetch('/v1/ab-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          name,
+          variant_a_config: details.variant_a || {},
+          variant_b_config: details.variant_b || {},
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to create A/B test');
+      return { name };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.START_AB_TEST, async (details) => {
+      const testId = details.test_id as string;
+      if (!testId) throw new Error('test_id required');
+      const resp = await fetch(`/v1/ab-tests/${testId}/start`, { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to start A/B test');
+      return { started: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.STOP_AB_TEST, async (details) => {
+      const testId = details.test_id as string;
+      if (!testId) throw new Error('test_id required');
+      const resp = await fetch(`/v1/ab-tests/${testId}/stop`, { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to stop A/B test');
+      return { stopped: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_GLYPH, async (details) => {
+      const name = details.name as string;
+      const symbol = details.symbol as string;
+      if (!name || !symbol) throw new Error('name and symbol required');
+      const resp = await fetch('/v1/glyphs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, symbol, description: (details.description as string) || '' }),
+      });
+      if (!resp.ok) throw new Error('Failed to create glyph');
+      return { name, symbol };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DELETE_GLYPH, async (details) => {
+      const name = details.name as string;
+      if (!name) throw new Error('name required');
+      const resp = await fetch(`/v1/glyphs/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete glyph');
+      return { deleted: name };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREDIT_TOKENS, async (details) => {
+      const userIdentity = (details.user_identity || details.user) as string;
+      const amount = details.amount as number;
+      if (!userIdentity || !amount) throw new Error('user_identity and amount required');
+      const resp = await fetch('/v1/tokens/credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_identity: userIdentity, amount, agent_id: details.agent_id || '' }),
+      });
+      if (!resp.ok) throw new Error('Failed to credit tokens');
+      const data = await resp.json();
+      return { balance: data.balance };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.SET_PERSONALITY, (details) => {
+      window.dispatchEvent(new CustomEvent('vibeful:personality-modal', { detail: details }));
+      if (activeAgentId && details.tone) {
+        fetch(`/v1/agents/${activeAgentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ system_prompt: details.tone }),
+        }).catch(() => {});
+      }
+      return { personality: 'applied' };
+    });
+
     registerCommandHandler(CONSOLE_COMMANDS.SET_STYLING, (details) => {
       // Scan all detail values for a known preset name (handles any param name the LLM might use)
       const KNOWN_PRESETS = ['light', 'dark', 'default', 'brand'];
