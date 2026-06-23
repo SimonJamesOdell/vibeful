@@ -19,6 +19,7 @@ interface Props {
 
 export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest }: Props) {
   const pages: any[] = []; // placeholder for future Page builder
+  const namedContexts = contexts.filter((c) => c.name && c.name.trim());
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
@@ -70,7 +71,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
               <Plus size={10} /> New
             </button>
           </div>
-          {contexts.length === 0 ? (
+          {namedContexts.length === 0 ? (
             <div className="text-center py-6 border border-dashed border-slate-700 rounded-xl">
               <p className="text-xs text-slate-500 mb-2">No knowledge bases yet</p>
               <p className="text-[11px] text-slate-600 mb-3">Add documents and FAQs for your agents to reference</p>
@@ -80,7 +81,7 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
             </div>
           ) : (
             <div className="space-y-2">
-              {contexts.map((ctx) => (
+              {namedContexts.map((ctx) => (
                 <div key={ctx.id} onClick={() => onNavigate('contexts')} className="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 cursor-pointer transition-colors">
                   <span className="text-sm text-slate-300">{ctx.name}</span>
                   <span className="text-[10px] text-slate-600">{ctx.id.slice(0, 8)}…</span>
