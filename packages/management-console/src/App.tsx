@@ -52,9 +52,10 @@ export default function App() {
 
   // ── Auto-save: persist graph changes to the database ──────
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false); // true when user has made changes since last save
+
   const autoSave = () => {
     if (!activeAgentId) return;
-    // Debounce: clear previous timer, set a new one
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     autoSaveRef.current = setTimeout(async () => {
       const state = useFlowStore.getState();
@@ -65,6 +66,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: state.agentName, description: state.agentDescription, config_yaml: yaml }),
         });
+        dirtyRef.current = false;
       } catch { /* silent — save is best-effort */ }
     }, 1500);
   };
@@ -81,6 +83,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: state.agentName, description: state.agentDescription, config_yaml: yaml }),
       });
+      dirtyRef.current = false;
     } catch { /* silent */ }
   };
 
@@ -115,6 +118,7 @@ export default function App() {
     }
     setActiveAgentId(agentId);
     setActiveTab('designer');
+    dirtyRef.current = false; // suppress auto-save on freshly loaded agent
 
     // Reapply persisted styling for this agent (from database)
     const savedPreset = loadAgentStyling(data);
@@ -132,9 +136,11 @@ export default function App() {
   } = useFlowStore();
 
   // ── Auto-save: persist graph changes to the database ──────
-  // Must be AFTER useFlowStore() destructuring (temporal dead zone)
+  // Must be AFTER useFlowStore() destructuring (temporal dead zone).
+  // Only saves when dirtyRef is true — skips the initial load after switchToAgent.
   useEffect(() => {
     if (!activeAgentId || nodes.length === 0) return;
+    if (!dirtyRef.current) { dirtyRef.current = true; return; }
     autoSave();
   }, [nodes, edges, agentName, agentDescription]);
 
@@ -154,6 +160,11 @@ export default function App() {
   }, [selectedNodeId]);
 
   const handleDeploy = async () => {
+    // Check for name conflict before deploying
+    if (agentList.some((a) => a.name === agentName)) {
+      showToast(`An agent named "${agentName}" already exists. Choose a unique name.`, 'error');
+      return;
+    }
     const yaml = generateYaml(nodes, edges, agentName, agentDescription);
     try {
       const resp = await fetch('/v1/agents', {

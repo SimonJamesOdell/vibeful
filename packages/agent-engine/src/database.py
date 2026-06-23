@@ -292,6 +292,21 @@ class Database(DatabaseLucidMixin):
 
     # ── Agent CRUD ──────────────────────────────────────────
 
+    async def name_exists(self, name: str, exclude_id: str | None = None) -> bool:
+        """Check if an agent with the given name already exists."""
+        conn = await self._get_conn()
+        async with conn.cursor() as cur:
+            if exclude_id:
+                await cur.execute(
+                    "SELECT 1 FROM agents WHERE name = %s AND id != %s LIMIT 1",
+                    (name, exclude_id),
+                )
+            else:
+                await cur.execute(
+                    "SELECT 1 FROM agents WHERE name = %s LIMIT 1", (name,),
+                )
+            return (await cur.fetchone()) is not None
+
     async def create_agent(self, agent: dict[str, Any]) -> dict[str, Any]:
         import uuid
         agent_id = agent.get("id") or str(uuid.uuid4())

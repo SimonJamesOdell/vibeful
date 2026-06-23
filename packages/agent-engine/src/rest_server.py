@@ -548,6 +548,8 @@ class AgentCreateRequest(BaseModel):
 @app.post("/v1/agents")
 async def create_agent(req: AgentCreateRequest):
     db = _require_db()
+    if await db.name_exists(req.name):
+        raise HTTPException(409, f"An agent named '{req.name}' already exists")
     agent = await db.create_agent({
         "name": req.name, "description": req.description,
         "system_prompt": req.system_prompt, "model": req.model,
@@ -598,6 +600,10 @@ async def update_agent(agent_id: str, req: AgentUpdateRequest):
     agent = await db.get_agent(agent_id)
     if not agent:
         raise HTTPException(404, "agent not found")
+    # Check name uniqueness if name is being changed
+    if req.name and req.name != agent.get("name"):
+        if await db.name_exists(req.name, exclude_id=agent_id):
+            raise HTTPException(409, f"An agent named '{req.name}' already exists")
     updates = {}
     for field in ("name", "description", "system_prompt", "model", "temperature"):
         val = getattr(req, field, None)

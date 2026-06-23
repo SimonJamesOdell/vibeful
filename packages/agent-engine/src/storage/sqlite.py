@@ -267,6 +267,20 @@ class SqliteBackend:
 
     # ── Agents (local mode) ─────────────────────────────
 
+    async def name_exists(self, name: str, exclude_id: str | None = None) -> bool:
+        """Check if an agent with the given name already exists."""
+        conn = await self._get_conn()
+        if exclude_id:
+            async with conn.execute(
+                "SELECT 1 FROM agents WHERE name = ? AND id != ? LIMIT 1",
+                (name, exclude_id),
+            ) as cursor:
+                return (await cursor.fetchone()) is not None
+        async with conn.execute(
+            "SELECT 1 FROM agents WHERE name = ? LIMIT 1", (name,),
+        ) as cursor:
+            return (await cursor.fetchone()) is not None
+
     async def create_agent(self, data: dict[str, Any]) -> dict[str, Any]:
         import uuid
         conn = await self._get_conn()
