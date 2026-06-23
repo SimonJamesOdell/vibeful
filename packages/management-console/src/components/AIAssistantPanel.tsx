@@ -221,13 +221,11 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
         agentId = undefined;
       }
       if (!agentId && name) {
-        // Try exact name match first, then ID prefix match (strip ellipsis)
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
-        if (!match) {
-          const clean = name.replace(/[^0-9a-f-]/gi, '');
-          match = agentsRef.current.find((a) => a.id.startsWith(clean));
+        if (!match && /^[0-9a-f-]+$/i.test(name)) {
+          match = agentsRef.current.find((a) => a.id.startsWith(name.toLowerCase()));
         }
-        if (!match) throw new Error(`Agent "${name}" not found`);
+        if (!match) throw new Error(`Agent '${name}' not found. Available: ${agentsRef.current.map((a) => a.name).join(', ')}`);
         agentId = match.id;
       }
       if (!agentId) throw new Error('agent_id or name required');
@@ -248,11 +246,10 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       }
       if (!agentId && name) {
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
-        if (!match) {
-          const clean = name.replace(/[^0-9a-f-]/gi, '');
-          match = agentsRef.current.find((a) => a.id.startsWith(clean));
+        if (!match && /^[0-9a-f-]+$/i.test(name)) {
+          match = agentsRef.current.find((a) => a.id.startsWith(name.toLowerCase()));
         }
-        if (!match) throw new Error(`Agent "${name}" not found`);
+        if (!match) throw new Error(`Agent '${name}' not found. Available: ${agentsRef.current.map((a) => a.name).join(', ')}`);
         agentId = match.id;
       }
       if (!agentId) throw new Error('agent_id or name required');
@@ -277,9 +274,12 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       if (!agentId && name) {
         let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
         if (!match) {
-          const clean = name.replace(/[^0-9a-f-]/gi, '');
-          match = agentsRef.current.find((a) => a.id.startsWith(clean));
+          // Only try ID prefix if input looks like a hex ID fragment (all hex chars)
+          if (/^[0-9a-f-]+$/i.test(name)) {
+            match = agentsRef.current.find((a) => a.id.startsWith(name.toLowerCase()));
+          }
         }
+        if (!match) throw new Error(`Agent '${name}' not found. Available: ${agentsRef.current.map((a) => a.name).join(', ')}`);
         agentId = match.id;
       }
       if (!agentId) throw new Error('agent_id or name required');
@@ -407,8 +407,12 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       let name = details.name as string | undefined;
       if (agentId && !/^[0-9a-f-]{30,}$/i.test(agentId)) { name ||= agentId; agentId = undefined; }
       if (!agentId && name) {
-        const match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
-        if (match) agentId = match.id;
+        let match = agentsRef.current.find((a) => a.name.toLowerCase() === name.toLowerCase());
+        if (!match && /^[0-9a-f-]+$/i.test(name)) {
+          match = agentsRef.current.find((a) => a.id.startsWith(name.toLowerCase()));
+        }
+        if (!match) throw new Error(`Agent '${name}' not found. Available: ${agentsRef.current.map((a) => a.name).join(', ')}`);
+        agentId = match.id;
       }
       if (!agentId) throw new Error('agent_id or name required');
       const resp = await fetch(`/v1/agents/${agentId}`);
