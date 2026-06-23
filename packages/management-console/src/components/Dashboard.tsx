@@ -18,6 +18,8 @@ interface Props {
 }
 
 export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent, onDelete, onTest }: Props) {
+  const pages: any[] = []; // placeholder for future Page builder
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
@@ -42,6 +44,20 @@ export default function Dashboard({ onNavigate, agents, contexts, onSelectAgent,
               onDelete={() => onDelete(agent.id)}
             />
           ))}
+        </Section>
+
+        {/* ── Pages ─────────────────────────────────────── */}
+        <Section
+          icon={<FileText size={16} className="text-amber-400" />}
+          title="Pages"
+          subtitle=""
+          count={pages.length}
+          actionLabel="New Page"
+          onAction={() => onNavigate('designer')}
+          emptyTitle="No pages yet"
+          emptyDesc=""
+        >
+          {pages.length === 0 ? null : <p className="text-xs text-slate-500">Pages coming soon.</p>}
         </Section>
 
         {/* ── Knowledge ─────────────────────────────────── */}
