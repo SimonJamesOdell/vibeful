@@ -50,25 +50,46 @@ const engine = spawn(pythonCmd, [
 let engineStarted = false;
 let engineOutput = '';
 
-engine.stdout.on('data', (data) => {
-  const text = data.toString();
+function onEngineOutput(text) {
   engineOutput += text;
-  if (!engineStarted && (text.includes('Application startup complete') || text.includes('Uvicorn running'))) {
+  if (!engineStarted && (text.includes('startup complete') || text.includes('Uvicorn running'))) {
     engineStarted = true;
     console.log('  ✓ Agent engine ready');
     console.log('');
     console.log('  Starting management console (port 5174)...');
   }
+}
+
+engine.stdout.on('data', (data) => {
+  onEngineOutput(data.toString());
 });
 
 engine.stderr.on('data', (data) => {
   const text = data.toString();
-  engineOutput += text;
-  // Forward uvicorn startup messages
-  if (text.includes('[vibeful]') || text.includes('Application') || text.includes('Uvicorn')) {
+  onEngineOutput(text);
+  // Forward vibeful prefixed messages
+  if (text.includes('[vibeful]')) {
     process.stderr.write(text);
   }
 });
+
+// Health-probe fallback: if stdout/stderr detection missed the startup message
+// (e.g. uvicorn at --log-level warning suppresses "Uvicorn running"),
+// poll /health until the engine responds.
+const healthProbe = setInterval(async () => {
+  if (engineStarted) { clearInterval(healthProbe); return; }
+  try {
+    const resp = await fetch('http://127.0.0.1:50052/health');
+    if (resp.ok) {
+      clearInterval(healthProbe);
+      engineStarted = true;
+      console.log('  ✓ Agent engine ready');
+      console.log('');
+      console.log('  Starting management console (port 5174)...');
+    }
+  } catch {}
+}, 500);
+setTimeout(() => clearInterval(healthProbe), 30000);
 
 engine.on('error', (err) => {
   console.error('');
