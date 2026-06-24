@@ -401,8 +401,8 @@
     <div class="hero-meta">
       <span class="badge badge-green">✓ MIT License</span>
       <span class="badge badge-cyan">🐳 Docker Compose</span>
-      <span class="badge">162 tests</span>
-      <span class="badge">16 node types</span>
+      <span class="badge">770 tests</span>
+      <span class="badge">14 node types</span>
     </div>
 
     <!-- Product screenshot mockup -->
@@ -413,7 +413,7 @@
           <div class="frame-dot frame-dot-r"></div>
           <div class="frame-dot frame-dot-y"></div>
           <div class="frame-dot frame-dot-g"></div>
-          <div class="frame-url">localhost:3000 — Vibeful Console</div>
+          <div class="frame-url">localhost:5174 — Vibeful Console</div>
         </div>
         <div class="mock-ui">
           <div class="mock-sidebar">
@@ -421,12 +421,12 @@
             <div class="mock-sidebar-item active"><span class="icon">🤖</span> Support Bot</div>
             <div class="mock-sidebar-item"><span class="icon">🔬</span> Research Agent</div>
             <div class="mock-sidebar-item"><span class="icon">📊</span> Analytics Bot</div>
-            <div class="mock-sidebar-label">Console</div>
-            <div class="mock-sidebar-item"><span class="icon">🎨</span> Visual Designer</div>
-            <div class="mock-sidebar-item"><span class="icon">📚</span> Knowledge Base</div>
-            <div class="mock-sidebar-item"><span class="icon">📈</span> Analytics</div>
-            <div class="mock-sidebar-item"><span class="icon">⚗️</span> A/B Testing</div>
-            <div class="mock-sidebar-item"><span class="icon">⚙️</span> Settings</div>
+            <div class="mock-sidebar-label">Tabs</div>
+            <div class="mock-sidebar-item"><span class="icon">📊</span> Dashboard</div>
+            <div class="mock-sidebar-item"><span class="icon">🎨</span> Designer</div>
+            <div class="mock-sidebar-item"><span class="icon">📚</span> Knowledge</div>
+            <div class="mock-sidebar-item"><span class="icon">🔌</span> MCP Servers</div>
+            <div class="mock-sidebar-item"><span class="icon">📄</span> Pages</div>
           </div>
           <div class="mock-main">
             <div class="mock-header">
@@ -505,7 +505,7 @@
         <div class="stat-label">Agent node types</div>
       </div>
       <div>
-        <div class="stat-num" data-target="162">162</div>
+        <div class="stat-num" data-target="770">770</div>
         <div class="stat-label">Automated tests</div>
       </div>
       <div>
@@ -583,6 +583,48 @@
         <p>Built-in prompt injection detection and guardrail nodes block adversarial inputs before they reach the LLM — production-ready safety out of the box.</p>
         <span class="card-tag">Security · Guardrails</span>
       </div>
+      <div class="card">
+        <div class="card-icon">🎯</div>
+        <h3>Headless API</h3>
+        <p>Invoke agents programmatically from any backend. REST endpoints for execute and SSE streaming. Full response includes tool calls, token usage, and session data.</p>
+        <span class="card-tag">REST · SSE · JSON</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">🐍</div>
+        <h3>Python SDK</h3>
+        <p><code>pip install vibeful</code> — first-class async client. <code>client.execute()</code> for headless invocation, <code>client.stream()</code> for real-time streaming. Typed with dataclasses.</p>
+        <span class="card-tag">Async · Typed · httpx</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">📄</div>
+        <h3>Agent Pages</h3>
+        <p>Agents create and publish pages with interactive widgets — forms, charts, tables, and cards. Markdown editor with auto-save, slug routing, and publish/unpublish.</p>
+        <span class="card-tag">Widgets · Markdown · Routing</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔄</div>
+        <h3>Widget Event Loop</h3>
+        <p>Users interact with widgets → events reach the agent → agent processes and responds → page re-renders with new widgets. Fully agent-driven applications.</p>
+        <span class="card-tag">Interact · Process · Render</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔑</div>
+        <h3>API Keys &amp; Auth</h3>
+        <p>SHA-256 hashed keys with <code>vf_</code> prefix. Scoped permissions per agent. Bearer token auth. Keys shown once — revoke anytime.</p>
+        <span class="card-tag">Hashed · Scoped · Revocable</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">👥</div>
+        <h3>Users &amp; Teams</h3>
+        <p>Registration, login with password hashing, and team management built in. Add members, assign roles, scope agents to teams.</p>
+        <span class="card-tag">Auth · Roles · Multi-tenant</span>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔔</div>
+        <h3>Webhooks</h3>
+        <p>Subscribe to <code>conversation.completed</code> events. Fire-and-forget delivery with 10-second timeout. Build reactive workflows — Slack notifications, CRM updates, audit trails.</p>
+        <span class="card-tag">Events · Async · Best-effort</span>
+      </div>
     </div>
   </div>
 </section>
@@ -651,43 +693,43 @@
     <div class="fade-up">
       <div class="label">Integration tiers</div>
       <h2>Who it's for</h2>
-      <p class="subtitle">Three integration tiers, one platform. Pick the depth that fits your product.</p>
+      <p class="subtitle">Three integration tiers, one platform. From a script tag to agent-driven applications.</p>
     </div>
     <div class="tier-grid fade-up">
       <div class="tier-card">
         <div class="tier-num">01</div>
         <div class="tier-icon">💬</div>
-        <h3>Passive Embed</h3>
-        <p>Drop a chat widget into your SaaS. Agents answer questions from your docs via RAG. Perfect for support bots and knowledge assistants.</p>
+        <h3>Embed</h3>
+        <p>Drop a chat widget into any page with 3 lines of code. Agents answer from your docs via RAG. Voice I/O, CSS theming, widget rendering.</p>
         <ul>
-          <li>3 lines of code</li>
+          <li>&lt;script&gt; tag — no build step</li>
           <li>RAG over your docs</li>
-          <li>Customizable UI</li>
-          <li>No backend changes</li>
+          <li>Voice input &amp; output</li>
+          <li>CSS custom properties</li>
         </ul>
       </div>
       <div class="tier-card">
         <div class="tier-num">02</div>
-        <div class="tier-icon">🎯</div>
-        <h3>Active Embed</h3>
-        <p>Agents drive your app UX — navigating views, opening modals, updating state. Your app registers command handlers; agents orchestrate.</p>
+        <div class="tier-icon">🔗</div>
+        <h3>Integrate</h3>
+        <p>Headless agent invocation from any backend. Streaming, webhooks, and SDKs for Python and JavaScript. Agents drive business logic, not just chat.</p>
         <ul>
-          <li>Command protocol</li>
-          <li>Navigate views &amp; modals</li>
-          <li>Bidirectional state sync</li>
-          <li>TypeScript types included</li>
+          <li>REST API + SSE streaming</li>
+          <li>Python SDK (pip install vibeful)</li>
+          <li>JS hooks (useAgent, useAgentStream)</li>
+          <li>Webhooks (conversation.completed)</li>
         </ul>
       </div>
       <div class="tier-card">
         <div class="tier-num">03</div>
         <div class="tier-icon">🏗️</div>
-        <h3>Agent-Native Apps</h3>
-        <p>Build entire applications where the agent IS the shell. Compose widgets, routes, and behaviors visually. No host app needed.</p>
+        <h3>Agent-Native</h3>
+        <p>Agents create and publish interactive pages with forms, charts, tables, and cards. Users interact → agent processes → pages update. No host app needed.</p>
         <ul>
-          <li>Full widget system</li>
-          <li>Visual route composer</li>
-          <li>Agent-first architecture</li>
-          <li>Self-contained deployment</li>
+          <li>8 widget types (form, chart, table, card…)</li>
+          <li>Widget event loop (interact → agent → re-render)</li>
+          <li>Page CRUD + slug routing</li>
+          <li>Import/export (.vibeful.yaml)</li>
         </ul>
       </div>
     </div>
@@ -756,7 +798,7 @@
       <a href="https://github.com/SimonJamesOdell/vibeful/blob/master/CONTRIBUTING.md">Contribute</a>
       <a href="https://github.com/SimonJamesOdell/vibeful/blob/master/LICENSE">MIT License</a>
     </div>
-    <p>Built with ❤️ · Vibeful · © 2025</p>
+    <p>Built with ❤️ · Vibeful · © 2026</p>
   </div>
 </footer>
 
@@ -854,7 +896,54 @@ setTimeout(() => {
   const sendBtn = document.getElementById('vibeful-bot-send');
 
   const API_BASE = window.VIBEFUL_API_URL || 'http://localhost:50052';
-  const SYSTEM_PROMPT = `You are a Vibeful assistant embedded on the Vibeful homepage. You answer questions about the Vibeful AI agent platform — what it is, what it does, its architecture, features, and how to get started.\n\nIf asked about anything unrelated to Vibeful, politely respond: "I'm here to answer questions about Vibeful — the self-hosted AI agent platform. Is there something about Vibeful I can help with?"\n\nKeep responses concise (2-4 sentences). Be helpful and accurate.`;
+  const SYSTEM_PROMPT = `You are the Vibeful assistant — embedded directly on the Vibeful homepage at vibeful.ai. Your job is to explain what Vibeful is, what it can do, and how to get started — in a way that gets people excited to try it.
+
+## WHAT VIBEFUL IS
+Vibeful is a self-hosted AI agent platform. Think "WordPress for AI agents." It's MIT-licensed open source. You configure agents through a visual web console, connect tools (MCP servers), add knowledge bases (RAG), and embed agents into any app — from a simple chat widget to fully agent-driven applications.
+
+## THE THREE TIERS
+
+**Tier 1 — Embed:** Drop a chat widget into any web page with 3 lines of HTML. Agents answer questions from your documents via RAG. Voice input/output. CSS custom properties for styling. Perfect for support bots, knowledge assistants, and FAQ agents.
+
+**Tier 2 — Integrate:** Headless agent invocation from any backend. REST API with execute endpoint (request/response) and SSE streaming (real-time tokens). Python SDK (pip install vibeful) and JavaScript hooks (useAgent, useAgentStream). Webhooks for conversation.completed events. API keys with SHA-256 hashing. Use this when agents need to drive business logic, not just chat.
+
+**Tier 3 — Agent-Native:** Agents create and publish interactive pages with 8 widget types (forms, charts, tables, cards, buttons, images, embeds, text). Widget event loop: user clicks a button → event sent to agent → agent processes → page re-renders with new widgets. Page CRUD, slug routing, markdown editor, publish/unpublish. Import/export agents as .vibeful.yaml bundles. Staging → production promotion. This tier lets agents render entire applications.
+
+## KEY FEATURES
+- Visual Agent Designer: React Flow canvas, drag-and-drop 14 node types, real-time YAML preview
+- AI Vibeful Guide: 70 natural-language commands to configure agents without touching code
+- MCP Tool Servers: Built-in web-search, file-read, calculator. Plug in any MCP server.
+- Knowledge Base: Upload documents → auto-chunk → embed → RAG retrieval
+- Analysis Pipeline: 11 parallel LLM phases analyze every message (memories, impressions, intent, conductor)
+- Attack Guard: Built-in prompt injection and jailbreak detection
+- Agent Testing: Define test cases (input → expected output), run suites, CI-ready
+- API Keys: SHA-256 hashed, vf_ prefix, scoped per agent, revocable
+- Users & Teams: Registration, login, team membership, role management
+- Webhooks: Subscribe to conversation.completed events, fire-and-forget delivery
+- Import/Export: Portable .vibeful.yaml agent bundles for version control and sharing
+
+## COMPARISON TO ALTERNATIVES
+- Vs. building from scratch: Vibeful gives you the admin panel, SDK, RAG, MCP, webhooks, auth, analytics — months of work, already done.
+- Vs. OpenAI Assistants API: Self-hosted (no vendor lock-in), multi-agent, visual designer, your own data, MIT license.
+- Vs. LangChain: LangChain is a framework. Vibeful is a complete platform — agent engine + visual console + embeddable SDK + knowledge base + testing.
+
+## QUICK START
+1. git clone https://github.com/SimonJamesOdell/vibeful.git
+2. bash scripts/setup.sh (or .\\scripts\\setup.ps1 on Windows)
+3. Open http://localhost:5174
+4. The Vibeful Guide greets you — ask it to create your first agent
+No Docker required for development. Uses SQLite. Free (MIT license). Your only cost is the DeepSeek API (~$0.27/M input tokens).
+
+## PRICING
+Vibeful is free and MIT licensed. Self-hosted — you own it. Your only cost is the LLM API (DeepSeek by default, ~$0.27 per million input tokens). A typical customer support conversation costs less than $0.01.
+
+## WHO IT'S FOR
+- SaaS founders wanting AI features without building agent infra
+- Agencies deploying branded agents for multiple clients
+- Vibe coders telling their AI "add an agent to my app"
+- Developers needing a production-ready, self-hosted agent platform
+
+When asked about Vibeful, answer enthusiastically and accurately. Keep responses 2-5 sentences unless asked for detail. Always mention the MIT license and self-hosted nature. If someone asks about pricing, emphasize it's free. If someone asks how to get started, give the clone-and-run instructions. If the question is unrelated to Vibeful, say: "I'm the Vibeful assistant — I'm here to tell you all about the platform! What would you like to know?" and redirect to Vibeful topics.`;
 
   let sessionId = null;
   let loading = false;
