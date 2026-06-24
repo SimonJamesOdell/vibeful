@@ -2,7 +2,9 @@
 
 Vibeful — a self-hosted AI agent platform. Build, deploy, and manage multiple conversational agents from a visual console. Embed them into any web app with 3 lines of code. "A CMS for AI agents."
 
-**Stack:** Python 3.12 (LangGraph agent), Node.js/TypeScript (console + SDK), PostgreSQL + pgvector, Redis, DeepSeek API.
+**Stack:** Python 3.12 (LangGraph / FastAPI), Node.js/TypeScript (React + Vite), PostgreSQL + pgvector, Redis, DeepSeek API.
+
+**764 tests. 72 endpoints. 70 Guide commands. 0 TypeScript errors.**
 
 ## Quick Start
 
@@ -24,6 +26,16 @@ bash scripts/setup.sh
 **No Docker required for development.** Uses SQLite.  
 **Windows users:** run `.\scripts\setup.ps1` in PowerShell instead.
 
+## Three Integration Tiers
+
+| Tier | Name | How | When |
+|------|------|-----|------|
+| **1** | Embed | `<script>` tag → chat widget | Add an agent to any static page |
+| **2** | Integrate | Headless API + webhooks + SDKs | Backend-driven agent workflows |
+| **3** | Agent-native | Agents create pages with interactive widgets | Fully agent-driven applications |
+
+See [docs/sdk-guide.md](docs/sdk-guide.md) for code examples at every tier.
+
 ## Day-to-Day Commands
 
 | Command | What it does | When |
@@ -33,7 +45,7 @@ bash scripts/setup.sh
 | `npm run stack:down` | Tears down Docker stack | Cleanup |
 | `npm run console` | Just the management console (Vite) | Frontend-only work |
 | `npm run build` | Production builds | Before deployment |
-| `npm run test` | Run all tests | CI / pre-commit |
+| `npm run test` | Run all tests (all packages) | CI / pre-commit |
 
 ## Architecture
 
@@ -41,12 +53,21 @@ bash scripts/setup.sh
 ┌─────────────────────────────────────────────┐
 │              Management Console              │
 │              React Flow :5174               │
+│   Dashboard · Designer · Agents · MCP ·     │
+│   Knowledge · Pages · Analytics             │
 └──────────────────┬──────────────────────────┘
                    │ HTTP /v1/*
 ┌──────────────────▼──────────────────────────┐
-│           Agent Engine (REST + gRPC)         │
-│              Python / LangGraph              │
-│              REST :50052  gRPC :50051       │
+│           Agent Engine                       │
+│           Python / LangGraph / FastAPI       │
+│           REST + SSE + Webhooks :50052      │
+│                                              │
+│   Agent Graph: Setup → Guard → Router →     │
+│   RAG → React → Completion                  │
+│                                              │
+│   Analysis Pipeline (11 parallel phases)    │
+│                                              │
+│   Storage: SQLite (dev) / PostgreSQL (prod) │
 └──────────────────┬──────────────────────────┘
                    │
     ┌──────────────┼──────────────┐
@@ -55,19 +76,33 @@ bash scripts/setup.sh
  + pgvector    (cache)
 ```
 
-**Dev mode** (SQLite): `npm run dev` — agent engine REST + console, no Docker.  
-**Docker mode** (PostgreSQL): `npm run stack` — adds Envoy, proxy, Redis, MCP servers.
-
 ## Packages
 
-| Package | Stack | Purpose |
-|---------|-------|---------|
-| `agent-engine` | Python, LangGraph | Core AI agent — REST + gRPC servers |
-| `management-console` | React, React Flow, Tailwind | Visual agent designer + platform dashboard |
-| `proxy` | Python, FastAPI | Auth, session routing, analytics |
-| `sdk` | React/TypeScript, Vite | Embeddable chat widget |
-| `shared` | TypeScript | Shared types and utilities |
-| `mcp-servers` | Node/TypeScript | MCP tool servers |
+| Package | Stack | Purpose | Tests |
+|---------|-------|---------|-------|
+| `agent-engine` | Python, LangGraph, FastAPI | Core agent engine — REST + SSE + webhooks | 602 |
+| `management-console` | React, React Flow, Tailwind | Visual agent designer + platform dashboard | 136 |
+| `sdk` | React/TypeScript, Vite | Embeddable chat widget + React hooks | — |
+| `sdk-python` | Python, httpx | Headless agent client (`pip install vibeful`) | 26 |
+| `shared` | TypeScript | Shared types and utilities | — |
+| `mcp-servers` | Node/TypeScript | MCP tool servers | — |
+
+## Key Features
+
+- **Visual Agent Designer** — React Flow canvas with 14+ node types, drag-and-drop configuration
+- **Vibeful Guide** — Natural language → agent configuration (70 commands)
+- **Agent Lifecycle** — Create, edit, clone, rename, delete, version history, A/B testing
+- **MCP Tools** — Built-in web-search, file-read, calculator; plug in any MCP server
+- **Knowledge Base** — Upload documents, auto-chunk, embed, RAG retrieval
+- **Agent Pages** — Agents create and publish interactive pages with form, chart, table, and card widgets
+- **Widget Event Loop** — Users interact with widgets → agent processes → page updates
+- **Python SDK** — `pip install vibeful` → `execute()` + `stream()` headless invocation
+- **API Keys** — SHA-256 hashed, `vf_` prefix, scoped permissions
+- **Users & Teams** — Registration, login, team management
+- **Webhooks** — Subscribe to `conversation.completed` events
+- **Import/Export** — Agents as portable `.vibeful.yaml` bundles
+- **Staging → Production** — Promote tested agent configs with one click
+- **Automated Testing** — Define test cases (input → expected output), run suites
 
 ## Development
 
@@ -88,24 +123,44 @@ pnpm build
 pnpm test
 ```
 
+### Python SDK
+
+```bash
+cd packages/sdk-python
+pip install -e ".[dev]"
+pytest
+```
+
 ## Status
 
-- ✅ Agent graph (LangGraph: 14 nodes + 11-phase analysis pipeline)
-- ✅ LLM provider abstraction (DeepSeek + OpenAI)
+- ✅ Agent graph (LangGraph: Setup → Guard → Router → RAG → React → Completion)
+- ✅ Analysis Pipeline (11 parallel phases: memories, impressions, concepts, conductor, etc.)
 - ✅ SQLite dev mode (no Docker required)
 - ✅ Configurable agent graphs (YAML/JSON)
-- ✅ Auth plugin system (api_key, jwt, passthrough)
-- ✅ Eval framework (84 tests)
-- ✅ REST API + Prometheus metrics + Lucid endpoints
+- ✅ MCP server management (CRUD, health, Docker start/stop)
+- ✅ Agent Pages (CRUD, markdown editor, widget composition, event loop)
+- ✅ 72 REST API endpoints across 12 categories
+- ✅ Python SDK (`vibeful` package, 26 tests)
+- ✅ JS SDK hooks (`useAgent`, `useAgentStream`)
+- ✅ Webhook delivery (fire-and-forget, 10s timeout)
+- ✅ API key management (SHA-256 hashed, scoped)
+- ✅ Users & teams (registration, login, team membership)
+- ✅ Import/export + staging/promotion
+- ✅ Audit logging
+- ✅ Automated agent testing
 - ✅ Helm chart + Docker Compose
-- ✅ Analysis Pipeline (Lucid Sensai parity — 78/78 tests)
-- ✅ Management Console (React Flow visual designer — 11 tabs)
-- ✅ Multi-agent support — manage multiple agents from one console
-- ✅ AI-powered Vibeful Guide — natural language agent configuration
-- ✅ Lucid capabilities (Glyphs, Concepts, Global Memories, Token Credits)
-- ✅ Embeddable SDK with command protocol for agent-driven UI
 - ✅ Cross-platform — Windows, macOS, Linux
+- ✅ 764 tests (602 Python + 136 vitest + 26 Python SDK)
+- ✅ 70 Guide commands covering all console operations
+- ✅ TypeScript clean across both packages
 
 ## Documentation
 
-Canonical docs live in [`docs/`](docs/). Run `npm run docs:sync` to copy them to the website. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+Canonical docs live in [`docs/`](docs/). Run `npm run docs:sync` to copy them to the website.
+
+- [Getting Started](docs/getting-started.md)
+- [API Reference](docs/api-reference.md) — 72 endpoints across 12 categories
+- [SDK Integration Guide](docs/sdk-guide.md) — all 3 tiers with code examples
+- [Architecture](docs/architecture.md)
+- [FAQ](docs/faq.md)
+- [Roadmap](ROADMAP.md)

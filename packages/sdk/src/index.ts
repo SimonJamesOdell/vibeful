@@ -15,6 +15,10 @@ export { WidgetStudio } from './components/WidgetStudio';
 export { ObservabilityDashboard } from './components/ObservabilityDashboard';
 export { useVibefulAgent } from './hooks/useVibefulAgent';
 export { useHostCommands, dispatchHostCommand, HOST_COMMANDS } from './hooks/useHostCommands';
+export { useAgent } from './hooks/useAgent';
+export type { AgentResult, UseAgentOptions, UseAgentReturn } from './hooks/useAgent';
+export { useAgentStream } from './hooks/useAgentStream';
+export type { StreamEvent, UseAgentStreamOptions, UseAgentStreamReturn } from './hooks/useAgentStream';
 
 // Client (use Transport interface for new integrations)
 export { client, VibefulClient } from './client';

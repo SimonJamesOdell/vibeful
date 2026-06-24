@@ -6,7 +6,7 @@ import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
 import { TEMPLATES } from './lib/templates';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen, Smile } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen, Smile, Server, FileText, Shield } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ToastContainer, { showToast } from './components/Toast';
 import TestChatModal from './components/TestChatModal';
@@ -27,17 +27,54 @@ import CreateAgentModal from './components/CreateAgentModal';
 import StylingModal, { loadAgentStyling, applyStylingToDOM } from './components/StylingModal';
 import KnowledgeAttachModal from './components/KnowledgeAttachModal';
 import PersonalityModal from './components/PersonalityModal';
+import McpAttachModal from './components/McpAttachModal';
+import McpServers from './components/McpServers';
+import GuardrailsModal from './components/GuardrailsModal';
+import PageList from './components/PageList';
+import PageEditorModal from './components/PageEditorModal';
+import PageViewer from './components/PageViewer';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import McpCatalog from './components/McpCatalog';
+
+type TabName = 'dashboard' | 'analytics' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts' | 'mcp' | 'pages';
+const VALID_TABS: readonly TabName[] = ['dashboard', 'analytics', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts', 'mcp', 'pages'];
+
+function tabFromHash(): TabName {
+  const raw = window.location.hash.replace(/^#/, '');
+  return (VALID_TABS as readonly string[]).includes(raw) ? raw as TabName : 'dashboard';
+}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts'>('dashboard');
+  const [activeTab, setActiveTabInternal] = useState<TabName>(tabFromHash);
+
+  // Wrapper that syncs state → URL hash (but NOT on popstate — that's read-only)
+  const navigateTo = (tab: TabName) => {
+    setActiveTabInternal(tab);
+    const hash = `#${tab}`;
+    if (window.location.hash !== hash) {
+      history.pushState(null, '', hash);
+    }
+  };
+
+  // Listen for browser back/forward — sync hash → state
+  useEffect(() => {
+    const onPop = () => setActiveTabInternal(tabFromHash());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
   const [contextList, setContextList] = useState<Array<{ id: string; name: string }>>([]);
+  const [mcpServerList, setMcpServerList] = useState<Array<{ id: string; name: string; url: string }>>([]);
 
   const fetchAgents = () => {
     fetch('/v1/agents')
       .then((r) => r.json())
-      .then((data) => setAgentList(Array.isArray(data) ? data : data.agents || []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.agents || [];
+        list.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+        setAgentList(list);
+      })
       .catch(() => {});
   };
   const fetchContexts = () => {
@@ -46,9 +83,15 @@ export default function App() {
       .then((data) => setContextList(Array.isArray(data) ? data : []))
       .catch(() => {});
   };
+  const fetchMcpServers = () => {
+    fetch('/v1/mcp-servers')
+      .then((r) => r.json())
+      .then((data) => setMcpServerList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
 
   // Fetch agent and context lists
-  useEffect(() => { fetchAgents(); fetchContexts(); }, []);
+  useEffect(() => { fetchAgents(); fetchContexts(); fetchMcpServers(); }, []);
 
   // ── Auto-save: persist graph changes to the database ──────
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,7 +160,7 @@ export default function App() {
       return;
     }
     setActiveAgentId(agentId);
-    setActiveTab('designer');
+    navigateTo('designer');
     dirtyRef.current = false; // suppress auto-save on freshly loaded agent
 
     // Reapply persisted styling for this agent (from database)
@@ -223,7 +266,7 @@ export default function App() {
     // Clear old graph immediately so previous agent's nodes don't flicker
     clearGraph();
     // Load template into canvas
-    setActiveTab('designer');
+    navigateTo('designer');
     setQuickStartToast(`Building your ${templateKey === 'minimal' ? 'chatbot' : 'agent'}…`);
     setTimeout(() => {
       loadTemplateFromYaml(templateKey);
@@ -292,6 +335,7 @@ export default function App() {
   // Single modal state — opening any modal closes all others
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const stylingPresetRef = useRef<string | undefined>(undefined);
   const stylingFontRef = useRef<string | undefined>(undefined);
 
@@ -315,7 +359,7 @@ export default function App() {
       const currentNodes = state.nodes;
       const hasAgent = !!activeAgentId;
 
-      setActiveTab('designer');
+      navigateTo('designer');
 
       // If there's already an active agent or nodes on the canvas, just navigate — don't rebuild
       if (hasAgent || currentNodes.length > 0) return;
@@ -348,8 +392,8 @@ export default function App() {
 
     const onNavigate = (e: Event) => {
       const tab = (e as CustomEvent).detail as string;
-      const validTabs = ['dashboard', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts'];
-      if (validTabs.includes(tab)) setActiveTab(tab as typeof activeTab);
+      const validTabs = ['dashboard', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts', 'mcp', 'pages'];
+      if (validTabs.includes(tab)) navigateTo(tab as TabName);
     };
     const onConfigureAnalysis = (e: Event) => {
       const phases = (e as CustomEvent).detail;
@@ -387,13 +431,17 @@ export default function App() {
       console.log('[App:styling-modal] preset:', preset, 'font:', font, 'detail:', JSON.stringify(detail));
       stylingPresetRef.current = preset;
       stylingFontRef.current = font;
-      setActiveTab('designer');
+      navigateTo('designer');
       setActiveModal('styling');
       // Re-dispatch so the StylingModal catches it after mount
       setTimeout(() => {
         console.log('[App:styling-apply re-dispatch] preset:', preset, 'font:', font);
         window.dispatchEvent(new CustomEvent('vibeful:styling-apply', { detail: { preset, font } }));
       }, 50);
+    });
+    window.addEventListener('vibeful:guardrails-modal', () => {
+      navigateTo('designer');
+      setActiveModal('guardrails');
     });
 
     return () => {
@@ -406,8 +454,29 @@ export default function App() {
       window.removeEventListener('vibeful:open-knowledge', () => setActiveModal('knowledge'));
       window.removeEventListener('vibeful:create-agent-modal', () => {});
       window.removeEventListener('vibeful:styling-modal', () => {});
+      window.removeEventListener('vibeful:guardrails-modal', () => {});
     };
   }, []);
+
+  // ── Page viewer route: /#/p/:slug renders the published page ──
+  const pageSlug = (() => {
+    const raw = window.location.hash.replace(/^#/, '');
+    const match = raw.match(/^\/p\/(.+)/);
+    return match ? match[1] : null;
+  })();
+
+  if (pageSlug) {
+    return (
+      <div className="min-h-screen bg-slate-950">
+        <div className="h-12 bg-slate-900 border-b border-slate-700 flex items-center px-4 flex-shrink-0">
+          <h1 className="text-sm font-semibold text-slate-200">Vibeful</h1>
+          <span className="text-xs text-slate-600 ml-3">— Published Page</span>
+          <a href="#dashboard" className="ml-auto text-xs text-slate-500 hover:text-slate-300">← Console</a>
+        </div>
+        <PageViewer slug={pageSlug} />
+      </div>
+    );
+  }
 
   return (
     <ReactFlowProvider>
@@ -419,49 +488,19 @@ export default function App() {
           <div className="flex items-center gap-1">
             <h1 className="text-sm font-semibold text-slate-200 mr-2">Vibeful</h1>
 
-            {/* Main */}
+            {/* Main tabs */}
             {[
               { tab: 'dashboard' as const, label: 'Dashboard' },
+              { tab: 'analytics' as const, label: 'Analytics' },
+              { tab: 'agents' as const, label: 'Agents' },
+              { tab: 'contexts' as const, label: 'Knowledge' },
+              { tab: 'mcp' as const, label: 'MCP' },
+              { tab: 'pages' as const, label: 'Pages' },
             ].map((t) => (
-              <button key={t.tab} onClick={() => setActiveTab(t.tab)}
+              <button key={t.tab} onClick={() => navigateTo(t.tab)}
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === t.tab ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
                 {t.label}
               </button>
-            ))}
-            <div className="w-px h-4 bg-slate-700 self-center" />
-
-            {/* Dropdown groups */}
-            {[
-              { label: 'Manage', items: [
-                { tab: 'agents' as const, label: 'Agents' },
-                { tab: 'templates' as const, label: 'Templates' },
-                { tab: 'contexts' as const, label: 'Knowledge' },
-              ]},
-              { label: 'Quality', items: [
-                { tab: 'versions' as const, label: 'Versions' },
-                { tab: 'abtest' as const, label: 'A/B Tests' },
-                { tab: 'monitor' as const, label: 'Monitor' },
-              ]},
-              { label: 'Lucid', items: [
-                { tab: 'glyphs' as const, label: 'Glyphs' },
-                { tab: 'concepts' as const, label: 'Concepts' },
-                { tab: 'memories' as const, label: 'Memories' },
-                { tab: 'tokens' as const, label: 'Tokens' },
-              ]},
-            ].map((group) => (
-              <div key={group.label} className="relative group">
-                <button className="px-3 py-1 text-xs rounded text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1">
-                  {group.label} <ChevronDown size={10} />
-                </button>
-                <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px] py-1">
-                  {group.items.map((item) => (
-                    <button key={item.tab} onClick={() => setActiveTab(item.tab)}
-                      className={`block w-full text-left px-3 py-1.5 text-xs ${activeTab === item.tab ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             ))}
           </div>
 
@@ -472,11 +511,26 @@ export default function App() {
         {/* Body + persistent AI Guide sidebar */}
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
-        {activeTab === 'dashboard' ? (
+        {activeTab === 'analytics' ? (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-200">Analytics</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Platform overview — agents, pages, knowledge bases, and more
+                  </p>
+                </div>
+              </div>
+              <AnalyticsDashboard activeAgentId={activeAgentId} />
+            </div>
+          </div>
+        ) : activeTab === 'dashboard' ? (
           <Dashboard
-            onNavigate={(tab: string) => setActiveTab(tab as any)}
+            onNavigate={(tab: string) => navigateTo(tab as TabName)}
             agents={agentList}
             contexts={contextList}
+            mcpServers={mcpServerList}
             onSelectAgent={switchToAgent}
             onDelete={async (id) => {
                 const name = agentList.find((a) => a.id === id)?.name;
@@ -531,7 +585,7 @@ export default function App() {
                 value={activeAgentId || ''}
                 onChange={(e) => {
                   const id = e.target.value;
-                  if (id === '__new') { setAgentName(''); setActiveAgentId(null); loadGraph([], []); return; }
+                  if (id === '__new') { window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: { template: 'minimal' } })); e.target.value = activeAgentId || ''; return; }
                   if (id && id !== activeAgentId) switchToAgent(id);
                 }}
                 className="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
@@ -541,20 +595,15 @@ export default function App() {
                 ) : (
                   <option value="">(select agent)</option>
                 )}
-                <option disabled>──</option>
                 {otherAgents.map((a) => (
                   <option key={a.id} value={a.id}>{a.label}</option>
                 ))}
-                <option disabled>──</option>
-                <option value="__new">＋ New (blank canvas)</option>
+                <option value="__new">＋ Create New</option>
               </select>
                 );
               })()}
               <button onClick={() => setActiveModal('styling')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Palette size={12} /> Styling
-              </button>
-              <button onClick={() => setActiveModal('test')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
-                <TestTube size={12} /> Test
               </button>
               <button onClick={() => setActiveModal('knowledge')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <BookOpen size={12} /> Knowledge
@@ -562,9 +611,23 @@ export default function App() {
               <button onClick={() => setActiveModal('personality')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
                 <Smile size={12} /> Personality
               </button>
+              <button onClick={() => setActiveModal('mcp')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <Server size={12} /> MCP
+              </button>
+              <button onClick={() => setActiveModal('guardrails')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <Shield size={12} /> Guardrails
+              </button>
+              <button onClick={() => setActiveModal('test')} className="px-2 py-0.5 text-xs text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors flex items-center gap-1">
+                <TestTube size={12} /> Test
+              </button>
             </div>
             <div className="flex-1 flex overflow-hidden relative">
-              <NodePalette />
+              <div className="relative h-full">
+                <NodePalette />
+                {(activeModal === 'personality' || activeModal === 'styling' || activeModal === 'knowledge' || activeModal === 'mcp' || activeModal === 'guardrails' || activeModal === 'page-editor') && (
+                  <div className="absolute inset-0 bg-slate-950/80 z-50 rounded" />
+                )}
+              </div>
               <div className="flex-1 min-w-0 relative">
                 <FlowCanvas />
                  {activeModal === 'styling' && (
@@ -575,13 +638,37 @@ export default function App() {
                      onClose={() => { setActiveModal(null); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
                    />
                  )}
-                 {activeModal === 'personality' && (
-                   <PersonalityModal
-                     agentId={activeAgentId}
-                     onClose={() => setActiveModal(null)}
-                   />
-                 )}
-                {quickStartToast && (
+                  {activeModal === 'personality' && (
+                    <PersonalityModal
+                      agentId={activeAgentId}
+                      onClose={() => setActiveModal(null)}
+                    />
+                  )}
+                  {activeModal === 'knowledge' && (
+                    <KnowledgeAttachModal
+                      activeAgentId={activeAgentId}
+                      contextList={contextList}
+                      onClose={() => setActiveModal(null)}
+                      onNavigate={(tab: string) => navigateTo(tab as TabName)}
+                      onRefresh={fetchContexts}
+                    />
+                  )}
+                  {activeModal === 'mcp' && (
+                    <McpAttachModal
+                      activeAgentId={activeAgentId}
+                      mcpServers={mcpServerList}
+                      onClose={() => setActiveModal(null)}
+                      onNavigate={(tab: string) => navigateTo(tab as TabName)}
+                      onRefresh={fetchMcpServers}
+                    />
+                  )}
+                  {activeModal === 'guardrails' && (
+                    <GuardrailsModal
+                      agentId={activeAgentId}
+                      onClose={() => setActiveModal(null)}
+                    />
+                  )}
+                 {quickStartToast && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-indigo-600/95 text-white rounded-xl shadow-2xl animate-pulse flex items-center gap-3 text-sm font-medium">
                   <Loader2 size={16} className="animate-spin" />
                   {quickStartToast}
@@ -627,7 +714,7 @@ export default function App() {
           </div>
         ) : activeTab === 'agents' ? (
           <div className="flex-1 overflow-y-auto">
-            <AgentList onSelect={(id) => { setActiveAgentId(id); setActiveTab('designer'); }} />
+            <AgentList onSelect={(id) => { setActiveAgentId(id); navigateTo('designer'); }} />
           </div>
         ) : activeTab === 'tokens' ? (
           <div className="flex-1 overflow-y-auto">
@@ -636,6 +723,57 @@ export default function App() {
         ) : activeTab === 'contexts' ? (
           <div className="flex-1 overflow-y-auto">
             <ContextManager />
+          </div>
+        ) : activeTab === 'mcp' ? (
+          <div className="flex-1 overflow-y-auto">
+            <McpServers />
+            <div className="p-6 max-w-4xl mx-auto border-t border-slate-800 mt-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-300">Server Catalog</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Browse and install pre-built MCP servers</p>
+                </div>
+              </div>
+              <McpCatalog
+                installedIds={mcpServerList.map((s) => s.id)}
+                onInstall={async (srv) => {
+                  await fetch('/v1/mcp-servers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: srv.id, name: srv.name, url: srv.url, transport: 'http' }),
+                  });
+                }}
+                onRefresh={fetchMcpServers}
+              />
+            </div>
+          </div>
+        ) : activeTab === 'pages' ? (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-200">Pages</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Build standalone pages for your agents — landing pages, dashboards, forms, and more
+                  </p>
+                </div>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: {} }))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs transition-colors"
+                >
+                  <FileText size={14} />
+                  New Page
+                </button>
+              </div>
+              <PageList activeAgentId={activeAgentId} onEdit={(id) => { setEditingPageId(id); setActiveModal('page-editor'); }} />
+            </div>
+            {activeModal === 'page-editor' && editingPageId && (
+              <PageEditorModal
+                pageId={editingPageId}
+                onClose={() => { setActiveModal(null); setEditingPageId(null); }}
+                onSaved={() => {}}
+              />
+            )}
           </div>
         ) : (
           <div className="flex-1 p-6 overflow-y-auto">
@@ -648,7 +786,7 @@ export default function App() {
               ].map((tpl) => (
                 <button
                   key={tpl.key}
-                  onClick={() => { loadTemplateFromYaml(tpl.name); setActiveTab('designer'); }}
+                  onClick={() => { loadTemplateFromYaml(tpl.name); navigateTo('designer'); }}
                   className="p-4 bg-slate-900 border border-slate-700 rounded-lg hover:border-indigo-500 transition-colors text-left"
                 >
                   <div className="text-sm font-medium text-slate-200">{tpl.name}</div>
@@ -664,7 +802,7 @@ export default function App() {
             contexts={contextList}
             activeTab={activeTab}
             activeAgentId={activeAgentId}
-            onNavigate={(tab: string) => setActiveTab(tab as any)}
+            onNavigate={(tab: string) => navigateTo(tab as TabName)}
             onAgentsChanged={fetchAgents}
             onContextsChanged={fetchContexts}
           />
@@ -679,20 +817,8 @@ export default function App() {
           onClose={() => setActiveModal(null)}
         />
       )}
-      {activeModal === 'test' && (() => {
-        // Extract system prompt from agent's graph nodes
-        const spNode = nodes.find((n) => n.data.nodeType === 'builtin.system_prompt' || n.data.label?.toLowerCase().includes('system prompt'));
-        const prompt = spNode?.data?.config?.prompt || spNode?.data?.config?.content || '';
-        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt ? String(prompt) : undefined} onClose={() => setActiveModal(null)} />;
-      })()}
-      {activeModal === 'knowledge' && (
-        <KnowledgeAttachModal
-          activeAgentId={activeAgentId}
-          contextList={contextList}
-          onClose={() => setActiveModal(null)}
-          onNavigate={(tab: string) => setActiveTab(tab as any)}
-          onRefresh={fetchContexts}
-        />
+      {activeModal === 'test' && (
+        <TestChatModal agentId={activeAgentId} agentName={agentName || 'My Agent'} onClose={() => setActiveModal(null)} />
       )}
 
     </ReactFlowProvider>

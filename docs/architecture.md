@@ -1,134 +1,169 @@
-# Architecture Overview
+# Vibeful Architecture
 
-Vibeful is a self-hosted AI agent platform with a unified architecture that runs identically in local dev mode (SQLite, no Docker) and production mode (PostgreSQL, Docker).
-
-## Service Topology
+## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│              Management Console              │
-│              React Flow :5174               │
-│              (Vite dev or static build)     │
-└──────────────────┬──────────────────────────┘
-                   │ HTTP /v1/*
-┌──────────────────▼──────────────────────────┐
-│           Agent Engine                       │
-│           Python / LangGraph                 │
-│                                              │
-│   ┌─────────────┐    ┌──────────────────┐   │
-│   │ REST Server │    │   gRPC Server     │   │
-│   │ :50052      │    │   :50051          │   │
-│   │ (console,   │    │   (SDK streaming) │   │
-│   │  CRUD, AI   │    │                   │   │
-│   │  assist)    │    │                   │   │
-│   └──────┬──────┘    └────────┬──────────┘   │
-│          │                    │              │
-│   ┌──────▼────────────────────▼──────────┐   │
-│   │          Agent Graph                 │   │
-│   │     (14 nodes + analysis pipeline)   │   │
-│   └──────────────────────────────────────┘   │
-│                    │                         │
-└────────────────────┼─────────────────────────┘
-                     │
-      ┌──────────────┼──────────────┐
-      ▼              ▼              ▼
-  PostgreSQL      Redis        DeepSeek API
-  + pgvector      (cache)
-
-  (Docker mode)   (Docker)     (both modes)
-  ────────────    ───────     ───────────
-  SQLite          in-memory
-  (local dev)     (local dev)
+┌─────────────────────────────────────────────────────────────┐
+│                    Management Console                       │
+│              React + React Flow :5174 (Vite)               │
+│                                                             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
+│  │Dashboard │ │ Designer │ │  Agents  │ │   MCP    │      │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
+│  │ Analytics│ │Knowledge │ │  Pages   │ │Settings  │      │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
+│                                                             │
+│  Vibeful Guide: Natural language → agent configuration     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ HTTP /v1/* (proxy)
+┌──────────────────────▼──────────────────────────────────────┐
+│                   Agent Engine                              │
+│              Python / LangGraph / FastAPI                   │
+│              REST :50052                                    │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Agent Graph (LangGraph)                 │   │
+│  │  Setup → Guard → Router → RAG → React → Completion  │   │
+│  │    │        │        │       │       │              │   │
+│  │    └────────┴────────┴───┬───┴───────┘              │   │
+│  │                          │                           │   │
+│  │  ┌───────────────────────▼──────────────────────┐   │   │
+│  │  │        Analysis Pipeline (11 phases)         │   │   │
+│  │  │  Memories → Impressions → Concepts → Intent  │   │   │
+│  │  │  → Conductor → Code Detect → Search Detect   │   │   │
+│  │  │  → Global Memories → Next → Search           │   │   │
+│  │  │  → Output Routing                            │   │   │
+│  │  └──────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌───────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐    │
+│  │ REST API  │ │  SSE     │ │ Webhooks │ │ API Keys │    │
+│  │ 72 routes │ │ Stream   │ │ Fire     │ │ SHA-256  │    │
+│  └───────────┘ └──────────┘ └──────────┘ └──────────┘    │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                  Storage Layer                       │  │
+│  │  SQLite (dev)    PostgreSQL + pgvector (prod)        │  │
+│  │  Tables: agents, pages, mcp_servers, api_keys,       │  │
+│  │  contexts, embeddings, users, teams, audit_events,   │  │
+│  │  agent_tests, webhooks, glyphs, concepts, sessions   │  │
+│  └──────────────────────────────────────────────────────┘  │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+    ┌──────────────────┼──────────────────┐
+    ▼                  ▼                  ▼
+┌────────┐    ┌──────────────┐    ┌─────────────┐
+│DeepSeek│    │  PostgreSQL  │    │    Redis     │
+│  API   │    │  + pgvector  │    │   (cache)    │
+└────────┘    └──────────────┘    └─────────────┘
 ```
-
-### Two Run Modes
-
-| Mode | Command | Database | Services |
-|------|---------|----------|----------|
-| **Local dev** | `npm run dev` | SQLite | Agent engine (REST) + Management console |
-| **Docker** | `npm run stack` | PostgreSQL + Redis | Full stack: agent engine (REST+gRPC), console, Envoy, proxy, MCP |
-
-Both modes run the same code. The REST server auto-detects PostgreSQL via `DATABASE_URL` and falls back to SQLite.
-
-### Management Console
-
-A full visual agent designer with 10 integrated tabs:
-
-| Tab | Purpose |
-|-----|---------|
-| Designer | Drag-and-drop React Flow canvas for building agent graphs |
-| Templates | Pre-built agent patterns (Minimal, Full, Lucid) |
-| Versions | Auto-saved version history with diff viewer and rollback |
-| Proposals | AI-suggested optimizations by analyzing your graph |
-| A/B Tests | Scientific comparison of agent config variants |
-| Monitor | Per-node performance metrics with regression alerts |
-| Glyphs | Symbolic visual representations for concepts |
-| Concepts | Named conceptual frameworks with domain filtering |
-| Memories | Cross-user global knowledge patterns |
-| Tokens | Per-user token credit management |
-
-## Agent Graph (14 nodes + analysis pipeline)
-
-```
-attack_guard ──(safe)──→ setup → fact_recall → planning → buttons → system_message_builder
-       │                                                                  │
-       └──(end)──→ END                                           analysis_pipeline (11 parallel LLM phases)
-                                                                        │
-                                                                      router
-                                                                   ├─ rag → react_agent
-                                                                   ├─ react_agent (direct)
-                                                                   └─ mcp_discovery (tool request)
-                                                                        │
-                                                              output_router (DML segmentation)
-                                                                        │
-                                                   stream_completion → citation → follow_up → fact_mining → END
-```
-
-### Analysis Pipeline (Lucid Sensai parity)
-
-11 parallel LLM phases run before the main response:
-
-| Phase | Temperature | Purpose |
-|-------|-------------|---------|
-| memories | 0.2 | Extract new user facts |
-| impressions | 0.5 | Emotional tone / mindset |
-| concepts | 0.5 | New conceptual frameworks |
-| assumptions | 0.2 | Implicit user assumptions |
-| intent | 0.4 | Rich intent classification |
-| code_detect | 0.5 | Code generation requests |
-| search_detect | 0.4 | Web search needed? |
-| global_memories | 0.5 | Cross-user patterns |
-| next | 0.5 | Predicted follow-ups |
-| conductor | 0.5 | Dynamically sets response temperature/top_p |
-| search_execute | 0.0 | Executes web search if needed |
 
 ## Packages
 
-| Package | Stack | Role |
-|---------|-------|------|
-| `agent-engine` | Python, LangGraph | Core AI agent — REST + gRPC servers, agent graph, analysis pipeline |
-| `management-console` | React 19, React Flow, Tailwind 4 | Visual agent designer + platform dashboard |
-| `proxy` | Python, FastAPI | Auth, session routing, analytics, facts, threads |
-| `sdk` | React/TypeScript, Vite | Embeddable chat widget with command protocol |
-| `mcp-servers` | Node/TypeScript | MCP tool servers (web search, file read, calculator) |
-| `shared` | TypeScript | Shared types and MCP protocol utilities |
+| Package | Stack | Purpose | Tests |
+|---------|-------|---------|-------|
+| `agent-engine` | Python, LangGraph, FastAPI | Core agent engine — REST + SSE + graph | 602 |
+| `management-console` | React, React Flow, Tailwind, Vite | Visual agent designer + platform dashboard | 136 |
+| `sdk` | React/TypeScript, Vite | Embeddable chat widget + React hooks | — |
+| `sdk-python` | Python, httpx | Headless agent client (`pip install vibeful`) | 26 |
+| `shared` | TypeScript | Shared types and utilities | — |
+| `mcp-servers` | Node/TypeScript | Built-in MCP tool servers | — |
+| `proxy` | Python, FastAPI | Auth, session routing, analytics | — |
+| `api-gateway` | Node/TypeScript | API gateway | — |
+
+## Integration Tiers
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Tier 1: Embed                                               │
+│ <script src="vibeful-sdk.umd.js"></script>                  │
+│ VibefulSDK.mount({ target: '#chat', agentId: '...' })       │
+│                                                              │
+│ → Chat widget, voice I/O, widgets, CSS theming              │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Tier 2: Integrate                                           │
+│ POST /v1/agents/:id/execute                                 │
+│ POST /v1/agents/:id/stream (SSE)                            │
+│ POST /v1/webhooks (event subscription)                      │
+│                                                              │
+│ → Headless invocation, streaming, webhooks, API keys        │
+│ → Python SDK (vibeful), JS hooks (useAgent, useAgentStream) │
+└──────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Tier 3: Agent-Native                                        │
+│ Agent creates pages → users interact → agent updates        │
+│                                                              │
+│ → Page CRUD, widget composition, event loop                 │
+│ → Agent-to-agent delegation                                 │
+│ → Import/export, staging → production                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## Key Endpoints
+
+| Category | Endpoints | Count |
+|----------|-----------|-------|
+| Agents | CRUD + execute + stream + export/import + promote | 12 |
+| MCP Servers | CRUD + health + start/stop | 9 |
+| Pages | CRUD + slug lookup + interact | 7 |
+| API Keys | CRUD | 3 |
+| Users & Teams | Register + login + teams CRUD + members | 6 |
+| Analytics | Platform summary + per-agent | 2 |
+| Audit | Event log | 1 |
+| Agent Tests | CRUD + run single + run all | 5 |
+| Webhooks | Register | 1 |
+| Converse | Direct agent chat | 1 |
+| Knowledge | Contexts + ingest | 4 |
+| Health | Liveness + readiness + metrics | 4 |
+| **Total** | | **55** |
+
+## Guide Commands
+
+The Vibeful Guide supports 70 natural-language commands covering all platform operations — from creating agents and configuring MCP servers to publishing pages and running tests. The command protocol (`vibeful-command` blocks) is the same one agents use to render widgets in pages.
 
 ## Data Flow
 
 ```
-1. Management Console sends HTTP requests to Agent Engine REST (:50052)
-   — Agent CRUD, knowledge contexts, AI assist, health checks
-2. SDK widget connects via Envoy (:8080) → Agent Engine gRPC (:50051)
-   — Streaming conversation with tool calls
-3. Proxy (:8000) handles session routing, analytics, facts, threads
-4. Agent Engine runs LangGraph:
-   - attack_guard: detects prompt injection, jailbreak, XSS, SQLi
-   - fact_recall: retrieves user facts from memory
-   - router: classifies intent (RAG, direct, MCP)
-   - rag: searches pgvector for relevant knowledge
-   - react_agent: calls LLM with tools + knowledge
-   - citation: identifies sources used in the response
-   - follow_up: generates suggested next questions
-   - fact_mining: extracts new facts about the user
-5. Response streams back through the same path
+User Message
+    │
+    ▼
+Agent Graph (LangGraph)
+    ├── Setup: Initialize state
+    ├── Attack Guard: Block injection/jailbreak
+    ├── Router: Classify intent (greeting, RAG, tool)
+    ├── RAG: Retrieve relevant knowledge chunks
+    ├── MCP Discovery: Find appropriate tools
+    ├── React Agent: LLM loop with tool use
+    └── Stream Completion: Yield response chunks
+            │
+            ▼
+    Response (text/SSE/JSON)
+            │
+    ┌───────┴───────┐
+    ▼               ▼
+  User          Webhook
+ (display)    (fire event)
+```
+
+## Deployment
+
+**Dev mode** (SQLite, no Docker):
+```bash
+npm run dev
+```
+
+**Docker stack** (PostgreSQL, Redis, Envoy):
+```bash
+npm run stack
+```
+
+**Helm chart** (Kubernetes):
+```
+deploy/helm/vibeful/
 ```

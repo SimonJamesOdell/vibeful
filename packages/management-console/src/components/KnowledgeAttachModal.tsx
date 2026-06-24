@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, BookOpen, Loader2 } from 'lucide-react';
 
 interface Context {
@@ -24,6 +24,7 @@ export default function KnowledgeAttachModal({
   const [attachedIds, setAttachedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const snapshotRef = useRef<string[]>([]);
 
   // Fetch current agent's context_ids on mount
   useEffect(() => {
@@ -34,12 +35,25 @@ export default function KnowledgeAttachModal({
     fetch(`/v1/agents/${activeAgentId}`)
       .then((r) => r.json())
       .then((data) => {
-        const ids = data.context_ids || [];
-        setAttachedIds(Array.isArray(ids) ? ids : []);
+        const ids = Array.isArray(data.context_ids) ? data.context_ids : [];
+        setAttachedIds(ids);
+        snapshotRef.current = [...ids];
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [activeAgentId]);
+
+  const handleRevert = async () => {
+    if (!activeAgentId) return;
+    const restored = [...snapshotRef.current];
+    setAttachedIds(restored);
+    await fetch(`/v1/agents/${activeAgentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context_ids: restored }),
+    });
+    onRefresh();
+  };
 
   const toggleContext = async (ctxId: string) => {
     if (!activeAgentId) return;
@@ -70,14 +84,10 @@ export default function KnowledgeAttachModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative w-[420px] max-h-[500px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col">
+    <div className="absolute inset-0 z-[9998] flex bg-slate-950">
+      <div className="w-[500px] flex-shrink-0 border-r border-slate-700 overflow-y-auto bg-slate-900 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50 rounded-t-xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <BookOpen size={14} className="text-indigo-400" />
             <span className="text-sm font-medium text-slate-200">Knowledge Bases</span>
@@ -158,16 +168,25 @@ export default function KnowledgeAttachModal({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2 border-t border-slate-700 bg-slate-800/30 rounded-b-xl flex justify-between items-center">
+        <div className="px-4 py-3 border-t border-slate-700 bg-slate-800/30 flex justify-between items-center">
           <span className="text-[10px] text-slate-600">
             Changes are saved immediately
           </span>
-          <button
-            onClick={onClose}
-            className="px-3 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors"
-          >
-            Done
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRevert}
+              className="px-3 py-1 text-[11px] text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/30 hover:text-indigo-200 rounded"
+              title="Undo changes, restore knowledge bases from when you opened this panel"
+            >
+              Revert
+            </button>
+            <button
+              onClick={onClose}
+              className="px-3 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded transition-colors"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>

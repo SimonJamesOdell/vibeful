@@ -207,6 +207,101 @@ class SqliteBackend:
                 description TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS mcp_servers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                transport TEXT DEFAULT 'http',
+                auth_type TEXT DEFAULT 'none',
+                auth_header TEXT DEFAULT '',
+                agent_id TEXT,
+                enabled INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_pages (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                slug TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL DEFAULT '',
+                content_markdown TEXT DEFAULT '',
+                layout_json TEXT DEFAULT '{}',
+                published INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_agent_pages_agent ON agent_pages(agent_id);
+            CREATE INDEX IF NOT EXISTS idx_agent_pages_slug ON agent_pages(slug);
+
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id TEXT PRIMARY KEY,
+                key_hash TEXT NOT NULL UNIQUE,
+                key_prefix TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                agent_id TEXT,
+                scopes TEXT DEFAULT '["read","execute"]',
+                revoked INTEGER DEFAULT 0,
+                last_used_at TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_api_keys_agent ON api_keys(agent_id);
+
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT,
+                agent_id TEXT,
+                details_json TEXT DEFAULT '{}',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_audit_events_type ON audit_events(event_type);
+            CREATE INDEX IF NOT EXISTS idx_audit_events_resource ON audit_events(resource_type, resource_id);
+            CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events(created_at);
+
+            CREATE TABLE IF NOT EXISTS agent_tests (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                input_message TEXT NOT NULL,
+                expected_contains TEXT DEFAULT '',
+                expected_not_contains TEXT DEFAULT '',
+                last_run_at TEXT,
+                last_passed INTEGER,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_agent_tests_agent ON agent_tests(agent_id);
+
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL DEFAULT '',
+                display_name TEXT NOT NULL DEFAULT '',
+                role TEXT NOT NULL DEFAULT 'editor',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+            CREATE TABLE IF NOT EXISTS teams (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS team_members (
+                id TEXT PRIMARY KEY,
+                team_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'member',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+            CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);
         """)
         await conn.commit()
 
@@ -702,3 +797,336 @@ class SqliteBackend:
         async with conn.execute("DELETE FROM api_integrations WHERE id = ?", (iid,)) as cursor:
             await conn.commit()
             return cursor.rowcount > 0
+
+    # ── MCP Servers ────────────────────────────────────────
+
+    async def create_mcp_server(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        sid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO mcp_servers (id, name, url, transport, auth_type, auth_header, agent_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (sid, data["name"], data["url"],
+             data.get("transport", "http"),
+             data.get("auth_type", "none"),
+             data.get("auth_header", ""),
+             data.get("agent_id")),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (sid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def get_mcp_server(self, sid: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (sid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def list_mcp_servers(self, agent_id: str | None = None) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM mcp_servers WHERE agent_id = ? OR agent_id IS NULL ORDER BY created_at DESC",
+                (agent_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute("SELECT * FROM mcp_servers ORDER BY created_at DESC") as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def delete_mcp_server(self, sid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute("DELETE FROM mcp_servers WHERE id = ?", (sid,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    # ── Agent Pages ────────────────────────────────────────
+
+    async def create_page(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        pid = data.get("id") or str(uuid.uuid4())
+        slug = data["slug"]
+        # Ensure unique slug — append suffix if collision
+        base_slug = slug
+        counter = 1
+        while True:
+            async with conn.execute("SELECT id FROM agent_pages WHERE slug = ?", (slug,)) as c:
+                if not await c.fetchone():
+                    break
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        await conn.execute(
+            """INSERT INTO agent_pages (id, agent_id, slug, title, content_markdown, layout_json, published)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (pid, data["agent_id"], slug, data.get("title", ""),
+             data.get("content_markdown", ""), data.get("layout_json", "{}"),
+             data.get("published", 0)),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM agent_pages WHERE id = ?", (pid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def get_page(self, pid: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM agent_pages WHERE id = ?", (pid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def get_page_by_slug(self, slug: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM agent_pages WHERE slug = ?", (slug,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def list_pages(self, agent_id: str | None = None) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM agent_pages WHERE agent_id = ? ORDER BY updated_at DESC",
+                (agent_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute("SELECT * FROM agent_pages ORDER BY updated_at DESC") as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def update_page(self, pid: str, data: dict[str, Any]) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        existing = await self.get_page(pid)
+        if not existing:
+            return None
+        updates = {**existing, **data}
+        await conn.execute(
+            """UPDATE agent_pages SET
+                 title = ?, content_markdown = ?, layout_json = ?,
+                 published = ?, updated_at = datetime('now')
+               WHERE id = ?""",
+            (updates.get("title", existing.get("title", "")),
+             updates.get("content_markdown", existing.get("content_markdown", "")),
+             updates.get("layout_json", existing.get("layout_json", "{}")),
+             updates.get("published", existing.get("published", 0)),
+             pid),
+        )
+        await conn.commit()
+        return await self.get_page(pid)
+
+    async def delete_page(self, pid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute("DELETE FROM agent_pages WHERE id = ?", (pid,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    # ── API Keys ───────────────────────────────────────────
+    async def create_api_key(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid, hashlib, secrets
+        conn = await self._get_conn()
+        kid = data.get("id") or str(uuid.uuid4())
+        raw_key = f"vf_{secrets.token_hex(24)}"
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        key_prefix = raw_key[:10]
+        await conn.execute(
+            """INSERT INTO api_keys (id, key_hash, key_prefix, name, agent_id, scopes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (kid, key_hash, key_prefix, data.get("name", ""),
+             data.get("agent_id"), data.get("scopes", '["read","execute"]')),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM api_keys WHERE id = ?", (kid,)) as cursor:
+            row = await cursor.fetchone()
+        result = dict(row) if row else {}
+        result["raw_key"] = raw_key  # only returned once on creation
+        return result
+
+    async def get_api_key_by_hash(self, key_hash: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "SELECT * FROM api_keys WHERE key_hash = ? AND revoked = 0", (key_hash,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def list_api_keys(self, agent_id: str | None = None) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT id, key_prefix, name, agent_id, scopes, revoked, last_used_at, created_at FROM api_keys WHERE agent_id = ? OR agent_id IS NULL ORDER BY created_at DESC",
+                (agent_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute(
+                "SELECT id, key_prefix, name, agent_id, scopes, revoked, last_used_at, created_at FROM api_keys ORDER BY created_at DESC"
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def revoke_api_key(self, kid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "UPDATE api_keys SET revoked = 1 WHERE id = ?", (kid,)
+        ) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def touch_api_key(self, kid: str) -> None:
+        conn = await self._get_conn()
+        await conn.execute(
+            "UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?", (kid,)
+        )
+        await conn.commit()
+
+    # ── Audit Events ───────────────────────────────────────
+    async def log_audit(self, event_type: str, resource_type: str, resource_id: str | None = None, agent_id: str | None = None, details: dict | None = None) -> dict[str, Any]:
+        import uuid, json as _json
+        conn = await self._get_conn()
+        eid = str(uuid.uuid4())
+        await conn.execute(
+            "INSERT INTO audit_events (id, event_type, resource_type, resource_id, agent_id, details_json) VALUES (?, ?, ?, ?, ?, ?)",
+            (eid, event_type, resource_type, resource_id, agent_id, _json.dumps(details or {})),
+        )
+        await conn.commit()
+        return {"id": eid, "event_type": event_type}
+
+    async def list_audit_events(self, resource_type: str | None = None, agent_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        conditions = []
+        params: list[Any] = []
+        if resource_type:
+            conditions.append("resource_type = ?")
+            params.append(resource_type)
+        if agent_id:
+            conditions.append("agent_id = ?")
+            params.append(agent_id)
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        params.append(min(limit, 200))
+        async with conn.execute(
+            f"SELECT * FROM audit_events {where} ORDER BY created_at DESC LIMIT ?", tuple(params)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    # ── Agent Tests ────────────────────────────────────────
+    async def create_test(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        tid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO agent_tests (id, agent_id, name, input_message, expected_contains, expected_not_contains)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (tid, data["agent_id"], data.get("name", ""), data["input_message"],
+             data.get("expected_contains", ""), data.get("expected_not_contains", "")),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM agent_tests WHERE id = ?", (tid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def list_tests(self, agent_id: str | None = None) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM agent_tests WHERE agent_id = ? ORDER BY created_at DESC", (agent_id,)
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute("SELECT * FROM agent_tests ORDER BY created_at DESC") as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def delete_test(self, tid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute("DELETE FROM agent_tests WHERE id = ?", (tid,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    # ── Users ──────────────────────────────────────────
+
+    async def create_user(self, data: dict[str, Any]) -> dict[str, Any]:
+        import hashlib
+        import uuid
+        conn = await self._get_conn()
+        uid = data.get("id") or str(uuid.uuid4())
+        pw = data.get("password", "")
+        pw_hash = hashlib.sha256(pw.encode()).hexdigest() if pw else ""
+        await conn.execute(
+            """INSERT INTO users (id, email, password_hash, display_name, role)
+               VALUES (?, ?, ?, ?, ?)""",
+            (uid, data["email"], pw_hash, data.get("display_name", ""), data.get("role", "editor")),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT id, email, display_name, role, created_at FROM users WHERE id = ?", (uid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def get_user_by_email(self, email: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM users WHERE email = ?", (email,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def verify_user_password(self, email: str, password: str) -> dict[str, Any] | None:
+        import hashlib
+        user = await self.get_user_by_email(email)
+        if not user:
+            return None
+        pw_hash = hashlib.sha256(password.encode()).hexdigest()
+        if user.get("password_hash") != pw_hash:
+            return None
+        return {k: v for k, v in user.items() if k != "password_hash"}
+
+    # ── Teams ──────────────────────────────────────────
+
+    async def create_team(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        tid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            "INSERT INTO teams (id, name) VALUES (?, ?)",
+            (tid, data["name"]),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM teams WHERE id = ?", (tid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def list_teams(self) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM teams ORDER BY created_at DESC") as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def add_team_member(self, team_id: str, user_id: str, role: str = "member") -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        mid = str(uuid.uuid4())
+        await conn.execute(
+            "INSERT INTO team_members (id, team_id, user_id, role) VALUES (?, ?, ?, ?)",
+            (mid, team_id, user_id, role),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM team_members WHERE id = ?", (mid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def list_team_members(self, team_id: str) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "SELECT tm.*, u.email, u.display_name FROM team_members tm "
+            "JOIN users u ON tm.user_id = u.id WHERE tm.team_id = ?", (team_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def record_test_result(self, tid: str, passed: bool) -> None:
+        conn = await self._get_conn()
+        await conn.execute(
+            "UPDATE agent_tests SET last_run_at = datetime('now'), last_passed = ? WHERE id = ?",
+            (1 if passed else 0, tid),
+        )
+        await conn.commit()

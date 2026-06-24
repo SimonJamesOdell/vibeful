@@ -227,6 +227,68 @@ describe('CONSOLE_COMMANDS', () => {
     expect(CONSOLE_COMMANDS.DEPLOY).toBe('deploy');
     expect(CONSOLE_COMMANDS.CONFIGURE_ANALYSIS).toBe('configure_analysis');
   });
+
+  it('includes all agent lifecycle commands', () => {
+    expect(CONSOLE_COMMANDS.CREATE_AGENT).toBe('create_agent');
+    expect(CONSOLE_COMMANDS.DELETE_AGENT).toBe('delete_agent');
+    expect(CONSOLE_COMMANDS.RENAME_AGENT).toBe('rename_agent');
+    expect(CONSOLE_COMMANDS.SELECT_AGENT).toBe('select_agent');
+    expect(CONSOLE_COMMANDS.CLONE_AGENT).toBe('clone_agent');
+    expect(CONSOLE_COMMANDS.TEST_AGENT).toBe('test_agent');
+    expect(CONSOLE_COMMANDS.SET_AGENT_DESCRIPTION).toBe('set_agent_description');
+  });
+
+  it('includes all knowledge base commands', () => {
+    expect(CONSOLE_COMMANDS.CREATE_CONTEXT).toBe('create_context');
+    expect(CONSOLE_COMMANDS.DELETE_CONTEXT).toBe('delete_context');
+    expect(CONSOLE_COMMANDS.INGEST_CONTEXT).toBe('ingest_context');
+    expect(CONSOLE_COMMANDS.LIST_CONTEXT_FILES).toBe('list_context_files');
+    expect(CONSOLE_COMMANDS.OPEN_KNOWLEDGE).toBe('open_knowledge');
+    expect(CONSOLE_COMMANDS.ATTACH_KNOWLEDGE).toBe('attach_knowledge');
+    expect(CONSOLE_COMMANDS.DETACH_KNOWLEDGE).toBe('detach_knowledge');
+  });
+
+  it('includes all version and A/B test commands', () => {
+    expect(CONSOLE_COMMANDS.SAVE_VERSION).toBe('save_version');
+    expect(CONSOLE_COMMANDS.RESTORE_VERSION).toBe('restore_version');
+    expect(CONSOLE_COMMANDS.CREATE_AB_TEST).toBe('create_ab_test');
+    expect(CONSOLE_COMMANDS.START_AB_TEST).toBe('start_ab_test');
+    expect(CONSOLE_COMMANDS.STOP_AB_TEST).toBe('stop_ab_test');
+  });
+
+  it('includes all MCP server commands', () => {
+    expect(CONSOLE_COMMANDS.CREATE_MCP_SERVER).toBe('create_mcp_server');
+    expect(CONSOLE_COMMANDS.DELETE_MCP_SERVER).toBe('delete_mcp_server');
+    expect(CONSOLE_COMMANDS.START_MCP_SERVER).toBe('start_mcp_server');
+    expect(CONSOLE_COMMANDS.STOP_MCP_SERVER).toBe('stop_mcp_server');
+    expect(CONSOLE_COMMANDS.START_ALL_MCP).toBe('start_all_mcp');
+    expect(CONSOLE_COMMANDS.STOP_ALL_MCP).toBe('stop_all_mcp');
+    expect(CONSOLE_COMMANDS.ATTACH_MCP).toBe('attach_mcp');
+    expect(CONSOLE_COMMANDS.DETACH_MCP).toBe('detach_mcp');
+    expect(CONSOLE_COMMANDS.CHECK_MCP_HEALTH).toBe('check_mcp_health');
+    expect(CONSOLE_COMMANDS.DISCOVER_MCP_TOOLS).toBe('discover_mcp_tools');
+  });
+
+  it('includes all glyph, token, and personality commands', () => {
+    expect(CONSOLE_COMMANDS.CREATE_GLYPH).toBe('create_glyph');
+    expect(CONSOLE_COMMANDS.DELETE_GLYPH).toBe('delete_glyph');
+    expect(CONSOLE_COMMANDS.CREDIT_TOKENS).toBe('credit_tokens');
+    expect(CONSOLE_COMMANDS.GET_TOKEN_BALANCE).toBe('get_token_balance');
+    expect(CONSOLE_COMMANDS.SET_PERSONALITY).toBe('set_personality');
+    expect(CONSOLE_COMMANDS.SET_STYLING).toBe('set_styling');
+    expect(CONSOLE_COMMANDS.SET_GUARDRAILS).toBe('set_guardrails');
+  });
+
+  it('includes concepts, memories, and analysis commands', () => {
+    expect(CONSOLE_COMMANDS.LIST_CONCEPTS).toBe('list_concepts');
+    expect(CONSOLE_COMMANDS.LIST_GLOBAL_MEMORIES).toBe('list_global_memories');
+    expect(CONSOLE_COMMANDS.ANALYZE_IMAGE).toBe('analyze_image');
+  });
+
+  it('has exactly 50 command constants (regression guard)', () => {
+    const count = Object.keys(CONSOLE_COMMANDS).length;
+    expect(count).toBe(70);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

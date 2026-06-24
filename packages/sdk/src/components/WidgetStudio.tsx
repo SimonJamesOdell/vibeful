@@ -136,7 +136,7 @@ export function WidgetStudio() {
       <div style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1rem', overflow: 'auto' }}>
         <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Preview</h3>
         {widget ? (
-          <WidgetRenderer type={widget.type} data={widget.data} title={widget.title} />
+          <WidgetRenderer widgets={[{ widget_id: 'preview', type: widget.type as any, props: { data: widget.data, title: widget.title } }]} />
         ) : (
           <div style={{ color: '#999', fontSize: '0.85rem', textAlign: 'center', padding: '2rem' }}>
             Your widget will appear here

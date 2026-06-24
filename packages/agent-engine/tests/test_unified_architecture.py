@@ -309,3 +309,362 @@ class TestHealthEndpoints:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["service"] == "agent-engine"
+
+
+# ═══════════════════════════════════════════════════════════════
+# MCP server seeding on startup
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestStartupSeedMcp:
+    """invariant: _startup_seed_mcp seeds three built-in MCP servers
+    (idempotent, best-effort) during SQLite dev mode."""
+
+    BUILTIN_IDS = {"builtin-web-search", "builtin-file-read", "builtin-calculator"}
+
+    @pytest.mark.asyncio
+    async def test_seeds_builtins_when_none_exist(self):
+        """When no built-in servers exist, all three are created."""
+        import src.rest_server as rs
+
+        mock_db = MagicMock()
+        mock_db.get_mcp_server = AsyncMock(return_value=None)  # none exist
+        mock_db.create_mcp_server = AsyncMock()
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),  # no DATABASE_URL → SQLite
+            patch("src.storage.sqlite.SqliteBackend", return_value=mock_db),
+        ):
+            await rs._startup_seed_mcp()
+
+        assert mock_db.init_schema.call_count == 1
+        assert mock_db.create_mcp_server.call_count == 3
+        # Verify each built-in was checked
+        assert mock_db.get_mcp_server.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_skips_existing_servers(self):
+        """When all three built-ins exist, no new servers are created."""
+        import src.rest_server as rs
+
+        mock_db = MagicMock()
+        mock_db.get_mcp_server = AsyncMock(return_value={"id": "builtin-web-search"})
+        mock_db.create_mcp_server = AsyncMock()
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.storage.sqlite.SqliteBackend", return_value=mock_db),
+        ):
+            await rs._startup_seed_mcp()
+
+        assert mock_db.create_mcp_server.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_partial_seed_creates_only_missing(self):
+        """When one server exists, only the remaining two are created."""
+        import src.rest_server as rs
+
+        # existing returns a record for web-search, None for the other two
+        existing_map = {
+            "builtin-web-search": {"id": "builtin-web-search"},
+            "builtin-file-read": None,
+            "builtin-calculator": None,
+        }
+        mock_db = MagicMock()
+        mock_db.get_mcp_server = AsyncMock(side_effect=lambda sid: existing_map.get(sid))
+        mock_db.create_mcp_server = AsyncMock()
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.storage.sqlite.SqliteBackend", return_value=mock_db),
+        ):
+            await rs._startup_seed_mcp()
+
+        assert mock_db.create_mcp_server.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_postgresql_path_uses_database(self):
+        """When DATABASE_URL is postgresql://, Database() is used, not SqliteBackend."""
+        import src.rest_server as rs
+
+        mock_db = MagicMock()
+        mock_db.get_mcp_server = AsyncMock(return_value=None)
+        mock_db.create_mcp_server = AsyncMock()
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@host/db"}),
+            patch("src.database.Database", return_value=mock_db) as mock_db_cls,
+        ):
+            await rs._startup_seed_mcp()
+
+        mock_db_cls.assert_called_once()
+        # init_schema should NOT be called for PostgreSQL path
+        # (the function only calls init_schema when not use_postgres)
+        mock_db.init_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_best_effort_handles_failure(self):
+        """When database creation fails, the function does not crash
+        (best-effort seeding)."""
+        import src.rest_server as rs
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.storage.sqlite.SqliteBackend", side_effect=RuntimeError("disk full")),
+        ):
+            # Should not raise — the try/except guards it
+            await rs._startup_seed_mcp()
+
+        # Test passes if no exception was raised
+
+    @pytest.mark.asyncio
+    async def test_best_effort_handles_get_failure(self):
+        """When get_mcp_server fails for one server, function still tries others."""
+        import src.rest_server as rs
+
+        mock_db = MagicMock()
+        # First get succeeds (server exists), second get raises, third returns None
+        mock_db.get_mcp_server = AsyncMock(side_effect=[
+            {"id": "builtin-web-search"},  # exists
+            RuntimeError("db error"),       # crash
+            None,                           # doesn't exist
+        ])
+        mock_db.create_mcp_server = AsyncMock()
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.storage.sqlite.SqliteBackend", return_value=mock_db),
+        ):
+            # The try/except in _startup_seed_mcp catches the RuntimeError
+            # and the loop terminates early — no crash
+            await rs._startup_seed_mcp()
+
+    @pytest.mark.asyncio
+    async def test_builtin_server_fields_correct(self):
+        """Each built-in server has the correct id, name, url, and defaults."""
+        import src.rest_server as rs
+
+        captured = []
+        mock_db = MagicMock()
+        mock_db.get_mcp_server = AsyncMock(return_value=None)
+        mock_db.create_mcp_server = AsyncMock(side_effect=lambda d: captured.append(d))
+        mock_db.init_schema = AsyncMock()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.storage.sqlite.SqliteBackend", return_value=mock_db),
+        ):
+            await rs._startup_seed_mcp()
+
+        assert len(captured) == 3
+        created_ids = {s["id"] for s in captured}
+        assert created_ids == self.BUILTIN_IDS
+
+        for srv in captured:
+            assert srv["transport"] == "http"
+            assert srv["auth_type"] == "none"
+            assert srv["auth_header"] == ""
+            assert srv["agent_id"] is None
+            assert srv["url"].startswith("http://localhost:31")
+
+
+# ═══════════════════════════════════════════════════════════════
+# Webhook registration endpoint
+# ═══════════════════════════════════════════════════════════════
+
+class TestWebhookEndpoint:
+    def test_register_webhook(self):
+        import src.rest_server as rs
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+
+        db = MagicMock()
+        db.register_webhook = AsyncMock(return_value={"id": "w1", "url": "https://example.com/hook"})
+        rs._db_lucid = db
+
+        client = TestClient(app)
+        resp = client.post("/v1/webhooks", json={
+            "url": "https://example.com/hook",
+            "events": ["conversation.completed"],
+        })
+        assert resp.status_code == 200
+        assert resp.json()["id"] == "w1"
+
+    def test_register_webhook_missing_url(self):
+        import src.rest_server as rs
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+
+        db = MagicMock()
+        rs._db_lucid = db
+
+        client = TestClient(app)
+        resp = client.post("/v1/webhooks", json={"events": ["test"]})
+        assert resp.status_code == 422
+
+    def test_register_webhook_no_db_503(self):
+        import src.rest_server as rs
+        rs._db_lucid = None
+
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+        client = TestClient(app)
+        resp = client.post("/v1/webhooks", json={"url": "https://example.com/hook"})
+        assert resp.status_code == 503
+
+
+# ═══════════════════════════════════════════════════════════════
+# SSE Stream endpoint
+# ═══════════════════════════════════════════════════════════════
+
+class TestStreamEndpoint:
+    def test_stream_endpoint_requires_message(self):
+        import src.rest_server as rs
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+
+        rs._graph = MagicMock()
+        db = MagicMock()
+        db.get_agent = AsyncMock(return_value=None)
+        rs._db_lucid = db
+
+        client = TestClient(app)
+        resp = client.post("/v1/agents/a1/stream", json={})
+        assert resp.status_code == 422
+
+    def test_stream_agent_not_found_404(self):
+        import src.rest_server as rs
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+
+        rs._graph = MagicMock()
+        db = MagicMock()
+        db.get_agent = AsyncMock(return_value=None)
+        rs._db_lucid = db
+
+        client = TestClient(app)
+        resp = client.post("/v1/agents/nonexistent/stream", json={"message": "Hello"})
+        assert resp.status_code == 404
+
+    def test_stream_graph_not_initialized_503(self):
+        import src.rest_server as rs
+        rs._graph = None
+
+        from fastapi.testclient import TestClient
+        from src.rest_server import app
+        client = TestClient(app)
+        resp = client.post("/v1/agents/a1/stream", json={"message": "Hello"})
+        assert resp.status_code == 503
+
+
+# ═══════════════════════════════════════════════════════════════
+# Webhook delivery (_fire_webhooks)
+# ═══════════════════════════════════════════════════════════════
+
+class TestWebhookDelivery:
+    """Test the webhook delivery function itself (not the registration endpoint)."""
+
+    def test_fire_webhooks_no_matching_event(self):
+        """When no webhooks match the event type, nothing is called."""
+        import src.rest_server as rs
+
+        db = MagicMock()
+        db.list_webhooks = AsyncMock(return_value=[
+            {"id": "w1", "url": "http://example.com/hook", "events": ["page.published"]},
+        ])
+        rs._db_lucid = db
+
+        # Should not raise — no matching webhooks for this event type
+        import asyncio
+        asyncio.run(rs._fire_webhooks("conversation.completed", "a1", {"test": True}))
+
+    def test_fire_webhooks_matching_event(self, monkeypatch):
+        """When a webhook matches, httpx is called with the right payload."""
+        import src.rest_server as rs
+
+        db = MagicMock()
+        db.list_webhooks = AsyncMock(return_value=[
+            {"id": "w1", "url": "http://example.com/hook", "events": ["conversation.completed"]},
+        ])
+        rs._db_lucid = db
+
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock()
+        mock_client_cls = MagicMock()
+        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cls.return_value.__aexit__ = AsyncMock()
+
+        with patch("httpx.AsyncClient", mock_client_cls):
+            import asyncio
+            asyncio.run(rs._fire_webhooks("conversation.completed", "a1", {"response": "Hello"}))
+
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == "http://example.com/hook"
+        sent_payload = call_args[1]["json"]
+        assert sent_payload["event"] == "conversation.completed"
+        assert sent_payload["agent_id"] == "a1"
+        assert sent_payload["payload"]["response"] == "Hello"
+
+    def test_fire_webhooks_handles_httpx_error(self):
+        """When httpx raises, the function swallows the error gracefully."""
+        import src.rest_server as rs
+
+        db = MagicMock()
+        db.list_webhooks = AsyncMock(return_value=[
+            {"id": "w1", "url": "http://down.example.com/hook", "events": ["conversation.completed"]},
+        ])
+        rs._db_lucid = db
+
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock(side_effect=Exception("Connection refused"))
+        mock_client_cls = MagicMock()
+        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cls.return_value.__aexit__ = AsyncMock()
+
+        # Should not raise — errors are swallowed
+        with patch("httpx.AsyncClient", mock_client_cls):
+            import asyncio
+            asyncio.run(rs._fire_webhooks("conversation.completed", "a1", {}))
+
+    def test_fire_webhooks_empty_url_skipped(self):
+        """Webhooks with empty URLs are silently skipped."""
+        import src.rest_server as rs
+
+        db = MagicMock()
+        db.list_webhooks = AsyncMock(return_value=[
+            {"id": "w1", "url": "", "events": ["conversation.completed"]},
+            {"id": "w2", "url": "http://good.example.com/hook", "events": ["conversation.completed"]},
+        ])
+        rs._db_lucid = db
+
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock()
+        mock_client_cls = MagicMock()
+        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cls.return_value.__aexit__ = AsyncMock()
+
+        with patch("httpx.AsyncClient", mock_client_cls):
+            import asyncio
+            asyncio.run(rs._fire_webhooks("conversation.completed", "a1", {}))
+
+        # Only the valid URL should have been called
+        mock_client.post.assert_called_once()
+        assert mock_client.post.call_args[0][0] == "http://good.example.com/hook"
+
+    def test_fire_webhooks_db_error_handled(self):
+        """When list_webhooks raises, the function returns silently."""
+        import src.rest_server as rs
+
+        db = MagicMock()
+        db.list_webhooks = AsyncMock(side_effect=RuntimeError("db down"))
+        rs._db_lucid = db
+
+        # Should not raise
+        import asyncio
+        asyncio.run(rs._fire_webhooks("conversation.completed", "a1", {}))

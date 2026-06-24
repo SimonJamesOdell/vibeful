@@ -12,7 +12,7 @@ export default function NodePalette() {
   };
 
   return (
-    <div className="w-60 bg-slate-900 border-r border-slate-700 overflow-y-auto flex-shrink-0">
+    <div className="w-60 bg-slate-900 border-r border-slate-700 overflow-y-auto flex-shrink-0 h-full">
       <div className="p-3 border-b border-slate-700">
         <h2 className="text-sm font-semibold text-slate-200">Node Palette</h2>
         <p className="text-[10px] text-slate-500 mt-0.5">Drag a node onto the canvas, or click to add</p>

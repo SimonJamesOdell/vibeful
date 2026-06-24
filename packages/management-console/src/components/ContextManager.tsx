@@ -188,15 +188,32 @@ export default function ContextManager() {
   // ── Render ────────────────────────────────────────────
 
   return (
-    <div className="flex h-full bg-slate-900">
-      {/* Sidebar: context list */}
-      <div className="w-64 min-w-[256px] border-r border-slate-700 flex flex-col">
-        <div className="p-3 border-b border-slate-700">
-          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-            <BookOpen size={14} className="text-indigo-400" />
-            Knowledge Base
-          </h2>
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-200">Knowledge Base</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Upload documents, notes, and images to give agents contextual knowledge
+          </p>
         </div>
+      </div>
+
+      {error && (
+        <div className="mb-4 px-3 py-2 bg-red-900/30 border border-red-800/50 rounded-lg text-xs text-red-300 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300"><X size={14} /></button>
+        </div>
+      )}
+
+      <div className="flex bg-slate-900 border border-slate-700 rounded-xl overflow-hidden" style={{ minHeight: '480px' }}>
+        {/* Sidebar: context list */}
+        <div className="w-64 min-w-[256px] border-r border-slate-700 flex flex-col">
+          <div className="p-3 border-b border-slate-700">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+              <BookOpen size={12} className="text-indigo-400" />
+              Contexts
+            </h3>
+          </div>
 
         {/* Create form */}
         <div className="p-3 border-b border-slate-700 space-y-2">
@@ -403,6 +420,7 @@ export default function ContextManager() {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

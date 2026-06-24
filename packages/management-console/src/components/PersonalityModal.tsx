@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Smile, Zap, Briefcase, Lightbulb, Sparkles, Sliders } from 'lucide-react';
 
 export interface PersonalityConfig {
@@ -33,6 +33,8 @@ const TONE_ICONS: Record<string, React.ReactNode> = {
   custom: <Sliders size={16} />,
 };
 
+const LS_KEY = (agentId: string) => `vibeful:personality:snapshot:${agentId}`;
+
 interface Props {
   onClose: () => void;
   agentId: string | null;
@@ -49,38 +51,75 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
     empathy: 50,
     system_prompt: initialSystemPrompt || '',
   });
-  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSaved = useRef<string>('');
 
-  // Snapshot of config on mount — used by Revert
-  const savedConfigRef = useRef<PersonalityConfig>({ ...config });
+  // ── Auto-save helper ──────────────────────────────────────────
+  const savePersonality = useCallback((cfg: PersonalityConfig) => {
+    if (!agentId) return;
+    const payload = JSON.stringify({ system_prompt: cfg.system_prompt });
+    if (payload === lastSaved.current) return;
+    lastSaved.current = payload;
+    fetch(`/v1/agents/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    }).catch(() => {});
+  }, [agentId]);
 
-  // Load saved personality from the agent on mount
+  // Debounced auto-save on config change
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => savePersonality(config), 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [config, loaded, savePersonality]);
+
+  // ── Load saved personality + snapshot on mount ─────────────────
   useEffect(() => {
     if (!agentId) return;
     fetch(`/v1/agents/${agentId}`)
       .then((r) => r.json())
       .then((agent) => {
+        const next: PersonalityConfig = {
+          tone: 'professional',
+          temperature: 0.7,
+          formality: 50,
+          verbosity: 50,
+          humor: 30,
+          empathy: 50,
+          system_prompt: agent.system_prompt || initialSystemPrompt || '',
+        };
+        // Detect preset from existing system prompt
         if (agent.system_prompt) {
-          // Try to detect preset from existing system prompt
-          let detectedTone = 'custom';
           for (const [key, preset] of Object.entries(PRESETS)) {
             if (agent.system_prompt === preset.system_prompt) {
-              detectedTone = key;
+              next.tone = key;
+              Object.assign(next, preset);
               break;
             }
           }
-          setConfig((prev) => ({
-            ...prev,
-            tone: detectedTone,
-            system_prompt: agent.system_prompt || prev.system_prompt,
-          }));
+          if (next.tone === 'professional' && agent.system_prompt !== PRESETS.professional?.system_prompt) {
+            next.tone = 'custom';
+          }
         }
-        // Capture snapshot after load for Revert
-        savedConfigRef.current = { ...config };
+        setConfig(next);
+        // Store snapshot in localStorage
+        try { localStorage.setItem(LS_KEY(agentId), JSON.stringify(next)); } catch {}
+        setLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setLoaded(true));
+
+    return () => {
+      // Cleanup on close — clear localStorage snapshot
+      if (agentId) {
+        try { localStorage.removeItem(LS_KEY(agentId)); } catch {}
+      }
+    };
   }, [agentId]);
 
+  // ── Apply preset ──────────────────────────────────────────────
   const applyPreset = (key: string) => {
     const preset = PRESETS[key];
     if (!preset) return;
@@ -96,18 +135,22 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
     }));
   };
 
-  const handleSave = async () => {
+  // ── Revert to snapshot stored in localStorage ─────────────────
+  const handleRevert = () => {
     if (!agentId) return;
-    setSaving(true);
     try {
-      await fetch(`/v1/agents/${agentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: config.system_prompt }),
-      });
+      const raw = localStorage.getItem(LS_KEY(agentId));
+      if (raw) {
+        const snap = JSON.parse(raw) as PersonalityConfig;
+        setConfig(snap);
+        savePersonality(snap);
+      }
     } catch {}
-    setSaving(false);
-    onClose();
+  };
+
+  // ── Mutate a slider (marks tone as custom) ────────────────────
+  const setSlider = (field: keyof PersonalityConfig, value: number) => {
+    setConfig((p) => ({ ...p, [field]: value, tone: 'custom' }));
   };
 
   const renderSlider = (
@@ -128,7 +171,7 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
         max="100"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
       />
       <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
         <span>{leftLabel}</span>
@@ -143,8 +186,15 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <Smile size={14} className="text-purple-400" />
+            {TONE_ICONS[config.tone] || TONE_ICONS.custom}
             <span className="text-sm font-medium text-slate-200">Personality</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+              config.tone === 'custom'
+                ? 'bg-amber-500/15 text-amber-400'
+                : 'bg-purple-500/15 text-purple-400'
+            }`}>
+              {config.tone === 'custom' ? 'Custom' : config.tone.charAt(0).toUpperCase() + config.tone.slice(1)}
+            </span>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300"><X size={16} /></button>
         </div>
@@ -158,7 +208,11 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
                 <button
                   key={key}
                   onClick={() => applyPreset(key)}
-                  className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 hover:border-indigo-500 text-slate-300 capitalize"
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-colors capitalize ${
+                    config.tone === key
+                      ? 'border-purple-500 bg-purple-500/20 text-purple-300'
+                      : 'border-slate-700 hover:border-indigo-500 text-slate-300'
+                  }`}
                 >
                   {key}
                 </button>
@@ -178,7 +232,7 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
               max="2"
               step="0.1"
               value={config.temperature}
-              onChange={(e) => { setConfig((p) => ({ ...p, temperature: Number(e.target.value), tone: 'custom' })); }}
+              onChange={(e) => setSlider('temperature', Number(e.target.value))}
               className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
             />
             <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
@@ -188,10 +242,10 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
           </div>
 
           {/* Sliders */}
-          {renderSlider('Formality', config.formality, (v) => setConfig((p) => ({ ...p, formality: v, tone: 'custom' })), 'Casual', 'Formal')}
-          {renderSlider('Verbosity', config.verbosity, (v) => setConfig((p) => ({ ...p, verbosity: v, tone: 'custom' })), 'Concise', 'Detailed')}
-          {renderSlider('Humor', config.humor, (v) => setConfig((p) => ({ ...p, humor: v, tone: 'custom' })), 'Serious', 'Playful')}
-          {renderSlider('Empathy', config.empathy, (v) => setConfig((p) => ({ ...p, empathy: v, tone: 'custom' })), 'Detached', 'Empathetic')}
+          {renderSlider('Formality', config.formality, (v) => setSlider('formality', v), 'Casual', 'Formal')}
+          {renderSlider('Verbosity', config.verbosity, (v) => setSlider('verbosity', v), 'Concise', 'Detailed')}
+          {renderSlider('Humor', config.humor, (v) => setSlider('humor', v), 'Serious', 'Playful')}
+          {renderSlider('Empathy', config.empathy, (v) => setSlider('empathy', v), 'Detached', 'Empathetic')}
 
           {/* System Prompt */}
           <div>
@@ -209,55 +263,15 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-700">
+        {/* Footer — Revert only */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-700 px-4 pb-4">
           <button
-            onClick={() => {
-              setConfig({ ...savedConfigRef.current });
-            }}
+            onClick={handleRevert}
             className="px-3 py-1.5 text-[11px] text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/30 hover:text-indigo-200 rounded"
-            title="Undo changes, restore personality from when you opened this panel"
+            title="Restore personality to how it was when you opened this panel"
           >
             Revert
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </div>
-
-      {/* Right: Preview card */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-slate-950">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <Smile size={12} className="text-purple-400" />
-            </div>
-            <span className="text-xs font-medium text-slate-300 capitalize">{config.tone} Agent</span>
-          </div>
-          <div className="space-y-2">
-            {[
-              { label: 'Temperature', value: config.temperature.toFixed(1), max: 2 },
-              { label: 'Formality', value: `${config.formality}%` },
-              { label: 'Verbosity', value: `${config.verbosity}%` },
-              { label: 'Humor', value: `${config.humor}%` },
-              { label: 'Empathy', value: `${config.empathy}%` },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500 w-20">{item.label}</span>
-                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-purple-500 rounded-full transition-all"
-                    style={{ width: item.label === 'Temperature' ? `${(config.temperature / 2) * 100}%` : item.value }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

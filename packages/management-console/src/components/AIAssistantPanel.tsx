@@ -572,6 +572,500 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       }
       return { styling: 'applied', ...details };
     });
+
+    // ── MCP server commands ──────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_MCP_SERVER, async (details) => {
+      const name = details.name as string;
+      const url = details.url as string;
+      if (!name || !url) throw new Error('name and url required');
+      const resp = await fetch('/v1/mcp-servers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url,
+          transport: (details.transport as string) || 'http',
+          auth_type: (details.auth_type as string) || 'none',
+          auth_header: (details.auth_header as string) || '',
+          agent_id: (details.agent_id as string) || null,
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to create MCP server');
+      return { created: true, name, url };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DELETE_MCP_SERVER, async (details) => {
+      const serverId = details.server_id as string;
+      if (!serverId) throw new Error('server_id required');
+      const resp = await fetch(`/v1/mcp-servers/${serverId}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete MCP server');
+      return { deleted: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.START_MCP_SERVER, async (details) => {
+      const serverId = details.server_id as string;
+      if (!serverId) throw new Error('server_id required');
+      const resp = await fetch(`/v1/mcp-servers/${serverId}/start`, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).detail || 'Failed to start MCP server');
+      }
+      const data = await resp.json();
+      if (data.status === 'ok' || data.status === 'started') {
+        return { started: true, server_id: serverId };
+      }
+      throw new Error(data.error || 'Failed to start MCP server');
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.STOP_MCP_SERVER, async (details) => {
+      const serverId = details.server_id as string;
+      if (!serverId) throw new Error('server_id required');
+      const resp = await fetch(`/v1/mcp-servers/${serverId}/stop`, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).detail || 'Failed to stop MCP server');
+      }
+      const data = await resp.json();
+      if (data.status === 'ok' || data.status === 'stopped') {
+        return { stopped: true, server_id: serverId };
+      }
+      throw new Error(data.error || 'Failed to stop MCP server');
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.ATTACH_MCP, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const serverUrls = (details.server_urls || details.urls) as string[];
+      if (!agentId) throw new Error('No agent selected');
+      if (!serverUrls || serverUrls.length === 0) throw new Error('server_urls required');
+      const resp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mcp_server_urls: serverUrls }),
+      });
+      if (!resp.ok) throw new Error('Failed to attach MCP servers');
+      return { attached: serverUrls.length };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DETACH_MCP, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const serverUrl = details.server_url as string;
+      if (!agentId) throw new Error('No agent selected');
+      if (!serverUrl) throw new Error('server_url required');
+      const resp = await fetch(`/v1/agents/${agentId}`);
+      const agent = await resp.json();
+      const currentUrls = (agent.mcp_server_urls || []) as string[];
+      const newUrls = currentUrls.filter((u: string) => u !== serverUrl);
+      const updateResp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mcp_server_urls: newUrls }),
+      });
+      if (!updateResp.ok) throw new Error('Failed to detach MCP server');
+      return { detached: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CHECK_MCP_HEALTH, async () => {
+      const resp = await fetch('/v1/mcp-servers/health');
+      if (!resp.ok) throw new Error('Health check failed');
+      const data = await resp.json();
+      return { servers: data };
+    });
+
+    // ── Guardrails command ───────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.SET_GUARDRAILS, (details) => {
+      const rules = details.rules as Record<string, boolean> | undefined;
+      const customInstructions = details.custom_instructions as string | undefined;
+      if (rules || customInstructions !== undefined) {
+        const agentId = activeAgentId;
+        if (agentId) {
+          const key = `vibeful:guardrails:${agentId}`;
+          try {
+            const existing = JSON.parse(localStorage.getItem(key) || '{}');
+            const state = {
+              toggles: rules ? { ...existing.toggles, ...rules } : existing.toggles || {},
+              customInstructions: customInstructions !== undefined ? customInstructions : (existing.customInstructions || ''),
+            };
+            localStorage.setItem(key, JSON.stringify(state));
+          } catch {}
+        }
+      }
+      window.dispatchEvent(new CustomEvent('vibeful:guardrails-modal', { detail: details }));
+      return { guardrails: 'applied' };
+    });
+
+    // ── MCP bulk + discovery commands ────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.START_ALL_MCP, async () => {
+      const resp = await fetch('/v1/mcp-servers/builtin/start', { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to start all MCP servers');
+      const data = await resp.json();
+      return { status: data.status };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.STOP_ALL_MCP, async () => {
+      const resp = await fetch('/v1/mcp-servers/builtin/stop', { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to stop all MCP servers');
+      const data = await resp.json();
+      return { status: data.status };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DISCOVER_MCP_TOOLS, async (details) => {
+      const serverUrl = details.server_url as string;
+      if (!serverUrl) throw new Error('server_url required');
+      const resp = await fetch(`${serverUrl.replace(/\/$/, '')}/mcp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 'discover-1', method: 'tools/list', params: {} }),
+      });
+      if (!resp.ok) throw new Error('Tool discovery failed');
+      const data = await resp.json();
+      const tools = (data.result?.tools || []).map((t: any) => ({
+        name: t.name,
+        description: t.description || '',
+      }));
+      return { tools };
+    });
+
+    // ── Concepts & memories read commands ────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_CONCEPTS, async (details) => {
+      const params = new URLSearchParams();
+      if (details.domain) params.set('domain', details.domain as string);
+      if (details.search) params.set('search', details.search as string);
+      const resp = await fetch(`/v1/concepts?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch concepts');
+      const data = await resp.json();
+      return { concepts: data.concepts || [] };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_GLOBAL_MEMORIES, async (details) => {
+      const params = new URLSearchParams();
+      if (details.type) params.set('type', details.type as string);
+      const resp = await fetch(`/v1/global-memories?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch global memories');
+      const data = await resp.json();
+      return { memories: data.memories || [] };
+    });
+
+    // ── Context file listing ─────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_CONTEXT_FILES, async (details) => {
+      const contextId = details.context_id as string;
+      if (!contextId) throw new Error('context_id required');
+      const resp = await fetch(`/v1/contexts/${contextId}/files`);
+      if (!resp.ok) throw new Error('Failed to fetch context files');
+      const data = await resp.json();
+      return { files: Array.isArray(data) ? data : [] };
+    });
+
+    // ── Token balance ────────────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.GET_TOKEN_BALANCE, async (details) => {
+      const userIdentity = (details.user_identity || details.user) as string;
+      if (!userIdentity) throw new Error('user_identity required');
+      const params = new URLSearchParams({ user_identity: userIdentity });
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      const resp = await fetch(`/v1/tokens/balance?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch token balance');
+      return await resp.json();
+    });
+
+    // ── Agent description ────────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.SET_AGENT_DESCRIPTION, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const description = details.description as string;
+      if (!agentId) throw new Error('No agent selected');
+      if (description === undefined) throw new Error('description required');
+      const resp = await fetch(`/v1/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      });
+      if (!resp.ok) throw new Error('Failed to update agent description');
+      useFlowStore.getState().setAgentDescription?.(description);
+      return { updated: true };
+    });
+
+    // ── Image analysis ───────────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.ANALYZE_IMAGE, async (details) => {
+      const imageUrl = (details.image_url || details.url) as string;
+      const question = (details.question || details.query || 'Describe this image') as string;
+      if (!imageUrl) throw new Error('image_url required');
+      // Use the converse endpoint with a vision-capable model
+      const resp = await fetch('/converse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: question,
+          system_prompt: 'You are a vision analysis assistant. Describe images clearly and accurately.',
+          model: 'deepseek-chat',
+          image_url: imageUrl,
+        }),
+      });
+      if (!resp.ok) throw new Error('Image analysis failed');
+      const data = await resp.json();
+      return { analysis: data.response || data.content || 'No analysis returned' };
+    });
+
+    // ── Agent Pages command ───────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_PAGE, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const slug = details.slug as string;
+      const title = (details.title as string) || slug || 'Untitled Page';
+      if (!agentId) throw new Error('No agent selected');
+      if (!slug) throw new Error('slug required');
+      const resp = await fetch('/v1/pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          slug: slug.toLowerCase().replace(/\s+/g, '-'),
+          title,
+          content_markdown: (details.content_markdown || details.content || '') as string,
+          layout_json: (details.layout_json || '{}') as string,
+          published: details.published ? 1 : 0,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).detail || 'Failed to create page');
+      }
+      const page = await resp.json();
+      return { id: page.id, slug: page.slug, title: page.title };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.UPDATE_PAGE, async (details) => {
+      const pageId = details.page_id as string;
+      if (!pageId) throw new Error('page_id required');
+      const updates: Record<string, unknown> = {};
+      if (details.title !== undefined) updates.title = details.title;
+      if (details.content_markdown !== undefined) updates.content_markdown = details.content_markdown;
+      if (details.content !== undefined) updates.content_markdown = details.content;
+      if (details.layout_json !== undefined) updates.layout_json = details.layout_json;
+      if (Object.keys(updates).length === 0) throw new Error('No fields to update');
+      const resp = await fetch(`/v1/pages/${pageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!resp.ok) throw new Error('Failed to update page');
+      return { updated: true, page_id: pageId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.PUBLISH_PAGE, async (details) => {
+      const pageId = details.page_id as string;
+      const publish = details.publish !== false; // default to true
+      if (!pageId) throw new Error('page_id required');
+      const resp = await fetch(`/v1/pages/${pageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: publish ? 1 : 0 }),
+      });
+      if (!resp.ok) throw new Error('Failed to update page');
+      return { published: publish, page_id: pageId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DELETE_PAGE, async (details) => {
+      const pageId = details.page_id as string;
+      if (!pageId) throw new Error('page_id required');
+      const resp = await fetch(`/v1/pages/${pageId}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete page');
+      return { deleted: true, page_id: pageId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_PAGES, async (details) => {
+      const params = new URLSearchParams();
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      const resp = await fetch(`/v1/pages?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch pages');
+      const pages = await resp.json();
+      const publishedOnly = details.published_only !== false;
+      const filtered = publishedOnly
+        ? (Array.isArray(pages) ? pages.filter((p: any) => p.published) : pages)
+        : pages;
+      return { pages: filtered };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.GET_ANALYTICS, async () => {
+      const resp = await fetch('/v1/analytics');
+      if (!resp.ok) throw new Error('Failed to fetch analytics');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.BROWSE_MCP_CATALOG, async () => {
+      const resp = await fetch('/v1/mcp-servers');
+      if (!resp.ok) throw new Error('Failed to fetch MCP catalog');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.INSTALL_MCP_SERVER, async (details) => {
+      const name = details.name as string;
+      const url = details.url as string;
+      const serverId = (details.server_id || details.id) as string | undefined;
+      if (!name || !url) throw new Error('name and url required');
+      const resp = await fetch('/v1/mcp-servers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: serverId || undefined,
+          name,
+          url,
+          transport: (details.transport as string) || 'http',
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to install MCP server');
+      return { installed: true, name, url };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.EXECUTE_AGENT, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const message = details.message as string;
+      if (!agentId) throw new Error('No agent selected');
+      if (!message) throw new Error('message required');
+      const resp = await fetch(`/v1/agents/${agentId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!resp.ok) throw new Error('Agent execution failed');
+      const data = await resp.json();
+      return {
+        response: data.response,
+        tool_calls: data.tool_calls,
+        usage: data.usage,
+      };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.REGISTER_WEBHOOK, async (details) => {
+      const url = details.url as string;
+      const events = details.events as string[] | undefined;
+      if (!url) throw new Error('url required');
+      const resp = await fetch('/v1/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, events: events || ['conversation.completed'] }),
+      });
+      if (!resp.ok) throw new Error('Failed to register webhook');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_API_KEY, async (details) => {
+      const name = (details.name as string) || '';
+      const agentId = (details.agent_id as string) || null;
+      const resp = await fetch('/v1/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, agent_id: agentId }),
+      });
+      if (!resp.ok) throw new Error('Failed to create API key');
+      const data = await resp.json();
+      return { id: data.id, key_prefix: data.key_prefix, raw_key: data.raw_key };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_API_KEYS, async (details) => {
+      const params = new URLSearchParams();
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      const resp = await fetch(`/v1/api-keys?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to list API keys');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.REVOKE_API_KEY, async (details) => {
+      const keyId = details.key_id as string;
+      if (!keyId) throw new Error('key_id required');
+      const resp = await fetch(`/v1/api-keys/${keyId}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to revoke API key');
+      return { revoked: true };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.GET_AUDIT_LOG, async (details) => {
+      const params = new URLSearchParams();
+      if (details.resource_type) params.set('resource_type', details.resource_type as string);
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      if (details.limit) params.set('limit', String(details.limit));
+      const resp = await fetch(`/v1/audit?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch audit log');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.EXPORT_AGENT, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      if (!agentId) throw new Error('No agent selected');
+      const resp = await fetch(`/v1/agents/${agentId}/export`);
+      if (!resp.ok) throw new Error('Failed to export agent');
+      const yaml = await resp.text();
+      return { yaml, agent_id: agentId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.IMPORT_AGENT, async (details) => {
+      const yamlContent = details.yaml_content as string;
+      if (!yamlContent) throw new Error('yaml_content required');
+      const resp = await fetch('/v1/agents/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ yaml_content: yamlContent }),
+      });
+      if (!resp.ok) throw new Error('Failed to import agent');
+      const data = await resp.json();
+      onAgentsChanged();
+      return { id: data.id, name: data.name };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.PROMOTE_AGENT, async (details) => {
+      const sourceId = details.source_agent_id as string;
+      const targetId = (details.target_agent_id || activeAgentId) as string;
+      if (!sourceId) throw new Error('source_agent_id required');
+      if (!targetId) throw new Error('target_agent_id required (or select an agent)');
+      const resp = await fetch('/v1/agents/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_agent_id: sourceId, target_agent_id: targetId }),
+      });
+      if (!resp.ok) throw new Error('Failed to promote agent');
+      onAgentsChanged();
+      return { status: 'promoted', source: sourceId, target: targetId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_TEST, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const inputMessage = details.input_message as string;
+      if (!agentId) throw new Error('No agent selected');
+      if (!inputMessage) throw new Error('input_message required');
+      const resp = await fetch('/v1/agent-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          name: (details.name as string) || '',
+          input_message: inputMessage,
+          expected_contains: (details.expected_contains as string) || '',
+          expected_not_contains: (details.expected_not_contains as string) || '',
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to create test');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_TESTS, async (details) => {
+      const params = new URLSearchParams();
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      const resp = await fetch(`/v1/agent-tests?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to list tests');
+      return await resp.json();
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.RUN_TESTS, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      if (!agentId) throw new Error('No agent selected');
+      const resp = await fetch(`/v1/agent-tests/run-all?agent_id=${agentId}`, { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed to run tests');
+      return await resp.json();
+    });
   }, [onNavigate, onAgentsChanged, onContextsChanged, setAgentName, agentName]);
 
   // Quick-start auto-trigger: Dashboard "Create Chatbot" fires this event

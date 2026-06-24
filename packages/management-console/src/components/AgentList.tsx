@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Trash2, Copy, Pencil, Check, X } from 'lucide-react';
+import { Bot, Trash2, Copy, Pencil, Check, X, Plus } from 'lucide-react';
 
 interface AgentSummary {
   id: string;
@@ -104,40 +104,48 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-slate-500 text-sm">Loading agents…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-red-400 text-sm">Failed to load agents: {error}</p>
-      </div>
-    );
-  }
-
-  if (agents.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <Bot size={32} className="text-slate-600" />
-        <p className="text-slate-500 text-sm">No agents yet</p>
-        <p className="text-slate-600 text-xs">Create one in the Designer tab</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <h2 className="text-lg font-semibold text-slate-200 mb-4">Agents</h2>
-      <div className="grid grid-cols-2 gap-4">
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-200">Agents</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Manage your AI agents — click to edit, rename, clone, or delete
+          </p>
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: { template: 'minimal' } }))}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs transition-colors"
+        >
+          <Plus size={14} />
+          Add Agent
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-4 px-3 py-2 bg-red-900/30 border border-red-800/50 rounded-lg text-xs text-red-300 flex items-center justify-between">
+          <span>Failed to load agents: {error}</span>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300"><X size={14} /></button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <p className="text-slate-500 text-sm">Loading agents…</p>
+        </div>
+      ) : agents.length === 0 ? (
+        <div className="text-center py-12">
+          <Bot size={32} className="text-slate-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 mb-1">No agents yet</p>
+          <p className="text-xs text-slate-600">Create one in the Designer tab</p>
+        </div>
+      ) : (
+      <>
+      <div className="space-y-3">
         {agents.map((agent) => (
           <div
             key={agent.id}
-            className="p-4 bg-slate-900 border border-slate-700 rounded-lg hover:border-indigo-500 transition-colors group"
+            className="p-4 bg-slate-900 border border-slate-700 rounded-xl hover:border-indigo-500 transition-colors group"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
@@ -202,6 +210,8 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

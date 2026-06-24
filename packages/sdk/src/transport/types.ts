@@ -29,6 +29,9 @@ export interface ConversationChunk {
   tool_call?: { call_id: string; name: string; arguments: string };
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost_usd: number };
   error?: string;
+  citations?: unknown[];
+  follow_up_questions?: string[];
+  quick_replies?: unknown[];
 }
 
 export interface TransportConfig {
