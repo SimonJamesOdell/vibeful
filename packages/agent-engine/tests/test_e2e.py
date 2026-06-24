@@ -261,13 +261,20 @@ async def test_system_prompt_passed_to_llm():
         )
         await graph.ainvoke(state)
 
-    # Verify the system prompt was included in the messages sent to the LLM
-    call_args = mock_client.chat.call_args
-    messages = call_args.kwargs.get("messages", call_args.args[0] if call_args.args else [])
-    system_msgs = [m for m in messages if m.get("role") == "system"]
-    assert len(system_msgs) >= 1, "System prompt was not passed to LLM"
-    assert any("pirate" in str(s.get("content", "")) for s in system_msgs), (
-        "System prompt content not found in messages sent to LLM"
+    # Verify the system prompt was passed to the LLM client in at least one call.
+    # The mock client.chat is called by multiple graph nodes (planning, intent
+    # classification, react agent, follow-ups) — only react_agent_node passes
+    # the system_prompt kwarg. Check all calls, not just the last one.
+    all_system_prompts = []
+    for call in mock_client.chat.call_args_list:
+        sp = call.kwargs.get("system_prompt", "")
+        if sp:
+            all_system_prompts.append(sp)
+    assert len(all_system_prompts) >= 1, (
+        f"System prompt was not passed to LLM in any of {mock_client.chat.call_count} calls"
+    )
+    assert any("pirate" in sp for sp in all_system_prompts), (
+        f"System prompt content not found in calls: {[sp[:60] for sp in all_system_prompts]}"
     )
 
 
@@ -285,11 +292,15 @@ async def test_default_system_prompt_when_none_provided():
         )
         await graph.ainvoke(state)
 
-    # Verify some system message exists (the default)
-    call_args = mock_client.chat.call_args
-    messages = call_args.kwargs.get("messages", call_args.args[0] if call_args.args else [])
-    system_msgs = [m for m in messages if m.get("role") == "system"]
-    assert len(system_msgs) >= 1, "No system prompt (not even default) was passed to LLM"
+    # Verify a default system prompt exists in at least one LLM call
+    all_system_prompts = []
+    for call in mock_client.chat.call_args_list:
+        sp = call.kwargs.get("system_prompt", "")
+        if sp:
+            all_system_prompts.append(sp)
+    assert len(all_system_prompts) >= 1, (
+        f"No system prompt (not even default) in any of {mock_client.chat.call_count} calls"
+    )
 
 
 @pytest.mark.asyncio

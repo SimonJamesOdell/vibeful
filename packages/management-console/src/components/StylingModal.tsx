@@ -25,14 +25,14 @@ const CDN_BASES: Record<string, { label: string; url: (name: string) => string }
 };
 
 /** Normalize LLM-emitted preset values: "light mode" → "light", "Dark Theme" → "dark" */
-function normalizePreset(raw: string): string {
+export function normalizePreset(raw: string): string {
   let key = raw.toLowerCase().trim();
   // Strip common suffix words
   key = key.replace(/\s+(mode|theme|preset|style)$/, '');
   return key;
 }
 
-const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
+export const PRESET_STYLES: Record<string, Partial<StylingConfig>> = {
   default: { bgColor: '#1e293b', fontColor: '#e2e8f0', fontFamily: '"Inter", sans-serif', fontSize: '14px' },
   light: { bgColor: '#ffffff', fontColor: '#1e293b', fontFamily: 'system-ui', fontSize: '14px' },
   dark: { bgColor: '#0f172a', fontColor: '#f1f5f9', fontFamily: '"Inter", sans-serif', fontSize: '14px' },

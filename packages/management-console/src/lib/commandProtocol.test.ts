@@ -261,7 +261,7 @@ describe('render_widget command parsing', () => {
     const commands = parseCommands(text);
     expect(commands).toHaveLength(1);
     expect(commands[0].details.widgets).toHaveLength(2);
-    expect(commands[0].details.widgets[0].type).toBe('button');
-    expect(commands[0].details.widgets[1].type).toBe('card');
+    expect((commands[0].details.widgets as any)[0].type).toBe('button');
+    expect((commands[0].details.widgets as any)[1].type).toBe('card');
   });
 });

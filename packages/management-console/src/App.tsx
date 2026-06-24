@@ -121,8 +121,14 @@ export default function App() {
     dirtyRef.current = false; // suppress auto-save on freshly loaded agent
 
     // Reapply persisted styling for this agent (from database)
-    const savedPreset = loadAgentStyling(data);
-    if (savedPreset) applyStylingToDOM(savedPreset);
+    try {
+      const resp2 = await fetch(`/v1/agents/${agentId}`);
+      if (resp2.ok) {
+        const agentData = await resp2.json();
+        const savedPreset = loadAgentStyling(agentData);
+        if (savedPreset) applyStylingToDOM(savedPreset);
+      }
+    } catch { /* styling is best-effort */ }
   };
 
   const {
@@ -468,7 +474,7 @@ export default function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
         {activeTab === 'dashboard' ? (
           <Dashboard
-            onNavigate={setActiveTab}
+            onNavigate={(tab: string) => setActiveTab(tab as any)}
             agents={agentList}
             contexts={contextList}
             onSelectAgent={switchToAgent}
@@ -562,13 +568,19 @@ export default function App() {
               <div className="flex-1 min-w-0 relative">
                 <FlowCanvas />
                  {activeModal === 'styling' && (
-                  <StylingModal
-                    agentId={activeAgentId}
-                    initialPreset={stylingPresetRef.current}
-                    initialFont={stylingFontRef.current}
-                    onClose={() => { setActiveModal(null); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
-                  />
-                )}
+                   <StylingModal
+                     agentId={activeAgentId}
+                     initialPreset={stylingPresetRef.current}
+                     initialFont={stylingFontRef.current}
+                     onClose={() => { setActiveModal(null); stylingPresetRef.current = undefined; stylingFontRef.current = undefined; }}
+                   />
+                 )}
+                 {activeModal === 'personality' && (
+                   <PersonalityModal
+                     agentId={activeAgentId}
+                     onClose={() => setActiveModal(null)}
+                   />
+                 )}
                 {quickStartToast && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-indigo-600/95 text-white rounded-xl shadow-2xl animate-pulse flex items-center gap-3 text-sm font-medium">
                   <Loader2 size={16} className="animate-spin" />
@@ -652,7 +664,7 @@ export default function App() {
             contexts={contextList}
             activeTab={activeTab}
             activeAgentId={activeAgentId}
-            onNavigate={setActiveTab}
+            onNavigate={(tab: string) => setActiveTab(tab as any)}
             onAgentsChanged={fetchAgents}
             onContextsChanged={fetchContexts}
           />
@@ -671,23 +683,18 @@ export default function App() {
         // Extract system prompt from agent's graph nodes
         const spNode = nodes.find((n) => n.data.nodeType === 'builtin.system_prompt' || n.data.label?.toLowerCase().includes('system prompt'));
         const prompt = spNode?.data?.config?.prompt || spNode?.data?.config?.content || '';
-        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt || undefined} onClose={() => setActiveModal(null)} />;
+        return <TestChatModal agentName={agentName || 'My Agent'} systemPrompt={prompt ? String(prompt) : undefined} onClose={() => setActiveModal(null)} />;
       })()}
       {activeModal === 'knowledge' && (
         <KnowledgeAttachModal
           activeAgentId={activeAgentId}
           contextList={contextList}
           onClose={() => setActiveModal(null)}
-          onNavigate={setActiveTab}
+          onNavigate={(tab: string) => setActiveTab(tab as any)}
           onRefresh={fetchContexts}
         />
       )}
-      {activeModal === 'personality' && (
-        <PersonalityModal
-          agentId={activeAgentId}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
+
     </ReactFlowProvider>
   );
 }

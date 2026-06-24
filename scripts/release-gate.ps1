@@ -20,6 +20,68 @@ function pass($msg)  { Write-Host "  ✓ $msg" -ForegroundColor Green }
 function warn($msg)  { Write-Host "  ⚠ $msg" -ForegroundColor Yellow; $script:WARNINGS++ }
 function fail($msg)  { Write-Host "  ✗ $msg" -ForegroundColor Red; $script:FAILED = $true }
 
+# ── 0. Secret scan ──────────────────────────────────────────
+header "Secret scan"
+
+# Patterns that indicate leaked credentials — any match fails the gate.
+# Designed to catch real secrets with minimal false positives.
+$secretPatterns = @(
+    @{ Name="DeepSeek/OpenAI API key";       Regex='\bsk-[a-zA-Z0-9]{20,}\b' },
+    @{ Name="AWS access key";                Regex='\bAKIA[0-9A-Z]{16}\b' },
+    @{ Name="GitHub personal access token";  Regex='\bghp_[a-zA-Z0-9]{36}\b' },
+    @{ Name="GitHub fine-grained token";     Regex='\bgithub_pat_[a-zA-Z0-9_]{22,}\b' },
+    @{ Name="Private key block";             Regex='-----BEGIN\s.*\sPRIVATE\sKEY-----' }
+)
+
+# Build list of files to scan: tracked + staged (what would be pushed)
+$filesToScan = @()
+$filesToScan += (git ls-files -z --cached 2>$null) -split "`0" | Where-Object { $_ -and (Test-Path $_) }
+$staged = (git diff --cached --name-only --diff-filter=ACM 2>$null) -split "`n" | Where-Object { $_ -and (Test-Path $_) }
+$filesToScan += $staged
+$filesToScan = $filesToScan | Select-Object -Unique
+
+# Skip binary files and generated files
+$skipGlobs = @('*.db', '*.db-shm', '*.db-wal', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.ico',
+               '*.woff', '*.woff2', '*.ttf', '*.eot', '*.mp3', '*.mp4', '*.webm',
+               '*.lock', 'pnpm-lock.yaml', 'package-lock.json', '*.egg-info/*',
+               '__pycache__/*', '*.pyc', '.pytest_cache/*', 'dist/*', '.venv/*')
+$skipExts = @('.db','.db-shm','.db-wal','.png','.jpg','.jpeg','.gif','.ico',
+              '.woff','.woff2','.ttf','.eot','.mp3','.mp4','.webm','.zip','.gz','.tar')
+
+$scanCount = 0
+$hitCount = 0
+foreach ($file in $filesToScan) {
+    $ext = [IO.Path]::GetExtension($file).ToLower()
+    if ($ext -in $skipExts) { continue }
+    $relPath = $file -replace '\\','/'
+    $skip = $false
+    foreach ($glob in $skipGlobs) { if ($relPath -like $glob) { $skip = $true; break } }
+    if ($skip) { continue }
+
+    try {
+        $content = Get-Content -Path $file -Raw -ErrorAction Stop
+        if ($content.Length -gt 1048576) { continue }  # skip files >1MB
+    } catch { continue }
+
+    $scanCount++
+    foreach ($pat in $secretPatterns) {
+        $matches = [regex]::Matches($content, $pat.Regex)
+        foreach ($m in $matches) {
+            $lineNum = ($content.Substring(0, $m.Index).Split("`n").Count)
+            # Redact the secret value in output
+            $redacted = $m.Value.Substring(0, [Math]::Min(8, $m.Value.Length)) + '...'
+            fail "$($pat.Name) in $($file):$lineNum ($redacted)"
+            $hitCount++
+        }
+    }
+}
+
+if ($hitCount -gt 0) {
+    Write-Host ""; fail "Secret scan FAILED — $hitCount potential secret(s) found. Remove or revoke them before pushing."
+} else {
+    pass "Secret scan clean ($scanCount files scanned)"
+}
+
 # ── 1. Python tests ─────────────────────────────────────────
 header "Python tests (pytest)"
 Push-Location "$ROOT/packages/agent-engine"

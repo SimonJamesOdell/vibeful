@@ -197,6 +197,16 @@ class SqliteBackend:
             CREATE INDEX IF NOT EXISTS idx_global_memories_type ON global_memories(memory_type);
             CREATE INDEX IF NOT EXISTS idx_token_credits_user ON token_credits(user_identity, agent_id);
             CREATE INDEX IF NOT EXISTS idx_agent_versions_agent ON agent_versions(agent_id);
+
+            CREATE TABLE IF NOT EXISTS api_integrations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider TEXT DEFAULT 'custom',
+                api_key TEXT DEFAULT '',
+                base_url TEXT DEFAULT '',
+                description TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
         """)
         await conn.commit()
 
@@ -663,3 +673,32 @@ class SqliteBackend:
 
         scored.sort(key=lambda x: x["similarity"], reverse=True)
         return scored[:top_k]
+
+    # ── API Integrations ─────────────────────────────────
+
+    async def list_integrations(self) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM api_integrations ORDER BY created_at DESC") as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def create_integration(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        iid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO api_integrations (id, name, provider, api_key, base_url, description)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (iid, data["name"], data.get("provider", "custom"), data.get("api_key", ""),
+             data.get("base_url", ""), data.get("description", "")),
+        )
+        await conn.commit()
+        async with conn.execute("SELECT * FROM api_integrations WHERE id = ?", (iid,)) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else {}
+
+    async def delete_integration(self, iid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute("DELETE FROM api_integrations WHERE id = ?", (iid,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0

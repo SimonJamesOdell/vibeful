@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Smile, Zap, Briefcase, Lightbulb, Sparkles, Sliders } from 'lucide-react';
 
-interface PersonalityConfig {
+export interface PersonalityConfig {
   tone: string;           // 'professional' | 'friendly' | 'creative' | 'technical' | 'playful' | 'custom'
   temperature: number;    // 0.0 - 2.0
   formality: number;      // 0 (casual) - 100 (formal)
@@ -11,7 +11,7 @@ interface PersonalityConfig {
   system_prompt: string;
 }
 
-const PRESETS: Record<string, Partial<PersonalityConfig>> = {
+export const PRESETS: Record<string, Partial<PersonalityConfig>> = {
   professional: { tone: 'professional', temperature: 0.3, formality: 90, verbosity: 50, humor: 10, empathy: 30,
     system_prompt: 'You are a professional, business-oriented assistant. Be concise, accurate, and formal. Use clear language and avoid casual expressions.' },
   friendly: { tone: 'friendly', temperature: 0.6, formality: 20, verbosity: 60, humor: 60, empathy: 80,
@@ -51,6 +51,9 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
   });
   const [saving, setSaving] = useState(false);
 
+  // Snapshot of config on mount — used by Revert
+  const savedConfigRef = useRef<PersonalityConfig>({ ...config });
+
   // Load saved personality from the agent on mount
   useEffect(() => {
     if (!agentId) return;
@@ -72,6 +75,8 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
             system_prompt: agent.system_prompt || prev.system_prompt,
           }));
         }
+        // Capture snapshot after load for Revert
+        savedConfigRef.current = { ...config };
       })
       .catch(() => {});
   }, [agentId]);
@@ -148,18 +153,13 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
           {/* Presets */}
           <div>
             <label className="text-xs text-slate-400 font-medium mb-2 block">Presets</label>
-            <div className="grid grid-cols-3 gap-2">
-              {Object.entries(PRESETS).map(([key, preset]) => (
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(PRESETS).map(([key]) => (
                 <button
                   key={key}
                   onClick={() => applyPreset(key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs border transition-all capitalize ${
-                    config.tone === key
-                      ? 'border-purple-500 bg-purple-500/10 text-purple-200'
-                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'
-                  }`}
+                  className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 hover:border-indigo-500 text-slate-300 capitalize"
                 >
-                  {TONE_ICONS[key]}
                   {key}
                 </button>
               ))}
@@ -210,7 +210,16 @@ export default function PersonalityModal({ onClose, agentId, initialSystemPrompt
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-700 bg-slate-800/30 sticky bottom-0">
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-700">
+          <button
+            onClick={() => {
+              setConfig({ ...savedConfigRef.current });
+            }}
+            className="px-3 py-1.5 text-[11px] text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/30 hover:text-indigo-200 rounded"
+            title="Undo changes, restore personality from when you opened this panel"
+          >
+            Revert
+          </button>
           <button
             onClick={handleSave}
             disabled={saving}

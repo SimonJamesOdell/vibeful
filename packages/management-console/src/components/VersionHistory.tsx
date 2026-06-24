@@ -104,7 +104,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
           tags: ['restore'],
         }),
       });
-      await fetchVersions(trackedId);
+      await fetchVersions(trackedId!);
     }
   };
 
@@ -122,7 +122,7 @@ export default function VersionHistory({ agentId }: { agentId?: string | null })
       });
       const data = await resp.json();
       if (resp.ok && data.id) {
-        setAgentId(data.id);
+        setTrackedId(data.id);
         await saveVersion();
         await fetchVersions(data.id);
         alert(`Agent deployed! ID: ${data.id}`);

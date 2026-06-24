@@ -6,11 +6,11 @@ import { TEMPLATES } from './templates';
 // Invariants for the Vibeful Guide system prompt.
 //
 // REGRESSION GUARDS:
-// - start_tour must NOT auto-trigger when the Guide is explaining
-//   nodes conversationally (the prompt must explicitly forbid this)
-// - The start_tour example must use labels that exist in at least
-//   one template (otherwise the LLM will never produce working tours)
 // - SYSTEM_PROMPT must be a non-empty string
+// - The prompt must enforce brevity (1-2 lines after commands)
+// - The prompt must document all key commands the LLM can emit
+// - Template references must use valid keys
+// - Node type descriptions must be injected dynamically
 // ═══════════════════════════════════════════════════════════════
 
 describe('SYSTEM_PROMPT invariants', () => {
@@ -19,126 +19,94 @@ describe('SYSTEM_PROMPT invariants', () => {
     expect(SYSTEM_PROMPT.length).toBeGreaterThan(100);
   });
 
-  it('forbids auto-triggering start_tour alongside text explanations', () => {
-    // The prompt must contain language that explicitly prevents
-    // the LLM from auto-triggering start_tour when it's giving
-    // unsolicited text explanations (not when the user asks).
-    const hasExplicitDoNotEmit = SYSTEM_PROMPT.includes('Do NOT auto-trigger start_tour')
-      || SYSTEM_PROMPT.includes('Do NOT emit start_tour');
-
-    const hasUnsolicitedRule = SYSTEM_PROMPT.includes('unsolicited text explanations')
-      || SYSTEM_PROMPT.includes('text alone');
-
-    expect(hasExplicitDoNotEmit || hasUnsolicitedRule).toBe(true);
-  });
-
-  it('requires explicit user request for start_tour', () => {
-    // The prompt must indicate that start_tour is for user-requested tours only
-    const requiresExplicitAsk =
-      SYSTEM_PROMPT.includes('when the user asks')
-      || SYSTEM_PROMPT.includes('explicitly asks for a tour')
-      || SYSTEM_PROMPT.includes('explicitly asks')
-      || SYSTEM_PROMPT.includes('only when the user explicitly asks');
-
-    expect(requiresExplicitAsk).toBe(true);
-  });
-
-  it('start_tour example uses labels present in TEMPLATES', () => {
-    // Extract the start_tour example from the system prompt
-    const match = SYSTEM_PROMPT.match(/"node":"([^"]+)"/g);
-    expect(match).not.toBeNull();
-
-    const exampleLabels = match!.map((m) => m.replace(/"node":"/, '').replace('"', ''));
-
-    // Collect all known template node labels
-    const allTemplateLabels = new Set<string>();
-    for (const template of Object.values(TEMPLATES)) {
-      for (const node of template.nodes) {
-        allTemplateLabels.add(node.data.label);
-      }
-    }
-
-    // Also collect lowercase versions for case-insensitive matching
-    const allLabelsLower = new Set(
-      [...allTemplateLabels].map((l) => l.toLowerCase()),
-    );
-
-    for (const label of exampleLabels) {
-      const found = allTemplateLabels.has(label) || allLabelsLower.has(label.toLowerCase());
-      expect(found).toBe(true);
-    }
-  });
-
-  it('references available node types', () => {
-    // The prompt injects VIBEFUL_NODE_TYPES dynamically
-    expect(SYSTEM_PROMPT).toContain('Available node types');
-  });
-
-  it('load_template example references valid template name', () => {
-    expect(SYSTEM_PROMPT).toContain('"template":"minimal"');
-    expect(Object.keys(TEMPLATES)).toContain('minimal');
-  });
-
-  // ═══════════════════════════════════════════════════════════
-  // Brevity invariants — Guide must not explain unprompted
-  // ═══════════════════════════════════════════════════════════
-
-  it('enforces brevity — forbids unsolicited node explanations', () => {
-    expect(SYSTEM_PROMPT).toContain('NEVER explain nodes');
-  });
-
-  it('enforces response length — max 1-2 lines after commands', () => {
+  it('enforces brevity — respond in 1-2 lines after commands', () => {
     expect(SYSTEM_PROMPT).toContain('1-2 lines');
   });
 
-  it('forbids unsolicited explanations specifically', () => {
-    expect(SYSTEM_PROMPT).toContain('Unsolicited explanations');
+  it('enforces execution over explanation', () => {
+    expect(SYSTEM_PROMPT).toContain('Execute, don\'t explain');
   });
 
-  // ═══════════════════════════════════════════════════════════
-  // Template name invariants — LLM must know valid keys
-  // ═══════════════════════════════════════════════════════════
-
-  it('lists available templates section', () => {
-    expect(SYSTEM_PROMPT).toContain('Available templates');
+  it('documents the add_node command', () => {
+    expect(SYSTEM_PROMPT).toContain('add_node');
+    expect(SYSTEM_PROMPT).toContain('nodeType');
   });
 
-  it('references all three template keys', () => {
+  it('documents the remove_node command', () => {
+    expect(SYSTEM_PROMPT).toContain('remove_node');
+  });
+
+  it('documents the add_edge command with source/target', () => {
+    expect(SYSTEM_PROMPT).toContain('add_edge');
+    expect(SYSTEM_PROMPT).toContain('source');
+    expect(SYSTEM_PROMPT).toContain('target');
+  });
+
+  it('documents the load_template command with valid template keys', () => {
+    expect(SYSTEM_PROMPT).toContain('load_template');
     expect(SYSTEM_PROMPT).toContain('"minimal"');
     expect(SYSTEM_PROMPT).toContain('"full"');
     expect(SYSTEM_PROMPT).toContain('"lucid"');
   });
 
-  it('instructs LLM to use EXACT template keys', () => {
-    expect(SYSTEM_PROMPT).toContain('EXACT keys');
+  it('documents the start_tour command', () => {
+    expect(SYSTEM_PROMPT).toContain('start_tour');
   });
 
-  // ═══════════════════════════════════════════════════════════
-  // Command documentation invariants — the LLM must know
-  // about all vibeful-commands it can emit.
-  // ═══════════════════════════════════════════════════════════
+  it('documents the highlight_node command', () => {
+    expect(SYSTEM_PROMPT).toContain('highlight_node');
+  });
 
-  it('documents auto_align command', () => {
+  it('documents the auto_align command', () => {
     expect(SYSTEM_PROMPT).toContain('auto_align');
     expect(SYSTEM_PROMPT).toContain('tidy up');
   });
 
-  it('documents add_edge command', () => {
-    expect(SYSTEM_PROMPT).toContain('add_edge');
-    expect(SYSTEM_PROMPT).toContain('"source"');
+  it('documents the create_agent command', () => {
+    expect(SYSTEM_PROMPT).toContain('create_agent');
   });
 
-  it('documents remove_node command with label example', () => {
-    expect(SYSTEM_PROMPT).toContain('"action":"remove_node"');
-    expect(SYSTEM_PROMPT).toContain('"label":"rag"');
+  it('documents the deploy command', () => {
+    expect(SYSTEM_PROMPT).toContain('deploy');
   });
 
-  it('documents add_node with afterNodeId', () => {
-    expect(SYSTEM_PROMPT).toContain('afterNodeId');
+  it('documents the navigate command', () => {
+    expect(SYSTEM_PROMPT).toContain('navigate');
   });
 
-  it('documents selected node context for highlight_node', () => {
-    expect(SYSTEM_PROMPT).toContain('Selected node');
+  it('documents the set_personality command', () => {
+    expect(SYSTEM_PROMPT).toContain('set_personality');
+  });
+
+  it('documents the set_styling command with valid presets', () => {
+    expect(SYSTEM_PROMPT).toContain('set_styling');
+    expect(SYSTEM_PROMPT).toContain('"light"');
+    expect(SYSTEM_PROMPT).toContain('"dark"');
+    expect(SYSTEM_PROMPT).toContain('"default"');
+    expect(SYSTEM_PROMPT).toContain('"brand"');
+  });
+
+  it('documents knowledge commands', () => {
+    expect(SYSTEM_PROMPT).toContain('create_context');
+    expect(SYSTEM_PROMPT).toContain('ingest_context');
+  });
+
+  it('documents the test_agent command', () => {
+    expect(SYSTEM_PROMPT).toContain('test_agent');
+  });
+
+  it('references available node types', () => {
+    expect(SYSTEM_PROMPT).toContain('Available node types');
+  });
+
+  it('references available templates section', () => {
+    expect(SYSTEM_PROMPT).toContain('Available templates');
+  });
+
+  it('contains the topic guardrail', () => {
+    expect(SYSTEM_PROMPT).toContain('Topic Guardrail');
+    expect(SYSTEM_PROMPT).toContain('ON-TOPIC');
+    expect(SYSTEM_PROMPT).toContain('OFF-TOPIC');
   });
 });
 

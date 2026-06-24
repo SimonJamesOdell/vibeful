@@ -43,6 +43,7 @@ Thumbs.db
 scripts/push-deploy.ps1
 scripts/push-deploy.sh
 scripts/webhook-listener.py
+scripts/tunnel.ps1
 
 # ── Logs ────────────────────────────────────────────────────────
 *.log
