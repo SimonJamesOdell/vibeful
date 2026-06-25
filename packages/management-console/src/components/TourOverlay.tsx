@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { useTourStore, type PageTourStep } from '../lib/tourStore';
 
 /** Renders a positioned tooltip overlay for page tours. */
@@ -121,6 +121,19 @@ export default function TourOverlay() {
 
         {/* Description */}
         <p className="text-xs text-slate-400 leading-relaxed">{currentStep.description}</p>
+
+        {/* Learn more link */}
+        {currentStep.learnMoreUrl && (
+          <a
+            href={currentStep.learnMoreUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-2 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            <ExternalLink size={10} />
+            Learn more in docs
+          </a>
+        )}
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">

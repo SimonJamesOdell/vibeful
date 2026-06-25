@@ -79,7 +79,9 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
   Example: \`\`\`vibeful-command\n{"action":"set_personality","details":{"tone":"friendly and enthusiastic"}}\n\`\`\`
 
 === Navigation ===
-- navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"}
+- navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"} and also "mcp" and "pages"
+- explain_page — trigger a guided tour overlay explaining the current page. Params: {page?: "dashboard"|"agents"|"knowledge"|"mcp"|"pages"|"designer"|"analytics"}. If no page param, the tour will default to the current tab. Use this when the user says "explain this page", "show me around", "what does this do?", or "how does this work?"
+  Example: \`\`\`vibeful-command\n{"action":"explain_page","details":{"page":"dashboard"}}\n\`\`\`
 
 **Available node types:** ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
 

@@ -10,6 +10,8 @@ export interface PageTourStep {
   description: string;
   /** Position relative to the target element */
   position?: 'top' | 'bottom' | 'left' | 'right';
+  /** Optional URL to related documentation */
+  learnMoreUrl?: string;
 }
 
 export interface TourState {
