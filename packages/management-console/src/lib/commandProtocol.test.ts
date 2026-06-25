@@ -287,7 +287,7 @@ describe('CONSOLE_COMMANDS', () => {
 
   it('has exactly 50 command constants (regression guard)', () => {
     const count = Object.keys(CONSOLE_COMMANDS).length;
-    expect(count).toBe(70);
+    expect(count).toBe(71);
   });
 });
 

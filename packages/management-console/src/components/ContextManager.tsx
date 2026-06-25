@@ -188,7 +188,7 @@ export default function ContextManager() {
   // ── Render ────────────────────────────────────────────
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto" data-tour="knowledge-page">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-200">Knowledge Base</h2>

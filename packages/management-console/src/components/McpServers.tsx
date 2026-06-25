@@ -241,7 +241,7 @@ export default function McpServers() {
   const AUTH_TYPES = ['none', 'api_key', 'bearer'];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto" data-tour="mcp-servers">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-200">MCP Servers</h2>

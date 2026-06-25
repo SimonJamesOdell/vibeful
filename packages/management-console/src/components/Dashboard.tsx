@@ -66,6 +66,7 @@ export default function Dashboard({ onNavigate, agents, contexts, mcpServers, on
       <div className="h-full p-4 grid grid-cols-2 gap-4">
         {/* ── Agents ────────────────────────────────────── */}
         <Section
+          tourId="dashboard-agents"
           icon={<Brain size={16} className="text-purple-400" />}
           title="Agents"
           subtitle=""
@@ -93,6 +94,7 @@ export default function Dashboard({ onNavigate, agents, contexts, mcpServers, on
 
         {/* ── Knowledge ─────────────────────────────────── */}
         <Section
+          tourId="dashboard-kb"
           icon={<FileText size={16} className="text-emerald-400" />}
           title="Knowledge Bases"
           subtitle=""
@@ -116,6 +118,7 @@ export default function Dashboard({ onNavigate, agents, contexts, mcpServers, on
 
         {/* ── MCP Servers ────────────────────────────────── */}
         <Section
+          tourId="dashboard-mcp"
           icon={<Server size={16} className="text-cyan-400" />}
           title="MCP Servers"
           subtitle="Connect agents to external tools"
@@ -185,6 +188,7 @@ export default function Dashboard({ onNavigate, agents, contexts, mcpServers, on
 
         {/* ── Pages ─────────────────────────────────────── */}
         <Section
+          tourId="dashboard-pages"
           icon={<FileText size={16} className="text-amber-400" />}
           title="Pages"
           subtitle=""
@@ -209,7 +213,7 @@ export default function Dashboard({ onNavigate, agents, contexts, mcpServers, on
 
 /* ── Section wrapper ──────────────────────────────────── */
 
-function Section({ icon, title, subtitle, count, actionLabel, onAction, emptyTitle, emptyDesc, emptyActionLabel, headerExtra, maxItems, viewAllLabel, onViewAll, children }: {
+function Section({ icon, title, subtitle, count, actionLabel, onAction, emptyTitle, emptyDesc, emptyActionLabel, headerExtra, maxItems, viewAllLabel, onViewAll, tourId, children }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
@@ -223,10 +227,11 @@ function Section({ icon, title, subtitle, count, actionLabel, onAction, emptyTit
   maxItems?: number;
   viewAllLabel?: string;
   onViewAll?: () => void;
+  tourId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-0 bg-slate-900/50 border border-slate-800 rounded-xl p-4">
+    <div data-tour={tourId} className="flex flex-col min-h-0 bg-slate-900/50 border border-slate-800 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div>
           <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">

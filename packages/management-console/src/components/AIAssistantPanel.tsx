@@ -1031,6 +1031,19 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       return { status: 'promoted', source: sourceId, target: targetId };
     });
 
+    registerCommandHandler(CONSOLE_COMMANDS.EXPLAIN_PAGE, (details) => {
+      const page = (details.page as string) || '';
+      import('../lib/tourStore').then(({ useTourStore }) => {
+        import('../lib/tourData').then(({ PAGE_TOURS }) => {
+          const steps = PAGE_TOURS[page];
+          if (steps && steps.length > 0) {
+            useTourStore.getState().startTour(page, steps);
+          }
+        });
+      });
+      return { tour_started: page || 'current' };
+    });
+
     registerCommandHandler(CONSOLE_COMMANDS.CREATE_TEST, async (details) => {
       const agentId = (details.agent_id || activeAgentId) as string;
       const inputMessage = details.input_message as string;

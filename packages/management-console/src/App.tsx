@@ -20,6 +20,7 @@ import GlobalMemoryExplorer from './components/GlobalMemoryExplorer';
 import TokenDashboard from './components/TokenDashboard';
 import SetupWizard from './components/SetupWizard';
 import NodeTooltip from './components/NodeTooltip';
+import TourOverlay from './components/TourOverlay';
 import AgentList from './components/AgentList';
 import ContextManager from './components/ContextManager';
 import Dashboard from './components/Dashboard';
@@ -482,6 +483,7 @@ export default function App() {
     <ReactFlowProvider>
       <SetupWizard />
       <NodeTooltip />
+      <TourOverlay />
       <div className="h-screen flex flex-col bg-slate-950">
         {/* Header */}
         <header className="h-12 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0">

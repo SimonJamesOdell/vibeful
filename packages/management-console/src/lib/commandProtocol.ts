@@ -183,6 +183,7 @@ export const CONSOLE_COMMANDS = {
   CREATE_TEST: 'create_test',
   LIST_TESTS: 'list_tests',
   RUN_TESTS: 'run_tests',
+  EXPLAIN_PAGE: 'explain_page',
 } as const;
 
 /**

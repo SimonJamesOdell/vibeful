@@ -105,7 +105,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto" data-tour="agents-list">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-200">Agents</h2>
