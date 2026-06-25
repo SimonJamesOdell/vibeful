@@ -165,50 +165,106 @@
     padding: 0.3rem 0.75rem; font-size: 0.72rem; color: var(--text-dim); font-family: monospace;
     text-align: center;
   }
-  /* SVG Dashboard mockup */
+  /* Console mockup — matches real Vibeful UI */
   .mock-ui {
-    display: grid; grid-template-columns: 220px 1fr; min-height: 420px;
+    display: flex; flex-direction: column; min-height: 420px;
   }
-  .mock-sidebar {
-    background: #080f1e; border-right: 1px solid rgba(99,102,241,0.12); padding: 1.25rem 0.75rem;
+  .mock-header-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 1rem; background: #0c1628; border-bottom: 1px solid rgba(30,58,95,0.6);
   }
-  .mock-sidebar-item {
-    display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 8px;
-    font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.2rem; cursor: default;
-    transition: all 0.15s;
+  .mock-logo {
+    font-size: 0.85rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em;
   }
-  .mock-sidebar-item.active { background: rgba(99,102,241,0.15); color: var(--accent-hover); }
-  .mock-sidebar-item .icon { font-size: 1rem; width: 20px; text-align: center; }
-  .mock-sidebar-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 0.75rem 0.25rem; }
-  .mock-main { padding: 1.5rem; background: #0c1628; display: flex; flex-direction: column; gap: 1rem; }
-  .mock-header { display: flex; align-items: center; justify-content: space-between; }
-  .mock-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
-  .mock-pill { padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
-  .mock-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
-  .mock-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(99,102,241,0.12); border-radius: 10px; padding: 0.85rem; }
-  .mock-stat-val { font-size: 1.3rem; font-weight: 800; color: var(--text); }
-  .mock-stat-label { font-size: 0.65rem; color: var(--text-dim); margin-top: 0.15rem; }
-  .mock-stat-trend { font-size: 0.65rem; color: var(--green); margin-top: 0.3rem; }
-  /* Flow diagram in mock */
-  .mock-flow { background: rgba(255,255,255,0.02); border: 1px solid rgba(99,102,241,0.1); border-radius: 10px; padding: 1rem; flex: 1; }
-  .mock-flow-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.85rem; }
-  .mock-nodes { display: flex; align-items: center; gap: 0; }
-  .mock-node {
-    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  .mock-tabs {
+    display: flex; gap: 0.15rem;
+  }
+  .mock-tab {
+    padding: 0.3rem 0.65rem; border-radius: 6px;
+    font-size: 0.7rem; color: var(--text-dim); font-weight: 500;
+    cursor: default; transition: all 0.15s;
+  }
+  .mock-tab.active {
+    background: rgba(99,102,241,0.2); color: #e2e8f0; font-weight: 600;
+  }
+  .mock-guide-toggle {
+    font-size: 0.72rem; color: var(--accent-hover); font-weight: 600;
+    padding: 0.25rem 0.6rem; border-radius: 6px;
+    background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+    cursor: default;
+  }
+  /* Designer layout — palette + canvas + guide */
+  .mock-designer {
+    display: grid; grid-template-columns: 160px 1fr 220px; flex: 1;
+    background: #0a1220; overflow: hidden;
+  }
+  .mock-palette {
+    background: #080f1e; border-right: 1px solid rgba(30,58,95,0.4);
+    padding: 0.75rem; display: flex; flex-direction: column; gap: 0.3rem;
+  }
+  .mock-palette-title {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 0.3rem;
+  }
+  .mock-palette-item {
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.35rem 0.5rem; border-radius: 6px;
+    font-size: 0.7rem; color: var(--text-dim); font-weight: 500;
+    cursor: default;
+  }
+  .mock-palette-item:hover { background: rgba(99,102,241,0.08); }
+  .mock-palette-item span { font-size: 0.85rem; width: 18px; text-align: center; }
+  .mock-canvas {
+    padding: 1rem 1.5rem; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(99,102,241,0.03) 0%, transparent 60%),
+      linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+  }
+  .mock-canvas-label {
+    font-size: 0.7rem; font-weight: 700; color: var(--text-dim);
+    margin-bottom: 0.75rem;
+  }
+  .mock-flow-row {
+    display: flex; justify-content: center; width: 100%;
   }
   .mock-node-box {
-    padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.68rem; font-weight: 600;
-    text-align: center; min-width: 80px; white-space: nowrap;
+    padding: 0.4rem 0.7rem; border-radius: 8px; font-size: 0.68rem; font-weight: 600;
+    min-width: 100px; text-align: center; white-space: nowrap;
   }
-  .mn-input { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); color: var(--cyan); }
-  .mn-guard { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.3); color: var(--pink); }
-  .mn-mem { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3); color: var(--purple); }
-  .mn-rag { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+  .mn-input { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.35); color: var(--cyan); }
+  .mn-guard { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.35); color: var(--pink); }
+  .mn-mem { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.35); color: var(--purple); }
+  .mn-rag { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.35); color: #fbbf24; }
   .mn-llm { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.4); color: var(--accent-hover); }
-  .mn-out { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
-  .mock-node-label { font-size: 0.58rem; color: var(--text-dim); }
-  .mock-arrow { flex: 1; height: 2px; background: linear-gradient(90deg, rgba(99,102,241,0.4), rgba(99,102,241,0.1)); position: relative; min-width: 20px; }
-  .mock-arrow::after { content: '▶'; position: absolute; right: -4px; top: 50%; transform: translateY(-50%); font-size: 0.5rem; color: rgba(99,102,241,0.5); }
+  .mn-out { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.35); color: var(--green); }
+  .mock-edge-down { display: block; margin: 0 auto; }
+  .mock-guide {
+    background: #0c1628; border-left: 1px solid rgba(30,58,95,0.4);
+    padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .mock-guide-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--accent-hover);
+    margin-bottom: 0.25rem;
+  }
+  .mock-guide-msg {
+    padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.62rem; line-height: 1.4;
+  }
+  .mock-guide-msg.bot {
+    background: #1a2840; color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 8px 8px 8px 2px; align-self: flex-start; max-width: 90%;
+  }
+  .mock-guide-msg.user {
+    background: var(--accent); color: #fff;
+    border-radius: 8px 8px 2px 8px; align-self: flex-end; max-width: 85%;
+  }
+  .mock-guide-input {
+    margin-top: auto; padding: 0.4rem 0.6rem; border-radius: 7px;
+    border: 1px solid var(--border); background: #0a1220;
+    color: var(--text-dim); font-size: 0.62rem;
+  }
 
   /* ── STATS ──────────────────────────────────────────────────── */
   .stats-bar {
@@ -416,78 +472,68 @@
           <div class="frame-url">localhost:5174 — Vibeful Console</div>
         </div>
         <div class="mock-ui">
-          <div class="mock-sidebar">
-            <div class="mock-sidebar-label">Agents</div>
-            <div class="mock-sidebar-item active"><span class="icon">🤖</span> Support Bot</div>
-            <div class="mock-sidebar-item"><span class="icon">🔬</span> Research Agent</div>
-            <div class="mock-sidebar-item"><span class="icon">📊</span> Analytics Bot</div>
-            <div class="mock-sidebar-label">Tabs</div>
-            <div class="mock-sidebar-item"><span class="icon">📊</span> Dashboard</div>
-            <div class="mock-sidebar-item"><span class="icon">🎨</span> Designer</div>
-            <div class="mock-sidebar-item"><span class="icon">📚</span> Knowledge</div>
-            <div class="mock-sidebar-item"><span class="icon">🔌</span> MCP Servers</div>
-            <div class="mock-sidebar-item"><span class="icon">📄</span> Pages</div>
+          <!-- Header tabs (Designer active) -->
+          <div class="mock-header-bar">
+            <span class="mock-logo">⚡ Vibeful</span>
+            <div class="mock-tabs">
+              <span class="mock-tab">Dashboard</span>
+              <span class="mock-tab">Analytics</span>
+              <span class="mock-tab">Agents</span>
+              <span class="mock-tab">Knowledge</span>
+              <span class="mock-tab">MCP</span>
+              <span class="mock-tab">Pages</span>
+            </div>
+            <span class="mock-guide-toggle">✨ Guide</span>
           </div>
-          <div class="mock-main">
-            <div class="mock-header">
-              <div class="mock-title">🤖 Support Bot — Overview</div>
-              <div class="mock-pill">● Live</div>
+          <!-- Designer: palette + canvas + guide -->
+          <div class="mock-designer">
+            <!-- Node palette (left sidebar) -->
+            <div class="mock-palette">
+              <div class="mock-palette-title">Node Palette</div>
+              <div class="mock-palette-item"><span>📥</span> Input</div>
+              <div class="mock-palette-item"><span>🛡️</span> Guard</div>
+              <div class="mock-palette-item"><span>🧠</span> Memory</div>
+              <div class="mock-palette-item"><span>📚</span> RAG</div>
+              <div class="mock-palette-item"><span>🔀</span> Router</div>
+              <div class="mock-palette-item"><span>🤖</span> React Agent</div>
+              <div class="mock-palette-item"><span>✨</span> Completion</div>
+              <div class="mock-palette-item"><span>📤</span> Output</div>
             </div>
-            <div class="mock-stats">
-              <div class="mock-stat">
-                <div class="mock-stat-val">12.4k</div>
-                <div class="mock-stat-label">Messages</div>
-                <div class="mock-stat-trend">↑ 18% this week</div>
+            <!-- Canvas (center) -->
+            <div class="mock-canvas">
+              <div class="mock-canvas-label">Support Bot — Agent Graph</div>
+              <!-- Node boxes arranged in a flow -->
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-input">📥 Input</div>
               </div>
-              <div class="mock-stat">
-                <div class="mock-stat-val">94%</div>
-                <div class="mock-stat-label">Resolution rate</div>
-                <div class="mock-stat-trend">↑ 3.2%</div>
+              <svg class="mock-edge-down" width="20" height="18"><line x1="10" y1="0" x2="10" y2="18" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2"/></svg>
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-guard">🛡️ Guard</div>
               </div>
-              <div class="mock-stat">
-                <div class="mock-stat-val">1.8s</div>
-                <div class="mock-stat-label">Avg response</div>
-                <div class="mock-stat-trend">↓ 0.4s</div>
+              <svg class="mock-edge-down" width="20" height="18"><line x1="10" y1="0" x2="10" y2="18" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2"/></svg>
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-mem">🧠 Memory</div>
               </div>
-              <div class="mock-stat">
-                <div class="mock-stat-val">98</div>
-                <div class="mock-stat-label">Knowledge docs</div>
-                <div class="mock-stat-trend">+12 this week</div>
+              <svg class="mock-edge-down" width="20" height="18"><line x1="10" y1="0" x2="10" y2="18" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2"/></svg>
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-rag">📚 RAG</div>
+              </div>
+              <svg class="mock-edge-down" width="20" height="18"><line x1="10" y1="0" x2="10" y2="18" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2"/></svg>
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-llm">🤖 React Agent</div>
+              </div>
+              <svg class="mock-edge-down" width="20" height="18"><line x1="10" y1="0" x2="10" y2="18" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2"/></svg>
+              <div class="mock-flow-row">
+                <div class="mock-node-box mn-out">📤 Completion</div>
               </div>
             </div>
-            <div class="mock-flow">
-              <div class="mock-flow-title">AGENT GRAPH — Active pipeline</div>
-              <div class="mock-nodes">
-                <div class="mock-node">
-                  <div class="mock-node-box mn-input">📥 Input</div>
-                  <div class="mock-node-label">Message in</div>
-                </div>
-                <div class="mock-arrow"></div>
-                <div class="mock-node">
-                  <div class="mock-node-box mn-guard">🛡️ Guard</div>
-                  <div class="mock-node-label">Attack guard</div>
-                </div>
-                <div class="mock-arrow"></div>
-                <div class="mock-node">
-                  <div class="mock-node-box mn-mem">🧠 Memory</div>
-                  <div class="mock-node-label">Fact recall</div>
-                </div>
-                <div class="mock-arrow"></div>
-                <div class="mock-node">
-                  <div class="mock-node-box mn-rag">📚 RAG</div>
-                  <div class="mock-node-label">Knowledge</div>
-                </div>
-                <div class="mock-arrow"></div>
-                <div class="mock-node">
-                  <div class="mock-node-box mn-llm">✨ LLM</div>
-                  <div class="mock-node-label">DeepSeek</div>
-                </div>
-                <div class="mock-arrow"></div>
-                <div class="mock-node">
-                  <div class="mock-node-box mn-out">📤 Output</div>
-                  <div class="mock-node-label">Stream out</div>
-                </div>
-              </div>
+            <!-- Guide sidebar (right) -->
+            <div class="mock-guide">
+              <div class="mock-guide-title">✨ Vibeful Guide</div>
+              <div class="mock-guide-msg bot">I can help you build agents! Try saying "add an attack guard" or "connect RAG to the LLM."</div>
+              <div class="mock-guide-msg user">explain this</div>
+              <div class="mock-guide-msg bot">I'm here to help you build and deploy AI agents with Vibeful. Is there something about the platform, your agents, or the agent-building process I can assist with?</div>
+              <div class="mock-guide-input">Ask anything…</div>
             </div>
           </div>
         </div>
