@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Trash2, Copy, Pencil, Check, X, Plus } from 'lucide-react';
+import { Bot, Trash2, Copy, Pencil, Check, X, Plus, AlertTriangle } from 'lucide-react';
 
 interface AgentSummary {
   id: string;
@@ -18,6 +18,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
   const [cloning, setCloning] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetch('/v1/agents')
@@ -64,8 +65,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete agent "${name}"? This cannot be undone.`)) return;
+  const doDelete = async (id: string) => {
     setDeleting(id);
     try {
       await fetch(`/v1/agents/${id}`, { method: 'DELETE' });
@@ -75,6 +75,10 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
     } finally {
       setDeleting(null);
     }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    setConfirmDeleteTarget({ id, name });
   };
 
   const handleClone = async (id: string, name: string) => {
@@ -209,6 +213,67 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
         ))}
       </div>
       </>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmDeleteTarget && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setConfirmDeleteTarget(null)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-[400px] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 rounded-lg bg-red-500/10">
+                  <AlertTriangle size={18} className="text-red-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-200">Delete Agent</h3>
+              </div>
+              <button
+                onClick={() => setConfirmDeleteTarget(null)}
+                className="p-1 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Are you sure you want to delete <span className="font-semibold text-slate-100">"{confirmDeleteTarget.name}"</span>?
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                This action cannot be undone. All conversations, pages, and settings for this agent will be permanently removed.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-800 bg-slate-900/50">
+              <button
+                onClick={() => setConfirmDeleteTarget(null)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                disabled={deleting === confirmDeleteTarget.id}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const target = confirmDeleteTarget;
+                  setConfirmDeleteTarget(null);
+                  doDelete(target.id);
+                }}
+                disabled={deleting === confirmDeleteTarget.id}
+                className="px-3 py-1.5 text-xs font-medium bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting === confirmDeleteTarget.id ? 'Deleting…' : 'Delete Agent'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

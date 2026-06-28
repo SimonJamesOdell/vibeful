@@ -33,7 +33,7 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
   Example: \`\`\`vibeful-command\n{"action":"create_agent","details":{"name":"Support Bot","description":"Handles customer support","system_prompt":"You are a helpful support agent."}}\n\`\`\`
 - delete_agent — delete an agent. Params: {agent_id}
 - rename_agent — rename an agent. Params: {agent_id, new_name}
-- select_agent — switch to an agent in the designer. Params: {agent_id}
+- select_agent — open an agent in the designer for editing. Use this when the user says "edit X", "open X", "modify X", "work on X", or "select X" where X is an agent name. Params: {agent_id} or {name} (the agent's name, not ID). Pass the name directly — the handler looks it up. This command switches to the designer tab and loads the agent's graph.
 
 === Knowledge Base ===
 - create_context — create a knowledge context. Params: {name, agent_id?}

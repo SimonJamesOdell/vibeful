@@ -91,6 +91,14 @@ describe('SYSTEM_PROMPT invariants', () => {
     expect(SYSTEM_PROMPT).toContain('ingest_context');
   });
 
+  it('documents the select_agent command with edit/open/modify patterns', () => {
+    expect(SYSTEM_PROMPT).toContain('select_agent');
+    expect(SYSTEM_PROMPT).toContain('edit X');
+    expect(SYSTEM_PROMPT).toContain('open X');
+    expect(SYSTEM_PROMPT).toContain('modify X');
+    expect(SYSTEM_PROMPT).toContain('work on X');
+  });
+
   it('documents the test_agent command', () => {
     expect(SYSTEM_PROMPT).toContain('test_agent');
   });
