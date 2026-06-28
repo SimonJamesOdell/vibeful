@@ -6,7 +6,7 @@ import PropertyPanel from './components/PropertyPanel';
 import { useFlowStore } from './lib/flowStore';
 import { generateYaml, parseGraphFromYaml } from './lib/yamlGenerator';
 import { TEMPLATES } from './lib/templates';
-import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen, Smile, Server, FileText, Shield } from 'lucide-react';
+import { Play, Save, FolderOpen, FilePlus, Download, Loader2, ChevronDown, TestTube, Palette, BookOpen, Smile, Server, FileText, Shield, Plus } from 'lucide-react';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ToastContainer, { showToast } from './components/Toast';
 import TestChatModal from './components/TestChatModal';
@@ -22,7 +22,7 @@ import SetupWizard from './components/SetupWizard';
 import NodeTooltip from './components/NodeTooltip';
 import TourOverlay from './components/TourOverlay';
 import AgentList from './components/AgentList';
-import ContextManager from './components/ContextManager';
+import ContextList from './components/ContextList';
 import Dashboard from './components/Dashboard';
 import CreateAgentModal from './components/CreateAgentModal';
 import StylingModal, { loadAgentStyling, applyStylingToDOM } from './components/StylingModal';
@@ -34,11 +34,15 @@ import GuardrailsModal from './components/GuardrailsModal';
 import PageList from './components/PageList';
 import PageEditorModal from './components/PageEditorModal';
 import PageViewer from './components/PageViewer';
+import PageGraph from './components/PageGraph';
+import WidgetList from './components/WidgetList';
+import WidgetCreatorModal from './components/WidgetCreatorModal';
+import Conversations from './components/Conversations';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import McpCatalog from './components/McpCatalog';
 
-type TabName = 'dashboard' | 'analytics' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts' | 'mcp' | 'pages';
-const VALID_TABS: readonly TabName[] = ['dashboard', 'analytics', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts', 'mcp', 'pages'];
+type TabName = 'dashboard' | 'analytics' | 'designer' | 'agents' | 'templates' | 'versions' | 'proposals' | 'abtest' | 'monitor' | 'glyphs' | 'concepts' | 'memories' | 'tokens' | 'contexts' | 'mcp' | 'pages' | 'widgets' | 'conversations' | 'health';
+const VALID_TABS: readonly TabName[] = ['dashboard', 'analytics', 'designer', 'agents', 'templates', 'versions', 'proposals', 'abtest', 'monitor', 'glyphs', 'concepts', 'memories', 'tokens', 'contexts', 'mcp', 'pages', 'widgets', 'conversations', 'health'];
 
 function tabFromHash(): TabName {
   const raw = window.location.hash.replace(/^#/, '');
@@ -67,6 +71,9 @@ export default function App() {
   const [agentList, setAgentList] = useState<Array<{ id: string; name: string; config_yaml?: string }>>([]);
   const [contextList, setContextList] = useState<Array<{ id: string; name: string }>>([]);
   const [mcpServerList, setMcpServerList] = useState<Array<{ id: string; name: string; url: string }>>([]);
+  const [pageList, setPageList] = useState<Array<{ id: string; slug: string; title: string; content_markdown: string }>>([]);
+  const [pageViewMode, setPageViewMode] = useState<'list' | 'graph'>('list');
+  const [widgetTemplates, setWidgetTemplates] = useState<Array<{ id: string; agent_id: string; name: string; type: string; props: Record<string, unknown> }>>([]);
 
   const fetchAgents = () => {
     fetch('/v1/agents')
@@ -90,9 +97,44 @@ export default function App() {
       .then((data) => setMcpServerList(Array.isArray(data) ? data : []))
       .catch(() => {});
   };
+  const fetchPages = () => {
+    fetch('/v1/pages')
+      .then((r) => r.json())
+      .then((data) => setPageList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
+  const fetchWidgetTemplates = () => {
+    fetch('/v1/widget-templates')
+      .then((r) => r.json())
+      .then((data) => setWidgetTemplates(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
+
+  const inlineWidgets = useMemo(() => {
+    const widgets: any[] = [];
+    const agentNames = new Map(agentList.map((a) => [a.id, a.name]));
+    for (const p of pageList) {
+      const markdown = (p as any).content_markdown || '';
+      const regex = /<div data-vibeful-widget='([^']*)'><\/div>/g;
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(markdown)) !== null) {
+        try {
+          const spec = JSON.parse(match[1]);
+          widgets.push({
+            widget_id: spec.widget_id || 'unknown',
+            type: spec.type || 'unknown',
+            pageTitle: p.title || p.slug,
+            pageSlug: p.slug,
+            agentName: agentNames.get((p as any).agent_id) || 'Unknown',
+          });
+        } catch { /* skip */ }
+      }
+    }
+    return widgets;
+  }, [pageList, agentList]);
 
   // Fetch agent and context lists
-  useEffect(() => { fetchAgents(); fetchContexts(); fetchMcpServers(); }, []);
+  useEffect(() => { fetchAgents(); fetchContexts(); fetchMcpServers(); fetchPages(); fetchWidgetTemplates(); }, []);
 
   // ── Auto-save: persist graph changes to the database ──────
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,6 +162,8 @@ export default function App() {
     if (!activeAgentId) return;
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     const state = useFlowStore.getState();
+    // Never save an empty graph over an existing agent — that would corrupt it
+    if (state.nodes.length === 0) return;
     const yaml = generateYaml(state.nodes, state.edges, state.agentName, state.agentDescription);
     try {
       await fetch(`/v1/agents/${activeAgentId}`, {
@@ -337,13 +381,29 @@ export default function App() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [createModalDefaults, setCreateModalDefaults] = useState<{ name?: string; template?: string }>({});
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
+  const [focusedMcpId, setFocusedMcpId] = useState<string | null>(null);
+  const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
   const stylingPresetRef = useRef<string | undefined>(undefined);
   const stylingFontRef = useRef<string | undefined>(undefined);
 
-  // Auto-close styling modal when navigating away from editor
+  // Auto-close designer-specific modals when navigating away from editor.
+  // DON'T clear page-editor, widget-creator, create, or test modals —
+  // those manage their own lifecycle and are tab-independent.
   useEffect(() => {
-    if (activeTab !== 'designer') setActiveModal(null);
+    if (activeTab !== 'designer') {
+      if (activeModal === 'styling' || activeModal === 'guardrails' || activeModal === 'knowledge') {
+        setActiveModal(null);
+      }
+    }
   }, [activeTab]);
+
+  // Clear MCP focus when navigating away from MCP tab
+  useEffect(() => {
+    if (activeTab !== 'mcp' && focusedMcpId) {
+      setFocusedMcpId(null);
+    }
+  }, [activeTab, focusedMcpId]);
 
   // ── Vibeful Guide event handlers ────────────────────────────
   useEffect(() => {
@@ -498,6 +558,9 @@ export default function App() {
               { tab: 'contexts' as const, label: 'Knowledge' },
               { tab: 'mcp' as const, label: 'MCP' },
               { tab: 'pages' as const, label: 'Pages' },
+              { tab: 'widgets' as const, label: 'Widgets' },
+              { tab: 'conversations' as const, label: 'Conversations' },
+              { tab: 'health' as const, label: 'System Health' },
             ].map((t) => (
               <button key={t.tab} onClick={() => navigateTo(t.tab)}
                 className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === t.tab ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -566,6 +629,29 @@ export default function App() {
                 return false;
               }
             }}
+            pages={pageList}
+            inlineWidgets={inlineWidgets}
+            widgetTemplates={widgetTemplates}
+            onDeleteContext={async (id) => {
+              await fetch(`/v1/contexts/${id}`, { method: 'DELETE' });
+              fetchContexts();
+            }}
+            onRenameContext={async (id, name) => {
+              try {
+                const resp = await fetch(`/v1/contexts/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                fetchContexts();
+                showToast(`Renamed to "${name}"`, 'success');
+                return true;
+              } catch (e: any) {
+                showToast(`Rename failed: ${e.message}`, 'error');
+                return false;
+              }
+            }}
+            onEditPage={(pageId: string) => { setEditingPageId(pageId); setActiveModal('page-editor'); navigateTo('pages'); }}
+            onSelectContext={(contextId: string) => { setSelectedContextId(contextId); navigateTo('contexts'); }}
+            onSelectMcp={(serverId: string) => { setFocusedMcpId(serverId); navigateTo('mcp'); }}
+            onSelectWidget={(widgetId?: string) => { if (widgetId) { setEditingWidgetId(widgetId); } navigateTo('widgets'); }}
           />
         ) : activeTab === 'designer' ? (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -716,7 +802,7 @@ export default function App() {
           </div>
         ) : activeTab === 'agents' ? (
           <div className="flex-1 overflow-y-auto">
-            <AgentList onSelect={(id) => { setActiveAgentId(id); navigateTo('designer'); }} />
+            <AgentList onSelect={(id) => { switchToAgent(id); }} />
           </div>
         ) : activeTab === 'tokens' ? (
           <div className="flex-1 overflow-y-auto">
@@ -724,11 +810,11 @@ export default function App() {
           </div>
         ) : activeTab === 'contexts' ? (
           <div className="flex-1 overflow-y-auto">
-            <ContextManager />
+            <ContextList defaultSelectedId={selectedContextId} />
           </div>
         ) : activeTab === 'mcp' ? (
           <div className="flex-1 overflow-y-auto">
-            <McpServers />
+            <McpServers scrollToId={focusedMcpId} />
             <div className="p-6 max-w-4xl mx-auto border-t border-slate-800 mt-2">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -750,8 +836,8 @@ export default function App() {
             </div>
           </div>
         ) : activeTab === 'pages' ? (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-6 max-w-4xl mx-auto">
+          <div className={`flex-1 ${pageViewMode === 'list' ? 'overflow-y-auto' : 'flex flex-col overflow-hidden'}`}>
+            <div className={pageViewMode === 'list' ? 'p-6 max-w-4xl mx-auto' : 'p-4 flex flex-col flex-1 min-h-0'}>
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-200">Pages</h2>
@@ -759,15 +845,27 @@ export default function App() {
                     Build standalone pages for your agents — landing pages, dashboards, forms, and more
                   </p>
                 </div>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: {} }))}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs transition-colors"
-                >
-                  <FileText size={14} />
-                  New Page
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setPageViewMode('list')} className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${pageViewMode === 'list' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>List</button>
+                    <button onClick={() => setPageViewMode('graph')} className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${pageViewMode === 'graph' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>Graph</button>
+                  </div>
+                  {pageViewMode === 'list' && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('vibeful:create-agent-modal', { detail: {} }))}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs transition-colors"
+                    >
+                      <FileText size={14} />
+                      New Page
+                    </button>
+                  )}
+                </div>
               </div>
-              <PageList activeAgentId={activeAgentId} onEdit={(id) => { setEditingPageId(id); setActiveModal('page-editor'); }} />
+              {pageViewMode === 'list' ? (
+                <PageList activeAgentId={activeAgentId} onEdit={(id) => { setEditingPageId(id); setActiveModal('page-editor'); }} />
+              ) : (
+                <PageGraph pages={pageList} />
+              )}
             </div>
             {activeModal === 'page-editor' && editingPageId && (
               <PageEditorModal
@@ -777,6 +875,29 @@ export default function App() {
               />
             )}
           </div>
+        ) : activeTab === 'widgets' ? (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-200">Widgets</h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {widgetTemplates.length} saved templates &bull; {inlineWidgets.length} inline widgets from pages
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveModal('widget-creator')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs transition-colors"
+                >
+                  <Plus size={14} />
+                  New Widget
+                </button>
+              </div>
+              <WidgetList widgets={inlineWidgets} templates={widgetTemplates} onNavigate={(tab: string) => navigateTo(tab as TabName)} />
+            </div>
+          </div>
+        ) : activeTab === 'conversations' ? (
+          <Conversations />
         ) : (
           <div className="flex-1 p-6 overflow-y-auto">
             <h2 className="text-lg font-semibold text-slate-200 mb-4">Agent Templates</h2>
@@ -821,6 +942,9 @@ export default function App() {
       )}
       {activeModal === 'test' && (
         <TestChatModal agentId={activeAgentId} agentName={agentName || 'My Agent'} onClose={() => setActiveModal(null)} />
+      )}
+      {(activeModal === 'widget-creator' || editingWidgetId) && (
+        <WidgetCreatorModal agentId={activeAgentId} editWidgetId={editingWidgetId} onClose={() => { setActiveModal(null); setEditingWidgetId(null); }} onSaved={fetchWidgetTemplates} showToast={showToast} />
       )}
 
     </ReactFlowProvider>

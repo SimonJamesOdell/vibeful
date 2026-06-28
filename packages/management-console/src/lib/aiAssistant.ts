@@ -79,9 +79,28 @@ You speak conversationally. When you want to perform an action, embed a vibeful-
   Example: \`\`\`vibeful-command\n{"action":"set_personality","details":{"tone":"friendly and enthusiastic"}}\n\`\`\`
 
 === Navigation ===
-- navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"} and also "mcp" and "pages"
-- explain_page — trigger a guided tour overlay explaining the current page. Params: {page?: "dashboard"|"agents"|"knowledge"|"mcp"|"pages"|"designer"|"analytics"}. If no page param, the tour will default to the current tab. Use this when the user says "explain this page", "show me around", "what does this do?", or "how does this work?"
+- navigate — switch to a tab. Params: {tab: "dashboard"|"designer"|"agents"|"templates"|"versions"|"proposals"|"abtest"|"monitor"|"glyphs"|"concepts"|"memories"|"tokens"|"contexts"|"mcp"|"pages"|"widgets"|"health"}
+- explain_page — trigger a guided tour overlay explaining the current page. Params: {page?: "dashboard"|"agents"|"knowledge"|"mcp"|"pages"|"designer"|"analytics"|"health"}. If no page param, the tour will default to the current tab. Use this when the user says "explain this page", "show me around", "what does this do?", or "how does this work?"
   Example: \`\`\`vibeful-command\n{"action":"explain_page","details":{"page":"dashboard"}}\n\`\`\`
+
+=== Pages ===
+- create_page — create an agent page. Params: {agent_id, slug, title, content_markdown, published?}. If no agent_id, uses active agent.
+  Example: \`\`\`vibeful-command\n{"action":"create_page","details":{"slug":"home","title":"Welcome","content_markdown":"# Hello\\nWelcome to our site.","published":true}}\n\`\`\`
+- update_page — update page content. Params: {page_id, title?, content_markdown?, published?}
+- publish_page — publish a page by slug. Params: {slug?, page_id?}
+- delete_page — delete a page. Params: {page_id}
+- list_pages — list all pages (optionally filtered by agent_id). Params: {agent_id?}
+
+=== Widgets ===
+- create_widget — create a reusable widget template. Params: {agent_id, name, type, props?}. Types: "button", "card", "form", "chart", "table". Button props: {label, variant?}. Card props: {title, content, image_url?, action?}.
+  Example: \`\`\`vibeful-command\n{"action":"create_widget","details":{"name":"Ask AI Button","type":"button","props":{"label":"Ask Our AI","variant":"primary"}}}\n\`\`\`
+- delete_widget — delete a widget template. Params: {widget_id}
+- list_widgets — list saved widget templates. Params: {agent_id?}
+
+=== Build & Deploy ===
+- scaffold_shell — generate a thin-client React frontend shell. Params: {agent_id}. Downloads a pre-configured project with Tailwind, page routing, and VibefulChat.
+- build_site — orchestrate a full agentic site build. Params: {site_description, seed_url?}. Creates agent → knowledge base → pages → widgets → shell, all in sequence. Use this when the user says "build me a site for X" or "create an ecommerce store for Y".
+  Example: \`\`\`vibeful-command\n{"action":"build_site","details":{"site_description":"An ecommerce site for a furniture store in Dover, Kent. Products: sofas, chairs, recliners. Brands: La-Z-Boy, Sherborne."}}\n\`\`\`
 
 **Available node types:** ${VIBEFUL_NODE_TYPES.map((nt) => `- ${nt.label} (${nt.type}): ${nt.description}`).join('\n')}
 

@@ -184,6 +184,13 @@ export const CONSOLE_COMMANDS = {
   LIST_TESTS: 'list_tests',
   RUN_TESTS: 'run_tests',
   EXPLAIN_PAGE: 'explain_page',
+  // Widgets
+  CREATE_WIDGET: 'create_widget',
+  DELETE_WIDGET: 'delete_widget',
+  LIST_WIDGETS: 'list_widgets',
+  // Shell & Site Build
+  SCAFFOLD_SHELL: 'scaffold_shell',
+  BUILD_SITE: 'build_site',
 } as const;
 
 /**

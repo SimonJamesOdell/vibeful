@@ -145,12 +145,13 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
         {agents.map((agent) => (
           <div
             key={agent.id}
-            className="p-4 bg-slate-900 border border-slate-700 rounded-xl hover:border-indigo-500 transition-colors group"
+            onClick={() => { if (renaming !== agent.id) handleSelect(agent); }}
+            className="p-4 bg-slate-900 border border-slate-700 rounded-xl hover:border-indigo-500 transition-colors group cursor-pointer"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 {renaming === agent.id ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <input
                       autoFocus
                       value={renameValue}
@@ -165,12 +166,9 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
                     <button onClick={() => setRenaming(null)} className="p-0.5 text-slate-500 hover:text-slate-400 flex-shrink-0" title="Cancel"><X size={14} /></button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => handleSelect(agent)}
-                    className="text-sm font-medium text-slate-200 hover:text-indigo-400 text-left truncate block w-full"
-                  >
+                  <span className="text-sm font-medium text-slate-200 group-hover:text-indigo-400 text-left truncate block w-full">
                     {agent.name || 'Unnamed Agent'}
-                  </button>
+                  </span>
                 )}
                 <p className="text-xs text-slate-500 mt-1 truncate">
                   {agent.description || 'No description'}
@@ -179,7 +177,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
               <div className="flex items-center gap-0.5 ml-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); setRenaming(agent.id); setRenameValue(agent.name); }}
-                  className="p-1 text-slate-600 hover:text-yellow-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  className="p-1 text-slate-500 hover:text-yellow-400 transition-colors flex-shrink-0"
                   title="Rename agent"
                 >
                   <Pencil size={14} />
@@ -187,7 +185,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
                 <button
                   onClick={(e) => { e.stopPropagation(); handleClone(agent.id, agent.name); }}
                   disabled={cloning === agent.id}
-                  className="p-1 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  className="p-1 text-slate-500 hover:text-indigo-400 transition-colors flex-shrink-0"
                   title="Clone agent"
                 >
                   <Copy size={14} />
@@ -195,7 +193,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(agent.id, agent.name); }}
                   disabled={deleting === agent.id}
-                  className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  className="p-1 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
                   title="Delete agent"
                 >
                   <Trash2 size={14} />
@@ -205,7 +203,7 @@ export default function AgentList({ onSelect }: { onSelect: (id: string) => void
             <div className="flex items-center gap-3 mt-3 text-[10px] text-slate-600">
               <span>{agent.model || 'deepseek-chat'}</span>
               <span>•</span>
-              <span>Updated {new Date(agent.updated_at).toLocaleDateString()}</span>
+              <span>Updated {agent.updated_at ? new Date(agent.updated_at).toLocaleDateString() : '—'}</span>
             </div>
           </div>
         ))}

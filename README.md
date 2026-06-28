@@ -2,6 +2,8 @@
 
 Vibeful — a self-hosted AI agent platform. Build, deploy, and manage multiple conversational agents from a visual console. Embed them into any web app with 3 lines of code. "A CMS for AI agents."
 
+**Tooling-agnostic.** Vibeful's REST API and YAML-based agent graph configuration work with any agentic programming tool — CodeWhale, Codex, Copilot, Claude Code, Cursor, or any other. If it can POST JSON and write YAML, it can build on Vibeful.
+
 **Stack:** Python 3.12 (LangGraph / FastAPI), Node.js/TypeScript (React + Vite), PostgreSQL + pgvector, Redis, DeepSeek API.
 
 **764 tests. 72 endpoints. 70 Guide commands. 0 TypeScript errors.**

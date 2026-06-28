@@ -155,11 +155,11 @@ export default function ApiKeyManager() {
                         <>
                           <span>·</span>
                           <Clock size={9} />
-                          <span>Used {new Date(key.last_used_at).toLocaleDateString()}</span>
+                          <span>Used {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : 'never'}</span>
                         </>
                       )}
                       <span>·</span>
-                      <span>Created {new Date(key.created_at).toLocaleDateString()}</span>
+                      <span>Created {key.created_at ? new Date(key.created_at).toLocaleDateString() : '—'}</span>
                     </div>
                   </div>
                 </div>

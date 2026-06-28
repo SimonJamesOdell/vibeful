@@ -228,7 +228,7 @@ export default function PageViewer({ slug }: { slug: string }) {
         <h1 className="text-2xl font-bold text-slate-100 mb-2">{page.title || page.slug}</h1>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Globe size={12} className="text-emerald-400" />
-          <span>Published {new Date(page.updated_at).toLocaleDateString()}</span>
+          <span>Published {page.updated_at ? new Date(page.updated_at).toLocaleDateString() : '—'}</span>
           <span>·</span>
           <span className="font-mono text-slate-600">/{page.slug}</span>
         </div>

@@ -70,23 +70,10 @@ def build_graph_from_config(config: dict[str, Any]) -> Any:
 
     # Add edges
     for edge in edges:
-        if "routes" in edge:
-            # Conditional edge
-            from_node = edge["from"]
-            routes = edge["routes"]
-            # Replace __END__ with END sentinel
-            route_map = {
-                label: (END if target == "__END__" else target)
-                for label, target in routes.items()
-            }
-            # Use the from_node's name as the condition — resolve via router
-            builder.add_conditional_edges(
-                from_node,
-                lambda s: getattr(s, "route", "safe"),
-                route_map,
-            )
-        elif "condition" in edge:
-            # Custom condition function (looked up by name)
+        if "condition" in edge:
+            # Conditional edge with named condition function (looked up in registry).
+            # Must be checked before "routes" — both keys may be present when a
+            # named condition is paired with a route map.
             from_node = edge["from"]
             routes = edge["routes"]
             condition_name = edge["condition"]
@@ -98,6 +85,20 @@ def build_graph_from_config(config: dict[str, Any]) -> Any:
                 for label, target in routes.items()
             }
             builder.add_conditional_edges(from_node, condition_fn, route_map)
+        elif "routes" in edge:
+            # Conditional edge with lambda-based routing (reads state.route)
+            from_node = edge["from"]
+            routes = edge["routes"]
+            # Replace __END__ with END sentinel
+            route_map = {
+                label: (END if target == "__END__" else target)
+                for label, target in routes.items()
+            }
+            builder.add_conditional_edges(
+                from_node,
+                lambda s: getattr(s, "route", "safe"),
+                route_map,
+            )
         else:
             # Simple edge
             if edge.get("to") == "__END__":

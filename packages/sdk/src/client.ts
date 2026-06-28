@@ -1,6 +1,6 @@
 // API Client — manages agent sessions and conversation with the Vibeful proxy
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:8000';
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:50052';
 
 export interface AgentData {
   id: string;

@@ -101,6 +101,7 @@ class SqliteBackend:
                 temperature REAL DEFAULT 0.7,
                 config_json TEXT DEFAULT '{}',
                 styling_json TEXT DEFAULT '',
+                context_ids TEXT DEFAULT '[]',
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
@@ -235,6 +236,18 @@ class SqliteBackend:
             CREATE INDEX IF NOT EXISTS idx_agent_pages_agent ON agent_pages(agent_id);
             CREATE INDEX IF NOT EXISTS idx_agent_pages_slug ON agent_pages(slug);
 
+            CREATE TABLE IF NOT EXISTS widget_templates (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                type TEXT NOT NULL DEFAULT 'button',
+                props_json TEXT DEFAULT '{}',
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_widget_templates_agent ON widget_templates(agent_id);
+
             CREATE TABLE IF NOT EXISTS api_keys (
                 id TEXT PRIMARY KEY,
                 key_hash TEXT NOT NULL UNIQUE,
@@ -329,7 +342,14 @@ class SqliteBackend:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM contexts ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def get_context(self, context_id: str) -> dict[str, Any] | None:
         conn = await self._get_conn()
@@ -361,6 +381,14 @@ class SqliteBackend:
             row = await cursor.fetchone()
         return dict(row) if row else {}
 
+    async def rename_context(self, context_id: str, name: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "UPDATE contexts SET name = ? WHERE id = ?", (name, context_id)
+        ) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
     async def list_context_files(self, context_id: str) -> list[dict[str, Any]]:
         conn = await self._get_conn()
         async with conn.execute(
@@ -368,7 +396,50 @@ class SqliteBackend:
             (context_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
+
+    async def get_context_file(self, file_id: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute(
+            "SELECT * FROM context_files WHERE id = ?", (file_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def update_context_file(self, file_id: str, content: str,
+                                   filename: str | None = None) -> bool:
+        conn = await self._get_conn()
+        if filename:
+            async with conn.execute(
+                "UPDATE context_files SET content = ?, filename = ? WHERE id = ?",
+                (content, filename, file_id),
+            ) as cursor:
+                await conn.commit()
+                return cursor.rowcount > 0
+        else:
+            async with conn.execute(
+                "UPDATE context_files SET content = ? WHERE id = ?",
+                (content, file_id),
+            ) as cursor:
+                await conn.commit()
+                return cursor.rowcount > 0
+
+    async def delete_context_file(self, file_id: str) -> bool:
+        conn = await self._get_conn()
+        # Delete associated embeddings first
+        await conn.execute("DELETE FROM embeddings WHERE file_id = ?", (file_id,))
+        async with conn.execute(
+            "DELETE FROM context_files WHERE id = ?", (file_id,)
+        ) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
 
     # ── Agents (local mode) ─────────────────────────────
 
@@ -391,8 +462,8 @@ class SqliteBackend:
         conn = await self._get_conn()
         aid = data.get("id") or str(uuid.uuid4())
         await conn.execute(
-            """INSERT INTO agents (id, name, description, system_prompt, model, temperature, config_json, styling_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO agents (id, name, description, system_prompt, model, temperature, config_json, styling_json, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
             (aid, data["name"], data.get("description", ""), data.get("system_prompt", ""),
              data.get("model", "deepseek-chat"), data.get("temperature", 0.7),
               data.get("config_yaml", ""), data.get("styling", "")),
@@ -404,13 +475,29 @@ class SqliteBackend:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM agents ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def get_agent(self, agent_id: str) -> dict[str, Any] | None:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)) as cursor:
             row = await cursor.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        result = dict(row)
+        # context_ids is stored as a JSON string — parse to list
+        if isinstance(result.get("context_ids"), str):
+            try:
+                result["context_ids"] = json.loads(result["context_ids"])
+            except (json.JSONDecodeError, TypeError):
+                result["context_ids"] = []
+        return result
 
     async def delete_agent(self, agent_id: str) -> bool:
         conn = await self._get_conn()
@@ -421,9 +508,15 @@ class SqliteBackend:
             return cursor.rowcount > 0
 
     async def update_agent(self, agent_id: str, data: dict[str, Any]) -> bool:
+        import json as _json
         conn = await self._get_conn()
         sets = ", ".join(f"{k} = ?" for k in data.keys())
-        values = list(data.values()) + [agent_id]
+        # Always bump updated_at on every update
+        sets += ", updated_at = datetime('now')"
+        values = [
+            _json.dumps(v) if isinstance(v, list) else v
+            for v in data.values()
+        ] + [agent_id]
         async with conn.execute(f"UPDATE agents SET {sets} WHERE id = ?", values) as cursor:
             await conn.commit()
             return cursor.rowcount > 0
@@ -434,7 +527,14 @@ class SqliteBackend:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM glyphs ORDER BY name") as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def add_glyph(self, data: dict[str, Any]) -> dict[str, Any]:
         import uuid
@@ -471,7 +571,14 @@ class SqliteBackend:
                 "SELECT * FROM concepts ORDER BY created_at DESC LIMIT ?", (limit,)
             ) as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     # ── Global Memories (local mode) ─────────────────────
 
@@ -488,7 +595,14 @@ class SqliteBackend:
                 "SELECT * FROM global_memories ORDER BY created_at DESC LIMIT ?", (limit,)
             ) as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     # ── Agent Versions (local mode) ──────────────────────
 
@@ -499,7 +613,14 @@ class SqliteBackend:
             (agent_id, limit)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def save_agent_version(self, agent_id: str, config: dict, yaml_str: str = "",
                                   author: str = "human", change_description: str = "",
@@ -551,7 +672,14 @@ class SqliteBackend:
         else:
             async with conn.execute("SELECT * FROM ab_tests ORDER BY created_at DESC") as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def update_ab_test_status(self, test_id: str, status: str) -> dict[str, Any] | None:
         conn = await self._get_conn()
@@ -567,7 +695,14 @@ class SqliteBackend:
             "SELECT * FROM ab_test_results WHERE test_id = ? ORDER BY created_at DESC", (test_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def get_ab_aggregate(self, test_id: str) -> dict[str, Any]:
         conn = await self._get_conn()
@@ -653,7 +788,14 @@ class SqliteBackend:
             (user_identity, limit)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     # ── Sessions ─────────────────────────────────────────
 
@@ -688,6 +830,31 @@ class SqliteBackend:
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
         }
+
+    async def list_sessions(self, agent_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM sessions WHERE json_extract(config_json, '$.agent_id') = ? ORDER BY updated_at DESC LIMIT ?",
+                (agent_id, limit),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute(
+                "SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        results = []
+        for row in rows:
+            results.append({
+                "session_id": row["id"],
+                "agent_config": json.loads(row["config_json"]),
+                "context_ids": json.loads(row["context_ids"]),
+                "messages_count": len(json.loads(row["messages_json"])),
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            })
+        return results
 
     async def add_message(
         self, session_id: str, role: str, content: str,
@@ -775,7 +942,14 @@ class SqliteBackend:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM api_integrations ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def create_integration(self, data: dict[str, Any]) -> dict[str, Any]:
         import uuid
@@ -835,11 +1009,100 @@ class SqliteBackend:
         else:
             async with conn.execute("SELECT * FROM mcp_servers ORDER BY created_at DESC") as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def delete_mcp_server(self, sid: str) -> bool:
         conn = await self._get_conn()
         async with conn.execute("DELETE FROM mcp_servers WHERE id = ?", (sid,)) as cursor:
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    # ── Widget Templates ─────────────────────────────────────
+
+    async def create_widget_template(self, data: dict[str, Any]) -> dict[str, Any]:
+        import uuid
+        conn = await self._get_conn()
+        wid = data.get("id") or str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO widget_templates (id, agent_id, name, type, props_json)
+               VALUES (?, ?, ?, ?, ?)""",
+            (wid, data["agent_id"], data.get("name", ""), data.get("type", "button"),
+             json.dumps(data.get("props", {}))),
+        )
+        await conn.commit()
+        return await self.get_widget_template(wid) or {}
+
+    async def list_widget_templates(self, agent_id: str | None = None) -> list[dict[str, Any]]:
+        conn = await self._get_conn()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM widget_templates WHERE agent_id = ? ORDER BY updated_at DESC",
+                (agent_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with conn.execute("SELECT * FROM widget_templates ORDER BY updated_at DESC") as cursor:
+                rows = await cursor.fetchall()
+        results = [dict(r) for r in rows]
+        for r in results:
+            if isinstance(r.get("props_json"), str):
+                try:
+                    r["props"] = json.loads(r["props_json"])
+                except (json.JSONDecodeError, TypeError):
+                    r["props"] = {}
+        return results
+
+    async def get_widget_template(self, wid: str) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        async with conn.execute("SELECT * FROM widget_templates WHERE id = ?", (wid,)) as cursor:
+            row = await cursor.fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        if isinstance(result.get("props_json"), str):
+            try:
+                result["props"] = json.loads(result["props_json"])
+            except (json.JSONDecodeError, TypeError):
+                result["props"] = {}
+        return result
+
+    async def update_widget_template(self, wid: str, data: dict[str, Any]) -> dict[str, Any] | None:
+        conn = await self._get_conn()
+        existing = await self.get_widget_template(wid)
+        if not existing:
+            return None
+        updates = {**existing, **data}
+        if "props" in data and isinstance(data["props"], dict):
+            data = {**data, "props_json": json.dumps(data["props"])}
+            data.pop("props", None)
+        # Build SET clause from data keys
+        set_parts = []
+        values = []
+        for k, v in data.items():
+            if k in ("name", "type", "props_json", "agent_id"):
+                set_parts.append(f"{k} = ?")
+                values.append(v)
+        if not set_parts:
+            return existing
+        set_parts.append("updated_at = datetime('now')")
+        values.append(wid)
+        await conn.execute(
+            f"UPDATE widget_templates SET {', '.join(set_parts)} WHERE id = ?",
+            values,
+        )
+        await conn.commit()
+        return await self.get_widget_template(wid)
+
+    async def delete_widget_template(self, wid: str) -> bool:
+        conn = await self._get_conn()
+        async with conn.execute("DELETE FROM widget_templates WHERE id = ?", (wid,)) as cursor:
             await conn.commit()
             return cursor.rowcount > 0
 
@@ -877,10 +1140,17 @@ class SqliteBackend:
             row = await cursor.fetchone()
         return dict(row) if row else None
 
-    async def get_page_by_slug(self, slug: str) -> dict[str, Any] | None:
+    async def get_page_by_slug(self, slug: str, agent_id: str | None = None) -> dict[str, Any] | None:
         conn = await self._get_conn()
-        async with conn.execute("SELECT * FROM agent_pages WHERE slug = ?", (slug,)) as cursor:
-            row = await cursor.fetchone()
+        if agent_id:
+            async with conn.execute(
+                "SELECT * FROM agent_pages WHERE slug = ? AND agent_id = ? ORDER BY updated_at DESC",
+                (slug, agent_id),
+            ) as cursor:
+                row = await cursor.fetchone()
+        else:
+            async with conn.execute("SELECT * FROM agent_pages WHERE slug = ? ORDER BY updated_at DESC", (slug,)) as cursor:
+                row = await cursor.fetchone()
         return dict(row) if row else None
 
     async def list_pages(self, agent_id: str | None = None) -> list[dict[str, Any]]:
@@ -894,7 +1164,14 @@ class SqliteBackend:
         else:
             async with conn.execute("SELECT * FROM agent_pages ORDER BY updated_at DESC") as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def update_page(self, pid: str, data: dict[str, Any]) -> dict[str, Any] | None:
         conn = await self._get_conn()
@@ -964,7 +1241,14 @@ class SqliteBackend:
                 "SELECT id, key_prefix, name, agent_id, scopes, revoked, last_used_at, created_at FROM api_keys ORDER BY created_at DESC"
             ) as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def revoke_api_key(self, kid: str) -> bool:
         conn = await self._get_conn()
@@ -1009,7 +1293,14 @@ class SqliteBackend:
             f"SELECT * FROM audit_events {where} ORDER BY created_at DESC LIMIT ?", tuple(params)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     # ── Agent Tests ────────────────────────────────────────
     async def create_test(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -1037,7 +1328,14 @@ class SqliteBackend:
         else:
             async with conn.execute("SELECT * FROM agent_tests ORDER BY created_at DESC") as cursor:
                 rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def delete_test(self, tid: str) -> bool:
         conn = await self._get_conn()
@@ -1099,7 +1397,14 @@ class SqliteBackend:
         conn = await self._get_conn()
         async with conn.execute("SELECT * FROM teams ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def add_team_member(self, team_id: str, user_id: str, role: str = "member") -> dict[str, Any]:
         import uuid
@@ -1121,7 +1426,14 @@ class SqliteBackend:
             "JOIN users u ON tm.user_id = u.id WHERE tm.team_id = ?", (team_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+        for agent in result:
+            if isinstance(agent.get("context_ids"), str):
+                try:
+                    agent["context_ids"] = json.loads(agent["context_ids"])
+                except (json.JSONDecodeError, TypeError):
+                    agent["context_ids"] = []
+        return result
 
     async def record_test_result(self, tid: str, passed: bool) -> None:
         conn = await self._get_conn()

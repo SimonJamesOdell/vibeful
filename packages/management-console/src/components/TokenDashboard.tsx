@@ -129,7 +129,7 @@ export default function TokenDashboard() {
                   )}
                   <div>
                     <div className="text-xs text-slate-300">{tx.description || tx.transaction_type}</div>
-                    <div className="text-[9px] text-slate-600">{new Date(tx.created_at).toLocaleDateString()}</div>
+                    <div className="text-[9px] text-slate-600">{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '—'}</div>
                   </div>
                 </div>
                 <span className={`text-xs font-medium ${tx.transaction_type === 'usage' ? 'text-red-400' : 'text-green-400'}`}>

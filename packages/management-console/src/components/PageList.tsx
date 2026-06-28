@@ -87,7 +87,7 @@ export default function PageList({ activeAgentId, onEdit }: { activeAgentId: str
                     <span className="font-mono">/{page.slug}</span>
                     <span>·</span>
                     <Clock size={10} />
-                    <span>{new Date(page.updated_at).toLocaleDateString()}</span>
+                    <span>{page.updated_at ? new Date(page.updated_at).toLocaleDateString() : '—'}</span>
                   </div>
                 </div>
               </div>

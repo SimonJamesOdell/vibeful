@@ -110,6 +110,16 @@ _mcp_tool_cache: dict[str, list[McpToolDef]] = {}
 def get_db() -> Database:
     global _db
     if _db is None:
+        # Use the shared database instance from rest_server if available.
+        # This avoids creating a second psycopg connection (which fails on
+        # Windows ProactorEventLoop) when the engine is running in SQLite mode.
+        try:
+            from .rest_server import _db_lucid
+            if _db_lucid is not None:
+                _db = _db_lucid
+                return _db
+        except (ImportError, AttributeError):
+            pass
         _db = Database()
     return _db
 
@@ -203,6 +213,10 @@ async def system_message_builder_node(state: AgentState) -> AgentState:
 
 async def rag_node(state: AgentState) -> AgentState:
     if not state.context_ids:
+        return state
+    db = get_db()
+    # Vector search requires pgvector (PostgreSQL). Skip gracefully on SQLite.
+    if not hasattr(db, 'search_chunks'):
         return state
     try:
         rag = get_rag()

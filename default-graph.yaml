@@ -1,0 +1,85 @@
+# Default Agent Graph Configuration
+#
+# Copy this file and customise the node set for your application.
+# The vibeful engine compiles this YAML into a per-agent LangGraph StateGraph.
+# 16 built-in nodes are available — see packages/agent-engine/src/graph/registry.py
+# for the complete list of node types callable by name.
+#
+# Usage:
+#   POST /v1/agents  with config_yaml = <this file contents>
+#   PUT  /v1/agents/{id} with config_yaml = <this file contents>
+#
+# The Management Console visual designer reads this config to render the
+# drag-and-drop node editor. Site owners can then add, remove, or rewire
+# nodes to customise agent behaviour.
+
+graph:
+  entry: attack_guard
+  nodes:
+    - name: attack_guard
+      type: builtin.attack_guard
+    - name: setup
+      type: builtin.setup
+    - name: fact_recall
+      type: builtin.fact_recall
+    - name: planning
+      type: builtin.planning
+    - name: buttons
+      type: builtin.buttons
+    - name: system_message_builder
+      type: builtin.system_message_builder
+    - name: analysis_pipeline
+      type: builtin.analysis_pipeline
+    - name: rag
+      type: builtin.rag
+    - name: mcp_discovery
+      type: builtin.mcp_discovery
+    - name: react_agent
+      type: builtin.react_agent
+    - name: output_router
+      type: builtin.output_router
+    - name: stream_completion
+      type: builtin.stream_completion
+    - name: citation
+      type: builtin.citation
+    - name: follow_up
+      type: builtin.follow_up
+    - name: fact_mining
+      type: builtin.fact_mining
+  edges:
+    - from: attack_guard
+      routes:
+        safe: setup
+        end: __END__
+    - from: setup
+      to: fact_recall
+    - from: fact_recall
+      to: planning
+    - from: planning
+      to: buttons
+    - from: buttons
+      to: system_message_builder
+    - from: system_message_builder
+      to: analysis_pipeline
+    - from: analysis_pipeline
+      condition: builtin.router
+      routes:
+        rag: rag
+        react_agent: react_agent
+        mcp_discovery: mcp_discovery
+    - from: rag
+      to: mcp_discovery
+    - from: mcp_discovery
+      to: react_agent
+    - from: react_agent
+      to: output_router
+    - from: output_router
+      to: stream_completion
+    - from: stream_completion
+      to: citation
+    - from: citation
+      to: follow_up
+    - from: follow_up
+      to: fact_mining
+    - from: fact_mining
+      to: __END__

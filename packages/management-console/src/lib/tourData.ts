@@ -29,10 +29,24 @@ export const PAGE_TOURS: Record<string, PageTourStep[]> = {
     },
     {
       selector: '[data-tour="dashboard-pages"]',
-      title: 'Agent Pages',
-      description: 'Agents can create and publish interactive pages with forms, charts, and cards. Users visit /p/slug to see them.',
+      title: 'Pages',
+      description: 'Each page is a standalone document with markdown content and interactive widgets. Published pages appear at /p/slug.',
       position: 'left',
       learnMoreUrl: 'docs.html#agent-pages',
+    },
+    {
+      selector: '[data-tour="dashboard-widgets"]',
+      title: 'Widgets',
+      description: 'Interactive components embedded in pages — buttons, forms, charts, tables. Create widgets inside the Page Editor and they render dynamically.',
+      position: 'bottom',
+      learnMoreUrl: 'docs.html#agent-pages',
+    },
+    {
+      selector: '[data-tour="dashboard-conversations"]',
+      title: 'Recent Conversations',
+      description: 'Live agent activity feed — see recent sessions, message counts, and which agents are handling conversations right now.',
+      position: 'bottom',
+      learnMoreUrl: 'docs.html#analytics',
     },
   ],
 
@@ -176,6 +190,31 @@ export const PAGE_TOURS: Record<string, PageTourStep[]> = {
       description: 'Select an agent to see its specific analytics — how many pages it has, how many MCP servers are attached, and usage stats.',
       position: 'right',
       learnMoreUrl: 'docs.html#analytics',
+    },
+  ],
+
+  // ═══ SYSTEM HEALTH ═══
+  health: [
+    {
+      selector: '[data-tour="health-status"]',
+      title: 'Engine & API Status',
+      description: 'At-a-glance health of your Vibeful engine and DeepSeek API connection. Green means everything is running.',
+      position: 'bottom',
+      learnMoreUrl: 'docs/getting-started.md',
+    },
+    {
+      selector: '[data-tour="health-diagnostics"]',
+      title: 'Quick Diagnostics',
+      description: 'Endpoint URLs, API key status, and database configuration — all in one place. Check here when something isn\'t working.',
+      position: 'right',
+      learnMoreUrl: 'docs/getting-started.md',
+    },
+    {
+      selector: '[data-tour="health-troubleshooting"]',
+      title: 'Troubleshooting',
+      description: 'Common fixes for engine startup, API key setup, and database issues. Copy the commands directly from here.',
+      position: 'right',
+      learnMoreUrl: 'docs/getting-started.md',
     },
   ],
 };

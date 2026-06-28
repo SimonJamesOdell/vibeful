@@ -897,6 +897,91 @@ export default function AIAssistantPanel({ agents, contexts, activeTab, activeAg
       return await resp.json();
     });
 
+    // ── Widget commands ────────────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.CREATE_WIDGET, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      if (!agentId) throw new Error('No agent selected');
+      const wtype = (details.type as string) || 'button';
+      const validTypes = ['button', 'card', 'form', 'chart', 'table'];
+      if (!validTypes.includes(wtype)) throw new Error(`Invalid widget type: ${wtype}. Must be one of: ${validTypes.join(', ')}`);
+      const resp = await fetch('/v1/widget-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          name: (details.name as string) || `Untitled ${wtype}`,
+          type: wtype,
+          props: (details.props as Record<string, unknown>) || {},
+        }),
+      });
+      if (!resp.ok) throw new Error('Failed to create widget');
+      const widget = await resp.json();
+      return { id: widget.id, name: widget.name, type: widget.type };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.DELETE_WIDGET, async (details) => {
+      const widgetId = details.widget_id as string;
+      if (!widgetId) throw new Error('widget_id required');
+      const resp = await fetch(`/v1/widget-templates/${widgetId}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete widget');
+      return { deleted: true, widget_id: widgetId };
+    });
+
+    registerCommandHandler(CONSOLE_COMMANDS.LIST_WIDGETS, async (details) => {
+      const params = new URLSearchParams();
+      if (details.agent_id) params.set('agent_id', details.agent_id as string);
+      const resp = await fetch(`/v1/widget-templates?${params.toString()}`);
+      if (!resp.ok) throw new Error('Failed to fetch widgets');
+      return await resp.json();
+    });
+
+    // ── Shell scaffold command ─────────────────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.SCAFFOLD_SHELL, async (details) => {
+      const agentId = (details.agent_id || activeAgentId) as string;
+      if (!agentId) throw new Error('No agent selected');
+      // Trigger browser download of the scaffold ZIP
+      const resp = await fetch(`/v1/agents/${agentId}/scaffold`);
+      if (!resp.ok) throw new Error('Failed to generate shell');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agent-shell.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return { downloaded: true, agent_id: agentId };
+    });
+
+    // ── Build site command (orchestration) ─────────────────
+
+    registerCommandHandler(CONSOLE_COMMANDS.BUILD_SITE, async (details) => {
+      const siteDesc = details.site_description as string;
+      if (!siteDesc) throw new Error('site_description required — describe the site to build');
+      const agentId = (details.agent_id || activeAgentId) as string;
+      const seedUrl = details.seed_url as string | undefined;
+
+      // This command returns instructions for the AI to execute the build step-by-step.
+      // The handler itself doesn't do the build — the AI reads this result and executes
+      // create_agent, create_context, ingest_context, create_page, create_widget, etc.
+      return {
+        instructions: `Build a complete agentic site for: ${siteDesc}`,
+        agent_id: agentId || '(will be created)',
+        seed_url: seedUrl || 'none',
+        steps: [
+          '1. create_agent — Create the agent with a comprehensive system prompt describing the business',
+          '2. create_context — Create a knowledge base for the product/service catalog',
+          '3. ingest_context — Ingest the full catalog/documentation into the knowledge base',
+          '4. create_page — Create pages for each major section (home, products, about, contact, etc.)',
+          '5. create_widget — Create reusable widgets (chat buttons, product cards, forms)',
+          '6. scaffold_shell — Generate the downloadable frontend shell',
+        ],
+      };
+    });
+
     registerCommandHandler(CONSOLE_COMMANDS.BROWSE_MCP_CATALOG, async () => {
       const resp = await fetch('/v1/mcp-servers');
       if (!resp.ok) throw new Error('Failed to fetch MCP catalog');

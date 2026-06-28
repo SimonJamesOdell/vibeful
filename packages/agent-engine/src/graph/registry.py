@@ -61,9 +61,9 @@ def _register_builtins() -> None:
         citation_node,
         follow_up_node,
         fact_mining_node,
+        router_node,  # ← the state-aware wrapper, not classify_intent directly
     )
     from ..analysis_pipeline import analysis_pipeline_node, output_router_node
-    from ..quality_nodes import classify_intent as router_node
 
     builtins = {
         "builtin.attack_guard": attack_guard_node,

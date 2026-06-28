@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, X, Trash2, Server, Key, Globe, RefreshCw, Loader2, Wrench, Shield, Play, Square, Circle } from 'lucide-react';
 
 interface McpServer {
@@ -40,7 +40,7 @@ const BUILTIN_DESCS: Record<string, string> = {
   'builtin-calculator': 'Math expression evaluator',
 };
 
-export default function McpServers() {
+export default function McpServers({ scrollToId }: { scrollToId?: string | null }) {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +54,26 @@ export default function McpServers() {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to a specific server when scrollToId is provided.
+  // Uses servers.length (not loading) so it retries after fetch completes.
+  useEffect(() => {
+    if (scrollToId && servers.length > 0) {
+      const raf = requestAnimationFrame(() => {
+        if (listRef.current) {
+          const el = listRef.current.querySelector(`[data-server-id="${scrollToId}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Add a temporary highlight
+            el.classList.add('ring-2', 'ring-indigo-500');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-500'), 2000);
+          }
+        }
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [scrollToId, servers]);
 
   const fetchServers = () => {
     setLoading(true);
@@ -341,7 +361,7 @@ export default function McpServers() {
           <Loader2 size={20} className="animate-spin text-slate-500" />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6" ref={listRef}>
           {/* ── Built-in servers ─────────────────────────── */}
           {builtinServers.length > 0 && (
             <div>
@@ -376,7 +396,7 @@ export default function McpServers() {
                   const hs = health[srv.id];
                   const isHealthy = hs?.healthy;
                   return (
-                    <div key={srv.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                    <div key={srv.id} data-server-id={srv.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="relative flex-shrink-0">
@@ -502,7 +522,7 @@ export default function McpServers() {
                   const hs = health[srv.id];
                   const isHealthy = hs?.healthy;
                   return (
-                    <div key={srv.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                    <div key={srv.id} data-server-id={srv.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="relative flex-shrink-0">

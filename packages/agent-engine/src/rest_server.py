@@ -142,12 +142,77 @@ async def _startup_db():
         print(f"[vibeful] ERROR: Database initialization failed: {e}")
 
 _graph = None
+_graph_cache: dict[str, Any] = {}
+"""Per-agent compiled graph cache. Keyed by agent_id.
+Agents with a populated config_json get their own compiled graph.
+Agents with empty config_json fall back to the global _graph.
+The cache is invalidated when an agent is updated."""
+
+# No hardcoded default graph config — the node set for each agent is
+# determined at build time based on what the specific application requires.
+# A store assistant, a research agent, and a customer support bot each
+# need different pipelines. The builder (CodeWhale) sets config_yaml
+# explicitly when creating agents for a new application.
 
 
 def set_graph(graph: Any) -> None:
     """Set the compiled agent graph (called from main.py)."""
     global _graph
     _graph = graph
+
+
+def _get_or_build_agent_graph(agent_id: str, config_json: str | None) -> Any:
+    """Get or build a compiled graph for a specific agent.
+
+    If the agent has a config_json with nodes defined, builds a
+    custom graph from that config (via graph/builder.py). Otherwise
+    falls back to the global _graph. Results are cached by agent_id.
+    """
+    global _graph_cache, _graph
+
+    # Return cached graph if available
+    if agent_id in _graph_cache:
+        return _graph_cache[agent_id]
+
+    # Try to build from agent's config_json
+    if config_json and config_json.strip():
+        try:
+            import yaml as _yaml
+            import json as _json
+            # config_json may be YAML or JSON
+            raw = config_json.strip()
+            if raw.startswith("{"):
+                config = _json.loads(raw)
+            else:
+                config = _yaml.safe_load(raw)
+
+            # Only build custom graph if nodes are defined
+            graph_section = config.get("graph", config) if isinstance(config, dict) else {}
+            nodes = graph_section.get("nodes", []) if isinstance(graph_section, dict) else []
+            if nodes:
+                from .graph.builder import build_graph_from_config
+                compiled = build_graph_from_config(config)
+                _graph_cache[agent_id] = compiled
+                return compiled
+        except Exception:
+            pass  # Fall through to global graph on any parse error
+
+    # Fall back to global graph
+    _graph_cache[agent_id] = _graph
+    return _graph
+
+
+def _invalidate_graph_cache(agent_id: str | None = None) -> None:
+    """Invalidate the per-agent graph cache.
+
+    Called when an agent is updated or deleted.
+    If agent_id is None, clears the entire cache.
+    """
+    global _graph_cache
+    if agent_id is None:
+        _graph_cache.clear()
+    else:
+        _graph_cache.pop(agent_id, None)
 
 
 class ConverseRequest(BaseModel):
@@ -479,13 +544,128 @@ async def list_transactions(user_identity: str, limit: int = 50):
 
 class SessionCreateRequest(BaseModel):
     agent_id: str = ""
+    context_ids: list[str] | None = None
+    mcp_server_urls: list[str] | None = None
 
 
 @app.post("/v1/sessions")
 async def create_session(req: SessionCreateRequest):
-    """Create a stub session — used by the website chatbot and SDK."""
+    """Create a session — used by the SDK (VibefulApp, VibefulChat)."""
     session_id = str(uuid.uuid4())
+    # Store session in DB so converse can look up agent config
+    db = _require_db()
+    if hasattr(db, 'create_session'):
+        await db.create_session({
+            "session_id": session_id,
+            "agent_config": {
+                "agent_id": req.agent_id,
+                "context_ids": req.context_ids or [],
+                "mcp_server_urls": req.mcp_server_urls or [],
+            },
+            "context_ids": req.context_ids or [],
+            "messages": [],
+        })
     return {"session_id": session_id, "agent_id": req.agent_id}
+
+
+class SessionConverseRequest(BaseModel):
+    content: str
+    tool_results: list[dict] | None = None
+
+
+@app.get("/v1/sessions")
+async def list_sessions(agent_id: str | None = None, limit: int = 100):
+    """List recent sessions with message counts."""
+    db = _require_db()
+    if hasattr(db, 'list_sessions'):
+        return await db.list_sessions(agent_id, limit)
+    return []
+
+
+@app.post("/v1/sessions/{session_id}/converse")
+async def session_converse(session_id: str, req: SessionConverseRequest):
+    """Send a message in an existing session — used by the SDK (VibefulApp, VibefulChat).
+    
+    Uses the agent's own compiled graph (from config_json) when nodes are defined,
+    falling back to the global default graph when no per-agent nodes are configured.
+    """
+    if _graph is None:
+        raise HTTPException(503, "Agent graph not initialized")
+
+    # Look up session metadata to get agent config
+    db = _require_db()
+    session = await db.get_session(session_id) if hasattr(db, 'get_session') else None
+    agent_config = session.get("agent_config", {}) if session else {}
+    agent_id = agent_config.get("agent_id", "") if isinstance(agent_config, dict) else ""
+    
+    agent = None
+    if agent_id:
+        agent = await db.get_agent(agent_id) if hasattr(db, 'get_agent') else None
+
+    # Parse context_ids and mcp_server_urls from session config
+    ctx_ids = list(agent_config.get("context_ids", [])) if isinstance(agent_config, dict) else []
+    mcp_urls = list(agent_config.get("mcp_server_urls", [])) if isinstance(agent_config, dict) else []
+
+    # Also parse context_ids from agent config (stored as JSON string in SQLite)
+    if agent and agent.get("context_ids"):
+        raw = agent["context_ids"]
+        if isinstance(raw, str) and raw.strip():
+            try:
+                import json as _json
+                ctx_ids = _json.loads(raw)
+            except Exception:
+                ctx_ids = []
+        elif isinstance(raw, list):
+            ctx_ids = raw
+
+    from .agent_graph import AgentState
+
+    state = AgentState(
+        session_id=session_id,
+        user_message=req.content,
+        system_prompt=agent.get("system_prompt", "") if agent else "",
+        model=agent.get("model", "deepseek-chat") if agent else "deepseek-chat",
+        temperature=agent.get("temperature", 0.7) if agent else 0.7,
+        top_p=1.0,
+        max_tokens=4096,
+        context_ids=ctx_ids,
+        mcp_server_urls=mcp_urls,
+        analysis_config=None,
+    )
+
+    # Build or retrieve the per-agent graph (from config_json if nodes defined, else global default)
+    agent_graph = _get_or_build_agent_graph(agent_id, agent.get("config_json") if agent else None)
+
+    try:
+        result = await agent_graph.ainvoke(state)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(500, f"Agent error: {e}\n\nTraceback:\n{tb}")
+
+    # LangGraph's ainvoke returns a dict, not an AgentState object
+    response_chunks = result.get("response_chunks", []) if isinstance(result, dict) else getattr(result, "response_chunks", [])
+
+    chunks = []
+    for chunk in response_chunks:
+        state_label = chunk.get("state", "")
+        if state_label == "STREAMING":
+            chunks.append({"state": "STREAMING", "text_chunk": chunk.get("text_chunk", "")})
+        elif state_label == "TOOL_USED":
+            chunks.append({"state": "TOOL_USED", "tool_call": chunk.get("tool_call", {})})
+        elif state_label == "COMPLETED":
+            chunks.append({"state": "COMPLETED", "usage": chunk.get("usage", {})})
+        elif state_label == "REFERENCES":
+            chunks.append({"state": "REFERENCES", "text_chunk": chunk.get("text_chunk", ""),
+                          "citations": chunk.get("citations", [])})
+        elif state_label == "FOLLOW_UP":
+            chunks.append({"state": "FOLLOW_UP",
+                          "follow_up_questions": chunk.get("follow_up_questions", []),
+                          "quick_replies": chunk.get("quick_replies", [])})
+        if chunk.get("error"):
+            chunks.append({"state": "ERROR", "error": chunk["error"]})
+
+    return {"chunks": chunks}
 
 
 # ── Contexts (Knowledge Base) ─────────────────────────────
@@ -554,11 +734,63 @@ async def ingest_text(context_id: str, req: ContextIngestRequest):
     return result
 
 
+@app.put("/v1/contexts/{context_id}")
+async def rename_context(context_id: str, request: Request):
+    """Rename a knowledge context."""
+    body = await request.json()
+    name = body.get("name", "").strip()
+    if not name:
+        raise HTTPException(400, "name is required")
+    db = _require_db()
+    ok = await db.rename_context(context_id, name)
+    if not ok:
+        raise HTTPException(404, "context not found")
+    ctx = await db.get_context(context_id)
+    return ctx
+
+
 @app.get("/v1/contexts/{context_id}/files")
 async def list_context_files(context_id: str):
     """List all ingested files in a context."""
     db = _require_db()
     return await db.list_context_files(context_id)
+
+
+@app.get("/v1/contexts/{context_id}/files/{file_id}")
+async def get_context_file(context_id: str, file_id: str):
+    """Get a single context file by ID."""
+    db = _require_db()
+    f = await db.get_context_file(file_id)
+    if not f or f.get("context_id") != context_id:
+        raise HTTPException(404, "file not found")
+    return f
+
+
+class UpdateContextFileRequest(BaseModel):
+    content: str
+    filename: str | None = None
+
+
+@app.put("/v1/contexts/{context_id}/files/{file_id}")
+async def update_context_file(context_id: str, file_id: str, req: UpdateContextFileRequest):
+    """Update a context file's content (and optionally its filename)."""
+    db = _require_db()
+    f = await db.get_context_file(file_id)
+    if not f or f.get("context_id") != context_id:
+        raise HTTPException(404, "file not found")
+    await db.update_context_file(file_id, req.content, req.filename)
+    return await db.get_context_file(file_id)
+
+
+@app.delete("/v1/contexts/{context_id}/files/{file_id}")
+async def delete_context_file(context_id: str, file_id: str):
+    """Delete a single file from a context."""
+    db = _require_db()
+    f = await db.get_context_file(file_id)
+    if not f or f.get("context_id") != context_id:
+        raise HTTPException(404, "file not found")
+    await db.delete_context_file(file_id)
+    return {"deleted": True}
 
 
 # ── Multimodal Analysis ───────────────────────────────────
@@ -694,6 +926,7 @@ async def delete_agent(agent_id: str):
     deleted = await db.delete_agent(agent_id)
     if not deleted:
         raise HTTPException(404, "agent not found")
+    _invalidate_graph_cache(agent_id)
     return {"deleted": True}
 
 
@@ -733,6 +966,8 @@ async def update_agent(agent_id: str, req: AgentUpdateRequest):
     if updates:
         await db.update_agent(agent_id, updates)
         agent.update(updates)
+        # Invalidate cached graph so the designer's changes take effect immediately
+        _invalidate_graph_cache(agent_id)
     return agent
 
 
@@ -1054,6 +1289,54 @@ async def delete_mcp_server(sid: str):
     return {"status": "deleted"}
 
 
+# ── Widget Templates ─────────────────────────────────────────
+
+class WidgetTemplateCreateRequest(BaseModel):
+    agent_id: str
+    name: str = ""
+    type: str = "button"
+    props: dict = {}
+
+class WidgetTemplateUpdateRequest(BaseModel):
+    name: str | None = None
+    type: str | None = None
+    props: dict | None = None
+
+@app.post("/v1/widget-templates")
+async def create_widget_template(req: WidgetTemplateCreateRequest):
+    db = _require_db()
+    return await db.create_widget_template(req.model_dump())
+
+@app.get("/v1/widget-templates")
+async def list_widget_templates(agent_id: str | None = None):
+    db = _require_db()
+    return await db.list_widget_templates(agent_id)
+
+@app.get("/v1/widget-templates/{wid}")
+async def get_widget_template(wid: str):
+    db = _require_db()
+    wt = await db.get_widget_template(wid)
+    if not wt:
+        raise HTTPException(404, "Widget template not found")
+    return wt
+
+@app.put("/v1/widget-templates/{wid}")
+async def update_widget_template(wid: str, req: WidgetTemplateUpdateRequest):
+    db = _require_db()
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    wt = await db.update_widget_template(wid, updates)
+    if not wt:
+        raise HTTPException(404, "Widget template not found")
+    return wt
+
+@app.delete("/v1/widget-templates/{wid}")
+async def delete_widget_template(wid: str):
+    db = _require_db()
+    deleted = await db.delete_widget_template(wid)
+    if not deleted:
+        raise HTTPException(404, "Widget template not found")
+    return {"deleted": True}
+
 # ── Agent Pages ────────────────────────────────────────────
 
 class PageCreateRequest(BaseModel):
@@ -1088,9 +1371,9 @@ async def get_page(pid: str):
 
 
 @app.get("/v1/pages/slug/{slug}")
-async def get_page_by_slug(slug: str):
+async def get_page_by_slug(slug: str, agent_id: str | None = None):
     db = _require_db()
-    page = await db.get_page_by_slug(slug)
+    page = await db.get_page_by_slug(slug, agent_id=agent_id)
     if not page:
         raise HTTPException(404, "Page not found")
     return page
@@ -1342,6 +1625,271 @@ async def import_agent(req: AgentImportRequest):
             await db.update_agent(aid, updates)
 
     return result
+
+
+# ── Shell Scaffold (thin-client generator) ──────────────────
+
+@app.get("/v1/agents/{agent_id}/scaffold")
+async def scaffold_shell(agent_id: str):
+    """Generate and download a pre-configured React frontend shell for an agent."""
+    import io, zipfile
+    from fastapi.responses import StreamingResponse
+
+    db = _require_db()
+    agent = await db.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(404, "Agent not found")
+
+    agent_name = agent.get("name", "My Agent")
+    safe_name = "".join(c if c.isalnum() else "-" for c in agent_name).strip("-").lower() or "agent-app"
+    styling = agent.get("styling_json", "light")
+    bg = {"light": "#ffffff", "dark": "#0f172a", "default": "#1e293b", "brand": "#4f46e5"}.get(styling, "#ffffff")
+    fg = {"light": "#1e293b", "dark": "#f1f5f9", "default": "#e2e8f0", "brand": "#ffffff"}.get(styling, "#1e293b")
+    font = {"light": "system-ui, -apple-system, sans-serif", "dark": '"Inter", sans-serif', "default": '"Inter", sans-serif', "brand": '"Poppins", sans-serif"'}.get(styling, "system-ui, sans-serif")
+
+    # Fetch pages
+    pages = await db.list_pages(agent_id) if hasattr(db, "list_pages") else []
+    page_slugs = [p.get("slug", "") for p in pages] if isinstance(pages, list) else []
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # package.json
+        zf.writestr(f"{safe_name}/package.json", f'''{{
+  "name": "{safe_name}",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {{
+    "dev": "vite --port 5173",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }},
+  "dependencies": {{
+    "@vibeful/sdk": "^0.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.0"
+  }},
+  "devDependencies": {{
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0"
+  }}
+}}
+''')
+        # vite.config.ts
+        zf.writestr(f"{safe_name}/vite.config.ts", """import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/v1': {
+        target: 'http://localhost:50052',
+        changeOrigin: true,
+      },
+    },
+  },
+});
+""")
+        # tsconfig.json
+        zf.writestr(f"{safe_name}/tsconfig.json", """{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}
+""")
+        # index.html
+        zf.writestr(f"{safe_name}/index.html", f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{agent_name} — Powered by Vibeful</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+""")
+        # src/main.tsx
+        zf.writestr(f"{safe_name}/src/main.tsx", """import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+const root = document.getElementById('root');
+if (!root) throw new Error('Root element not found');
+
+createRoot(root).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+""")
+        # src/index.css
+        zf.writestr(f"{safe_name}/src/index.css", f"""@import "tailwindcss";
+
+:root {{
+  --vibeful-bg: {bg};
+  --vibeful-fg: {fg};
+  --vibeful-font: {font};
+}}
+
+h1 {{ @apply text-4xl font-bold tracking-tight text-slate-900; }}
+h2 {{ @apply text-3xl font-semibold tracking-tight text-slate-900; }}
+h3 {{ @apply text-2xl font-semibold text-slate-800; }}
+
+.prose h1 {{ @apply text-4xl font-bold tracking-tight text-slate-900 mb-6; }}
+.prose h2 {{ @apply text-3xl font-semibold tracking-tight text-slate-900 mt-12 mb-4; }}
+.prose h3 {{ @apply text-2xl font-semibold text-slate-800 mt-8 mb-3; }}
+.prose p {{ @apply text-base leading-relaxed text-slate-600 mb-4; }}
+.prose ul {{ @apply list-disc pl-6 mb-4 space-y-1; }}
+.prose li {{ @apply text-slate-600; }}
+.prose strong {{ @apply font-semibold text-slate-900; }}
+.prose a {{ @apply text-indigo-600 hover:text-indigo-700 underline; }}
+""")
+        # Generate page slugs array for App.tsx
+        nav_items_js = ",\n  ".join([f'{{ slug: "{s}", label: "{s.replace("-", " ").title()}" }}' for s in page_slugs]) if page_slugs else '{ slug: "home", label: "Home" }'
+
+        # src/App.tsx
+        zf.writestr(f"{safe_name}/src/App.tsx", f"""import {{ useState, useEffect, useCallback }} from 'react';
+import {{ VibefulChat, WidgetRenderer }} from '@vibeful/sdk';
+import ReactMarkdown from 'react-markdown';
+
+const AGENT_ID = '{agent_id}';
+const API_BASE = '/v1';
+
+interface VibefulPage {{
+  id: string;
+  agent_id: string;
+  slug: string;
+  title: string;
+  content_markdown: string;
+  published: boolean;
+}}
+
+const NAV_ITEMS = [
+  {nav_items_js}
+];
+
+function extractWidgets(markdown: string): {{ clean: string; widgets: Array<{{ widget_id: string; type: string; props: Record<string, unknown> }}> }} {{
+  const widgets: Array<{{ widget_id: string; type: string; props: Record<string, unknown> }}> = [];
+  const regex = /<div data-vibeful-widget='([^']*)'><\\/div>/g;
+  let match;
+  while ((match = regex.exec(markdown)) !== null) {{
+    try {{ widgets.push(JSON.parse(match[1])); }} catch {{}}
+  }}
+  return {{ clean: markdown.replace(/<div data-vibeful-widget='[^']*'><\\/div>/g, ''), widgets }};
+}}
+
+export default function App() {{
+  const [slug, setSlug] = useState('home');
+  const [page, setPage] = useState<VibefulPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [cleanMarkdown, setCleanMarkdown] = useState('');
+  const [widgets, setWidgets] = useState<Array<{{ widget_id: string; type: string; props: Record<string, unknown> }}>>([]);
+
+  const fetchPage = useCallback(async (pageSlug: string) => {{
+    setLoading(true); setError(null);
+    try {{
+      const res = await fetch(`${{API_BASE}}/pages/slug/${{pageSlug}}?agent_id=${{AGENT_ID}}`);
+      if (!res.ok) throw new Error(res.status === 404 ? 'Page not found' : `Failed (${{res.status}})`);
+      const data = await res.json();
+      setPage(data);
+      document.title = data.title;
+      const {{ clean, widgets: w }} = extractWidgets(data.content_markdown);
+      setCleanMarkdown(clean);
+      setWidgets(w);
+    }} catch (err) {{
+      setError(err instanceof Error ? err.message : 'Failed');
+      setPage(null);
+    }} finally {{ setLoading(false); }}
+  }}, []);
+
+  useEffect(() => {{ fetchPage(slug); }}, [slug, fetchPage]);
+  useEffect(() => {{
+    const h = () => setChatOpen(true);
+    window.addEventListener('vibeful:open-chat', h);
+    return () => window.removeEventListener('vibeful:open-chat', h);
+  }}, []);
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+          <button onClick={{() => setSlug('home')}} className="text-lg font-bold text-slate-900">{agent_name}</button>
+          <nav className="hidden lg:flex items-center gap-1">
+            {{NAV_ITEMS.map((item) => (
+              <button key={{item.slug}} onClick={{() => setSlug(item.slug)}} className={{`px-3 py-2 rounded-md text-sm font-medium transition-colors ${{slug === item.slug ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}}`}}>{{item.label}}</button>
+            ))}}
+          </nav>
+          <button onClick={{() => setChatOpen(true)}} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">💬 Ask AI</button>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {{loading && <div className="space-y-4 animate-pulse"><div className="h-10 w-2/3 bg-slate-200 rounded"/><div className="h-5 w-full bg-slate-100 rounded"/></div>}}
+        {{error && <div className="text-center py-16"><p className="text-slate-500 mb-4">{{error}}</p><button onClick={{() => fetchPage(slug)}} className="px-6 py-2 bg-indigo-600 text-white rounded-lg">Retry</button></div>}}
+        {{!loading && !error && page && (
+          <article className="prose max-w-none">
+            <ReactMarkdown>{{cleanMarkdown}}</ReactMarkdown>
+            {{widgets.length > 0 && <div className="mt-8"><WidgetRenderer widgets={{widgets}} onWidgetEvent={{(e) => {{ if (e.value === 'open-chat' || (e.event_type === 'click')) setChatOpen(true); }}}} /></div>}}
+          </article>
+        )}}
+      </main>
+      <footer className="bg-white border-t border-slate-200 mt-16 py-8 text-center text-xs text-slate-400">
+        © 2026 Powered by <a href="https://vibeful.ai" className="text-indigo-600 hover:underline">Vibeful</a>
+      </footer>
+      {{chatOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={{() => setChatOpen(false)}} />
+          <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-sm font-semibold">AI Assistant</h3>
+              <button onClick={{() => setChatOpen(false)}} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div className="flex-1 min-h-0"><VibefulChat agentId={{AGENT_ID}} /></div>
+          </div>
+        </div>
+      )}}
+    </div>
+  );
+}}
+""")
+
+    buf.seek(0)
+    filename = f"{safe_name}-shell.zip"
+    return StreamingResponse(buf, media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
 # ── Agent Tests ───────────────────────────────────────────
